@@ -1,0 +1,211 @@
+{
+  "port": 3003,
+  "pages": {
+    "accueil": {
+      "html": 80533,
+      "htmlGz": 13225,
+      "jsGz": 168776,
+      "cssGz": 12462,
+      "chunks": 11,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "imagePreloads": 1
+    },
+    "scores": {
+      "html": 188677,
+      "htmlGz": 15993,
+      "jsGz": 168776,
+      "cssGz": 12462,
+      "chunks": 11,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "imagePreloads": 2
+    },
+    "article": {
+      "html": 70035,
+      "htmlGz": 13448,
+      "jsGz": 171948,
+      "cssGz": 12462,
+      "chunks": 11,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "imagePreloads": 1
+    },
+    "article-avec-cover": {
+      "html": 50783,
+      "htmlGz": 9985,
+      "jsGz": 171948,
+      "cssGz": 12462,
+      "chunks": 11,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "imagePreloads": 1
+    },
+    "compétition": {
+      "html": 81507,
+      "htmlGz": 11919,
+      "jsGz": 163423,
+      "cssGz": 12462,
+      "chunks": 10,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "imagePreloads": 0
+    },
+    "match": {
+      "html": 46666,
+      "htmlGz": 8809,
+      "jsGz": 168776,
+      "cssGz": 12462,
+      "chunks": 11,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "imagePreloads": 2
+    },
+    "abonnement": {
+      "html": 40034,
+      "htmlGz": 8029,
+      "jsGz": 164714,
+      "cssGz": 12462,
+      "chunks": 11,
+      "cacheControl": "public, max-age=0, must-revalidate",
+      "imagePreloads": 0
+    }
+  },
+  "cache": {
+    "html": "public, max-age=0, must-revalidate",
+    "chunkJs": "public, max-age=31536000, immutable",
+    "css": "public, max-age=31536000, immutable",
+    "optimizedImage": "public, max-age=60, must-revalidate",
+    "optimizedImageType": "image/png",
+    "optimizedImageNegotiated": "image/avif",
+    "api": "no-store"
+  },
+  "images": {
+    "accueil": {
+      "total": 5,
+      "dimensions": 5,
+      "sizes": 5,
+      "priority": 1,
+      "lazy": 4,
+      "withoutAlt": 0,
+      "bytes": 33642,
+      "variants": [
+        640,
+        360,
+        360,
+        360
+      ],
+      "preloads": 1
+    },
+    "scores": {
+      "total": 40,
+      "dimensions": 40,
+      "sizes": 40,
+      "priority": 2,
+      "lazy": 38,
+      "withoutAlt": 0,
+      "bytes": 43447,
+      "variants": [
+        40,
+        40,
+        40,
+        40
+      ],
+      "preloads": 2
+    },
+    "article": {
+      "total": 1,
+      "dimensions": 1,
+      "sizes": 1,
+      "priority": 1,
+      "lazy": 0,
+      "withoutAlt": 0,
+      "bytes": 21650,
+      "variants": [
+        832
+      ],
+      "preloads": 1
+    },
+    "article-avec-cover": {
+      "total": 1,
+      "dimensions": 1,
+      "sizes": 1,
+      "priority": 1,
+      "lazy": 0,
+      "withoutAlt": 0,
+      "bytes": 22677,
+      "variants": [
+        832
+      ],
+      "preloads": 1
+    },
+    "compétition": {
+      "total": 0,
+      "dimensions": 0,
+      "sizes": 0,
+      "priority": 0,
+      "lazy": 0,
+      "withoutAlt": 0,
+      "bytes": 0,
+      "variants": [],
+      "preloads": 0
+    },
+    "match": {
+      "total": 2,
+      "dimensions": 2,
+      "sizes": 2,
+      "priority": 2,
+      "lazy": 0,
+      "withoutAlt": 0,
+      "bytes": 4993,
+      "variants": [
+        96,
+        96
+      ],
+      "preloads": 2
+    },
+    "abonnement": {
+      "total": 0,
+      "dimensions": 0,
+      "sizes": 0,
+      "priority": 0,
+      "lazy": 0,
+      "withoutAlt": 0,
+      "bytes": 0,
+      "variants": [],
+      "preloads": 0
+    }
+  },
+  "fonts": {
+    "fontFaces": 8,
+    "fontDisplay": 7,
+    "fontFiles": 7,
+    "preloadedFonts": 1,
+    "nextFont": true
+  },
+  "client": {
+    "sources": 164,
+    "clientFiles": 25,
+    "names": [
+      "Analytics.tsx",
+      "ArticleForm.tsx",
+      "ArticleReactions.tsx",
+      "BackofficeNav.tsx",
+      "CategoryForm.tsx",
+      "CommentReactions.tsx",
+      "CompetitionForm.tsx",
+      "DeleteArticleButton.tsx",
+      "DeleteButton.tsx",
+      "DeleteCategoryButton.tsx",
+      "DeleteUserButton.tsx",
+      "ImageUpload.tsx",
+      "LoginForm.tsx",
+      "MatchForm.tsx",
+      "PlanCard.tsx",
+      "PublicNav.tsx",
+      "ReportModal.tsx",
+      "SportTabs.tsx",
+      "StatusSelect.tsx",
+      "StudioNav.tsx",
+      "SubscriptionStatus.tsx",
+      "SyncForm.tsx",
+      "TeamForm.tsx",
+      "UserForm.tsx",
+      "UserMenu.tsx"
+    ]
+  }
+}

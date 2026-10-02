@@ -1,0 +1,145 @@
+import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
+import { Inter } from "next/font/google";
+
+import { Analytics } from "@/components/Analytics";
+import { PublicNav, type NavCompetition } from "@/components/PublicNav";
+import { prisma } from "@/lib/prisma";
+import {
+  DEFAULT_OG_IMAGE,
+  HOME_TITLE,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+  TWITTER_CREATOR,
+  absoluteUrl,
+} from "@/lib/seo";
+import "./globals.css";
+
+/**
+ * Police du design system (WP9).
+ *
+ * Inter est auto-hébergée par next/font : aucun appel à Google au chargement,
+ * aucune requête tierce, et `display: "swap"` évite un texte invisible pendant
+ * le téléchargement. La variable `--font-inter` est consommée par
+ * tailwind.config.js (fontFamily.sans / fontFamily.display), ce qui permet de
+ * changer de police sans toucher aux composants.
+ *
+ * Les graisses 700/800 servent aux titres : une seule famille suffit, ce qui
+ * évite de télécharger une seconde police pour un gain visuel marginal.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+/**
+ * Métadonnées globales (WP8a) : URL de base, gabarit de titre, Open Graph,
+ * Twitter Card, icônes et robots. Les pages publiques surchargent ensuite
+ * canonical / openGraph / twitter via `buildPageMetadata`.
+ *
+ * Aucune URL canonique n'est déclarée ici : elle serait héritée par toutes les
+ * pages (y compris /login ou /studio) et pointerait à tort vers l'accueil.
+ */
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: HOME_TITLE,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: SITE_NAME,
+    url: SITE_URL,
+    title: HOME_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [absoluteUrl(DEFAULT_OG_IMAGE)],
+  },
+  twitter: {
+    card: "summary_large_image",
+    creator: TWITTER_CREATOR,
+    site: TWITTER_CREATOR,
+    title: HOME_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [absoluteUrl(DEFAULT_OG_IMAGE)],
+  },
+  icons: {
+    icon: [
+      // Favicon historique (src/app/favicon.ico) et version PNG 512 générée.
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+/**
+ * Compétitions du menu déroulant de la barre publique (WP9).
+ *
+ * La requête est mise en cache cinq minutes : le menu est identique sur toutes
+ * les pages, il ne doit ni interroger la base à chaque affichage ni empêcher la
+ * génération statique / ISR des pages publiques. En cas d'indisponibilité de la
+ * base, la navigation se contente de ne rien proposer plutôt que de faire
+ * échouer toutes les pages du site (y compris /studio et /backoffice).
+ */
+const getNavCompetitions = unstable_cache(
+  async (): Promise<NavCompetition[]> => {
+    try {
+      return await prisma.competition.findMany({
+        orderBy: { name: "asc" },
+        take: 8,
+        select: { slug: true, name: true },
+      });
+    } catch (error) {
+      console.warn("[nav] compétitions indisponibles :", error);
+      return [];
+    }
+  },
+  ["nav-competitions"],
+  { revalidate: 300 },
+);
+
+export default async function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const competitions = await getNavCompetitions();
+
+  return (
+    <html lang="fr" className={inter.variable}>
+      <head>
+        {/* Découverte automatique du flux RSS (WP8b). Déclarée ici plutôt que
+            dans `metadata.alternates` : chaque page publique remplace
+            `alternates` par son URL canonique, ce qui effacerait la balise. */}
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title="Flux RSS"
+          href="/rss.xml"
+        />
+      </head>
+      <body className="min-h-screen bg-neutral-50 font-sans text-neutral-900 antialiased">
+        {/* Lien d'évitement : première cible du clavier (WCAG 2.4.1). */}
+        <a
+          href="#contenu"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary-900 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        >
+          Aller au contenu principal
+        </a>
+        <PublicNav competitions={competitions} />
+        {children}
+        {/* Collecte analytics first-party (WP8d) : un beacon après `load`. */}
+        <Analytics />
+      </body>
+    </html>
+  );
+}

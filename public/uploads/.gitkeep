@@ -1,0 +1,3 @@
+# Ce dossier contient les images uploadées depuis le formulaire d'administration.
+# Il est versionné afin d'exister même sur un clone frais ; les images elles-mêmes
+# sont ignorées par .gitignore (fichiers d'upload locaux).

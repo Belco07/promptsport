@@ -1,0 +1,52 @@
+{
+  "name": "promptsport",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:seed": "node prisma/seed.cjs",
+    "db:studio": "prisma studio",
+    "db:migrate-sqlite-to-postgres": "npx tsx scripts/migrate-sqlite-to-postgres.ts",
+    "newsletter:send": "npx tsx scripts/send-campaign.ts",
+    "sync:football": "npx tsx scripts/sync-football.ts",
+    "analytics:aggregate": "npx tsx scripts/analytics-aggregate.ts"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "2.11.3",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "7.10.0",
+    "bcryptjs": "3.0.3",
+    "lucide-react": "^1.48.0",
+    "next": "15.5.26",
+    "next-auth": "5.0.0-beta.32",
+    "pg": "^8.23.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1",
+    "resend": "^6.31.0",
+    "stripe": "22.6.2",
+    "svix": "^2.6.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "better-sqlite3": "^13.0.3",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.26",
+    "prisma": "7.10.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}

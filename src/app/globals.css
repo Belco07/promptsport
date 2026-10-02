@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/* Palette et polices : la configuration vit dans tailwind.config.js (WP9).
+   Tailwind v4 lit un fichier JS uniquement s'il est déclaré ici — le chemin est
+   relatif à ce fichier (src/app/ → racine du projet). */
+@config "../../tailwind.config.js";
+
+/* ------------------------------------------------------------------ base */
+
+/**
+ * Les couleurs sont référencées via la fonction `theme()` et non via
+ * `var(--color-…)` : Tailwind v4 n'émet de variables CSS que pour les clés de
+ * thème réellement utilisées par une classe utilitaire, pas pour celles qui
+ * viennent d'un fichier de configuration JS. `theme()` est résolu à la
+ * compilation depuis tailwind.config.js : la palette reste la source unique.
+ */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    /* Inter est une police à grandes hampes : un interlignage un peu plus
+       généreux que le défaut rend les longues lectures plus confortables.
+       (Couleurs et famille de police sont posées par les classes du body,
+       dans src/app/layout.tsx.) */
+    line-height: 1.6;
+  }
+
+  /* Titres : graisse forte et interlettrage resserré (hiérarchie éditoriale). */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Focus toujours visible (WCAG 2.4.7) : anneau accent, décalé du fond. */
+  :focus-visible {
+    outline: 2px solid theme(--color-accent-500);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: theme(--color-accent-200);
+    color: theme(--color-neutral-900);
+  }
+
+  /* Les tableaux de classement défilent horizontalement sur mobile : la barre
+     de défilement est discrète mais reste visible. */
+  .scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}
+
+/* --------------------------------------------------- corps d'un article */
+
+/**
+ * Mise en forme du contenu éditorial rendu par react-markdown.
+ *
+ * Écrite en CSS plutôt qu'avec des classes sur chaque nœud : le rendu Markdown
+ * reste un composant serveur minimal, et la largeur de lecture (720 px) est
+ * décidée une seule fois.
+ */
+.article-body {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: theme(--color-neutral-800);
+}
+
+.article-body > * + * {
+  margin-top: 1.25rem;
+}
+
+.article-body h2 {
+  margin-top: 2.25rem;
+  font-size: 1.5rem;
+  line-height: 1.3;
+  color: theme(--color-neutral-900);
+}
+
+.article-body h3 {
+  margin-top: 1.75rem;
+  font-size: 1.25rem;
+  color: theme(--color-neutral-900);
+}
+
+.article-body a {
+  color: theme(--color-primary-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.article-body a:hover {
+  color: theme(--color-primary-800);
+}
+
+.article-body strong {
+  font-weight: 700;
+  color: theme(--color-neutral-900);
+}
+
+.article-body ul,
+.article-body ol {
+  padding-left: 1.35rem;
+}
+
+.article-body ul {
+  list-style: disc;
+}
+
+.article-body ol {
+  list-style: decimal;
+}
+
+.article-body li + li {
+  margin-top: 0.4rem;
+}
+
+.article-body blockquote {
+  border-left: 3px solid theme(--color-accent-500);
+  padding-left: 1rem;
+  font-style: italic;
+  color: theme(--color-neutral-700);
+}
+
+.article-body img {
+  border-radius: 0.75rem;
+}
+
+.article-body code {
+  background-color: theme(--color-neutral-100);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.9em;
+}
+
+.article-body hr {
+  border-color: theme(--color-neutral-200);
+}
+
+/* Légende d'image ou de tableau sous un bloc de contenu. */
+.article-caption {
+  font-size: 0.8125rem;
+  color: theme(--color-neutral-500);
+}
+
+/* ------------------------------------------------- préférences système */
+
+/**
+ * Les préférences de mouvement réduit sont traitées au plus près des éléments
+ * concernés, avec la variante Tailwind `motion-reduce:` (transitions d'images,
+ * zoom au survol). Seul le défilement fluide global est neutralisé ici.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+

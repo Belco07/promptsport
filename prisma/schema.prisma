@@ -1,0 +1,739 @@
+// Schéma Prisma — WP2a : couche de persistance du CMS.
+// WP12a : la source de données est PostgreSQL (développement et production) ;
+// SQLite n'est plus utilisé que comme source de la migration de données.
+// Documentation : https://pris.ly/d/prisma-schema
+//
+// NOTE Prisma 7 : le générateur `prisma-client` remplace `prisma-client-js` et
+// exige un `output` explicite — le client n'est plus généré dans node_modules.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7 : l'URL de connexion est déclarée dans prisma.config.ts
+  // (migrations) et passée au client via le driver adapter (src/lib/prisma.ts).
+  //
+  // `url = env("DATABASE_URL")` n'est pas répété ici : depuis la v7, la CLI lit
+  // l'URL dans prisma.config.ts, et une seconde déclaration doit rester
+  // cohérente avec `DIRECT_URL` (connexion sans pooling chez Neon). Une seule
+  // source de vérité, donc : le fichier de configuration.
+}
+
+model Author {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(JOURNALIST)
+  /// Marque rapidement les utilisateurs premium (WP7a).
+  isPremium    Boolean  @default(false)
+  /// Identifiant client Stripe (WP7b).
+  stripeCustomerId String? @unique
+  bio          String?
+  photoUrl     String?
+  /// Identifiant d'URL de la page auteur /auteur/[slug] (WP9).
+  slug         String?  @unique
+  /// Fin du bannissement (WP10c). NULL = jamais banni ; une date passée = ban expiré.
+  bannedUntil  DateTime?
+  /// Motif communiqué à l'utilisateur banni (WP10c).
+  banReason    String?
+  /// Notifications par e-mail (WP11e) : interrupteur global, actif par défaut.
+  emailNotificationsEnabled Boolean @default(true)
+  /// Types de notifications **désactivés** par l'utilisateur (WP11e), par
+  /// exemple ["COMMENT_REPLY", "USER_BANNED"]. NULL = aucun type désactivé,
+  /// donc tous les types concernés partent par e-mail.
+  emailNotificationTypes   Json?
+  createdAt    DateTime @default(now())
+
+  articles      Article[]
+  subscriptions Subscription[]
+  payments      Payment[]
+  /// Visiteurs identifiés par leur cookie anonyme (WP8d).
+  analyticsVisitors AnalyticsVisitor[]
+
+  /// Engagement (WP10a) : commentaires écrits, réactions et signalements émis.
+  comments         Comment[]
+  commentReactions CommentReaction[]
+  articleReactions ArticleReaction[]
+  reports          Report[]          @relation("Reporter")
+  resolvedReports  Report[]          @relation("Resolver")
+
+  /// Notifications in-app reçues (WP10d).
+  notifications Notification[]
+
+  /// Newsletter (WP11a) : abonnement éventuel de ce compte et campagnes créées.
+  newsletterSubscriber NewsletterSubscriber?
+  newsletterCampaigns  NewsletterCampaign[]   @relation("CampaignAuthor")
+
+  @@index([role])
+  @@index([isPremium])
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  JOURNALIST
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  articles Article[]
+}
+
+model Article {
+  id            String        @id @default(cuid())
+  title         String
+  slug          String        @unique
+  /// Contenu stocké en Markdown pour l'instant.
+  content       String
+  excerpt       String?
+  coverImageUrl String?
+  status        ArticleStatus @default(DRAFT)
+  publishedAt   DateTime?
+  /// Réservé aux abonnés (WP7c) : le public n'en voit que l'extrait.
+  isPremium     Boolean       @default(false)
+
+  authorId   String
+  author     Author   @relation(fields: [authorId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  /// Pages vues dont cet article est la cible (WP8d).
+  pageViews  AnalyticsPageView[]
+  /// Engagement (WP10a) : commentaires et réactions sur cet article.
+  comments   Comment[]
+  reactions  ArticleReaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Analytics maison (WP8d) — first-party, sans PII
+//
+// Rétention : les événements bruts (AnalyticsPageView) sont purgés au-delà de
+// 90 jours par `npm run analytics:aggregate` ; les agrégats journaliers
+// (AnalyticsDaily) sont conservés sans limite. Aucune adresse IP n'est stockée :
+// seul un identifiant de cookie anonyme (UUID v4) relie les pages vues.
+// ---------------------------------------------------------------------------
+
+model AnalyticsVisitor {
+  id          String   @id @default(cuid())
+  /// UUID anonyme du cookie first-party `ps_vid` — ni IP, ni fingerprint.
+  visitorId   String   @unique
+  firstSeenAt DateTime @default(now())
+  /// Mis à jour à chaque visite (@updatedAt).
+  lastSeenAt  DateTime @default(now()) @updatedAt
+  /// Renseigné si le visiteur est connecté au moment de la visite.
+  userId      String?
+  user        Author?  @relation(fields: [userId], references: [id])
+  /// Pays fourni par un en-tête d'hébergeur (Vercel/Cloudflare), sinon null.
+  country     String?
+  device      String?
+
+  pageViews AnalyticsPageView[]
+
+  @@index([firstSeenAt])
+  @@index([lastSeenAt])
+}
+
+model AnalyticsPageView {
+  id        String           @id @default(cuid())
+  visitorId String
+  visitor   AnalyticsVisitor @relation(fields: [visitorId], references: [visitorId])
+  path      String
+  /// Renseigné quand la page vue est un article.
+  articleId String?
+  article   Article?         @relation(fields: [articleId], references: [id])
+  /// Domaine d'origine uniquement (ex : « google.com »), jamais l'URL complète.
+  referrer  String?
+  /// direct | google | facebook | x | other
+  source    String
+  /// Tronqué à 200 caractères.
+  userAgent String?
+  country   String?
+  createdAt DateTime         @default(now())
+
+  @@index([visitorId])
+  @@index([createdAt])
+  @@index([path])
+  @@index([articleId])
+}
+
+/// Agrégat journalier (calculé par scripts/analytics-aggregate.ts).
+model AnalyticsDaily {
+  id                String   @id @default(cuid())
+  /// Jour à minuit UTC.
+  date              DateTime @unique
+  visitors          Int
+  newVisitors       Int
+  returningVisitors Int
+  pageViews         Int
+  /// [{ path, count }]
+  topPages          Json?
+  /// [{ source, count }]
+  topSources        Json?
+  /// [{ articleId, title, count }]
+  topArticles       Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+enum ArticleStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+// ---------------------------------------------------------------------------
+// Modèle de données sportives (WP6a)
+// ---------------------------------------------------------------------------
+
+model Competition {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  country    String?
+  sport      String
+  season     String?
+  externalId String?  @unique
+
+  matches Match[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Team {
+  id         String  @id @default(cuid())
+  name       String
+  slug       String  @unique
+  shortName  String?
+  logoUrl    String?
+  country    String?
+  sport      String
+  externalId String? @unique
+
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  competitionId String
+  competition   Competition @relation(fields: [competitionId], references: [id])
+
+  homeTeamId String
+  homeTeam   Team     @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId String
+  awayTeam   Team     @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  homeScore  Int?
+  awayScore  Int?
+  status     MatchStatus @default(SCHEDULED)
+  scheduledAt DateTime
+  startedAt  DateTime?
+  finishedAt DateTime?
+  venue      String?
+  externalId String?     @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([competitionId])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([status])
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
+// Abonnements & paiements (WP7a)
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id            String       @id @default(cuid())
+  name          String
+  slug          String       @unique
+  description   String?
+  /// Prix en centimes (999 = 9,99 €).
+  price         Int
+  currency      String       @default("EUR")
+  interval      PlanInterval
+  /// Pour l'intégration Stripe future (WP7b).
+  stripePriceId String?      @unique
+  active        Boolean      @default(true)
+
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PlanInterval {
+  MONTH
+  YEAR
+  LIFETIME
+}
+
+model Subscription {
+  id     String             @id @default(cuid())
+  userId String
+  user   Author             @relation(fields: [userId], references: [id])
+  planId String
+  plan   Plan               @relation(fields: [planId], references: [id])
+  status SubscriptionStatus
+
+  stripeSubscriptionId String? @unique
+  stripeCustomerId     String?
+  /// Session Checkout à l'origine de l'abonnement : clé d'idempotence, car
+  /// Stripe peut livrer plusieurs fois le même événement (et un paiement
+  /// unique, sans abonnement Stripe, n'aurait sinon aucune clé).
+  stripeSessionId      String? @unique
+
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+
+  payments Payment[]
+  /// Journal des changements de statut (WP7e).
+  events   SubscriptionEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+/// Journal d'un abonnement : création, activation, renouvellement, annulation…
+model SubscriptionEvent {
+  id             String                @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription          @relation(fields: [subscriptionId], references: [id])
+  type           SubscriptionEventType
+  /// Détails libres : montant, identifiant Stripe, motif…
+  metadata       Json?
+  createdAt      DateTime              @default(now())
+
+  @@index([subscriptionId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+enum SubscriptionEventType {
+  CREATED
+  ACTIVATED
+  RENEWED
+  CANCELED
+  REACTIVATED
+  PAST_DUE
+  EXPIRED
+  REFUNDED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+  TRIALING
+}
+
+model Payment {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  userId         String
+  user           Author       @relation(fields: [userId], references: [id])
+
+  /// Montant en centimes.
+  amount   Int
+  currency String        @default("EUR")
+  status   PaymentStatus
+
+  /// Facture Stripe : clé d'idempotence des paiements d'abonnement.
+  stripeInvoiceId       String? @unique
+  stripePaymentIntentId String? @unique
+  /// Lien vers la facture hébergée par Stripe (WP7d), affiché dans l'espace abonné.
+  invoiceUrl            String?
+  paidAt                DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subscriptionId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// ---------------------------------------------------------------------------
+// Engagement (WP10a) — commentaires, réactions et signalements
+//
+// Couche de données seule : aucune interface publique (WP10b), aucune
+// modération automatique ni notifications (WP10c/WP10d). Les suppressions en
+// cascade suivent le contenu : supprimer un article emporte ses commentaires,
+// supprimer un commentaire emporte ses réponses, réactions et signalements.
+// ---------------------------------------------------------------------------
+
+model Comment {
+  id      String @id @default(cuid())
+  /// Texte du commentaire (5000 caractères au plus, contrôlé côté application).
+  content String
+
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  /// Réponse à un autre commentaire (un niveau d'imbrication par entrée).
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  status CommentStatus @default(PENDING)
+
+  reactions CommentReaction[]
+  reports   Report[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Renseigné lorsque l'auteur modifie son commentaire.
+  editedAt  DateTime?
+
+  @@index([articleId])
+  @@index([authorId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model CommentReaction {
+  id String @id @default(cuid())
+
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  type ReactionType
+
+  createdAt DateTime @default(now())
+
+  /// Une seule réaction par auteur et par commentaire.
+  @@unique([commentId, authorId])
+  @@index([authorId])
+}
+
+model ArticleReaction {
+  id String @id @default(cuid())
+
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  type ReactionType
+
+  createdAt DateTime @default(now())
+
+  /// Une seule réaction par auteur et par article.
+  @@unique([articleId, authorId])
+  @@index([authorId])
+}
+
+model Report {
+  id String @id @default(cuid())
+
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  reporterId String
+  reporter   Author @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  reason  ReportReason
+  /// Explication libre du signalement.
+  details String?
+
+  status ReportStatus @default(PENDING)
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  resolvedById String?
+  resolvedBy   Author?  @relation("Resolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  /// Un auteur ne signale qu'une fois le même commentaire.
+  @@unique([commentId, reporterId])
+  @@index([status])
+  @@index([reporterId])
+  @@index([createdAt])
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+  DELETED
+}
+
+/**
+ * Réactions possibles. Un seul enum pour les deux usages, comme demandé :
+ * les commentaires utilisent LIKE, DISLIKE, LOVE et LAUGH, les articles LIKE,
+ * LOVE et BOOKMARK.
+ */
+enum ReactionType {
+  LIKE
+  DISLIKE
+  LOVE
+  LAUGH
+  BOOKMARK
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  MISINFORMATION
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+// ---------------------------------------------------------------------------
+// Notifications in-app (WP10d)
+//
+// Une ligne par notification : un destinataire, un type, un texte et
+// éventuellement un lien vers la ressource concernée. Pas d'email ni de push
+// (WP11), pas de préférences, pas de temps réel : le compteur se met à jour à la
+// navigation. Les notifications sont créées par les Server Actions existantes
+// (dépôt de commentaire, réaction, modération, bannissement) et leur échec ne
+// doit jamais faire échouer l'action principale.
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id String @id @default(cuid())
+
+  /// Destinataire.
+  userId String
+  user   Author @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type NotificationType
+
+  /// Titre court affiché dans la liste.
+  title String
+  /// Corps de la notification (contexte lisible).
+  message String
+  /// Lien vers la ressource concernée (/article/slug#commentaires, …).
+  linkUrl String?
+
+  read   Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  COMMENT_REPLY
+  COMMENT_REACTION
+  COMMENT_APPROVED
+  COMMENT_REJECTED
+  REPORT_RESOLVED
+  REPORT_DISMISSED
+  USER_BANNED
+  USER_UNBANNED
+}
+
+// ---------------------------------------------------------------------------
+// Newsletter (WP11a) — abonnés, listes thématiques, campagnes et historique
+// d'envoi individuel.
+//
+// Ce lot ne pose que la couche de données : aucun envoi d'e-mail, aucune
+// inscription publique (WP11c) ni formulaire de campagne (WP11d). Les compteurs
+// des campagnes (destinataires, délivrés, ouvertures, clics, rejets) sont des
+// entiers entretenus plus tard, quand un fournisseur d'envoi existera (WP11b).
+//
+// Suppressions : un abonné part avec ses envois et ses listes (cascade), une
+// campagne part avec ses envois. Supprimer un compte utilisateur ne supprime pas
+// son abonnement à la newsletter (le lien `userId` est optionnel et repasse à
+// NULL) : une inscription est une donnée marketing, pas un compte.
+// ---------------------------------------------------------------------------
+
+model NewsletterSubscriber {
+  id String @id @default(cuid())
+
+  /// Adresse d'inscription, unique : une seule ligne par adresse.
+  email  String  @unique
+  name   String?
+  /// Double opt-in (WP11c) : PENDING tant que le lien de confirmation n'a pas
+  /// été suivi.
+  status SubscriberStatus @default(PENDING)
+
+  /// Jeton du lien de confirmation (WP11c), à usage unique.
+  confirmationToken String?   @unique
+  confirmedAt       DateTime?
+  unsubscribedAt    DateTime?
+
+  /// Renseigné quand l'abonné est aussi un utilisateur du site. Unique : un
+  /// compte ne peut être relié qu'à une seule ligne d'abonnement, ce qui rend la
+  /// relation Author.newsletterSubscriber « un à un » (relation optionnelle).
+  userId String? @unique
+  user   Author? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  /// Listes thématiques auxquelles l'abonné appartient.
+  lists NewsletterList[]
+  /// Historique d'envoi, une ligne par campagne.
+  sends NewsletterSend[]
+
+  /// Origine de l'inscription : footer, article, popup, import…
+  source String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model NewsletterList {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+  active      Boolean @default(true)
+
+  subscribers NewsletterSubscriber[]
+  campaigns   NewsletterCampaign[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NewsletterCampaign {
+  id String @id @default(cuid())
+
+  listId String
+  list   NewsletterList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  subject     String
+  previewText String?
+  contentHtml String
+  contentText String?
+
+  status      CampaignStatus @default(DRAFT)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+
+  recipientCount Int @default(0)
+  deliveredCount Int @default(0)
+  openCount      Int @default(0)
+  clickCount     Int @default(0)
+  bounceCount    Int @default(0)
+
+  sends NewsletterSend[]
+
+  createdById String
+  createdBy   Author @relation("CampaignAuthor", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([listId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model NewsletterSend {
+  id String @id @default(cuid())
+
+  campaignId String
+  campaign   NewsletterCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  subscriberId String
+  subscriber   NewsletterSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  status      SendStatus @default(PENDING)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  errorMessage String?
+  /// Identifiant du message chez le fournisseur d'envoi (Resend, WP11b).
+  providerMessageId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Un abonné ne reçoit qu'une fois une campagne donnée.
+  @@unique([campaignId, subscriberId])
+  @@index([campaignId])
+  @@index([status])
+}
+
+enum SubscriberStatus {
+  PENDING
+  CONFIRMED
+  UNSUBSCRIBED
+  BOUNCED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
+enum SendStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}

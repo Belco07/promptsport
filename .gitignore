@@ -1,0 +1,68 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Variables d'environnement — aucun secret ne doit être poussé (WP12b).
+# `.env.example` reste versionné : c'est le modèle à recopier sur Vercel.
+.env
+.env.*
+!.env.example
+
+# vercel
+.vercel
+.vercelignore
+
+# journaux locaux (dev.log, logs de vérification)
+*.log
+
+# cache npm local du poste (jamais versionné)
+/.npm-cache/
+
+# sauvegardes locales de la base (SQLite d'avant migration, instantanés JSON)
+/backups/
+/tmp-results/
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# prisma — base de données locale de développement
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
+
+# prisma — client généré (régénéré par « npm run db:generate »)
+/src/generated/
+
+# uploads d'images de couverture (fichiers locaux, le dossier reste versionné)
+/public/uploads/*
+!/public/uploads/.gitkeep
