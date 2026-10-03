@@ -30,6 +30,7 @@ import { authConfig } from "./auth.config";
 const PREMIUM_REFRESH_MS = 60 * 1000;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET,
   ...authConfig,
   adapter: PrismaAdapter(
     prisma as unknown as Parameters<typeof PrismaAdapter>[0],
