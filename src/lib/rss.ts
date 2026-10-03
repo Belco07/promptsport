@@ -43,7 +43,7 @@ export function articleDescription(article: RssArticle): string {
 }
 
 export type BuildFeedInput = {
-  /** Titre du canal (« Mon Site d'Actualités » ou « … — Football »). */
+  /** Titre du canal (« PromptSport » ou « … — Football »). */
   title: string;
   description: string;
   /** Chemin du flux, utilisé pour l'auto-référence atom:link. */

@@ -10,8 +10,8 @@ export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
 ).replace(/\/+$/, "");
 
-export const SITE_NAME = "Mon Site d'Actualités";
-export const HOME_TITLE = "Mon Site d'Actualités — L'actualité sportive en continu";
+export const SITE_NAME = "PromptSport";
+export const HOME_TITLE = "PromptSport — L'actualité qui vibre, la passion qui déborde";
 export const SITE_DESCRIPTION =
   "Toute l'actualité sportive : résultats et scores en direct, classements, analyses et articles premium.";
 export const TWITTER_CREATOR = "@moncompte";

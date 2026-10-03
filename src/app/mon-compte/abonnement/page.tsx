@@ -22,7 +22,7 @@ import {
  */
 
 export const metadata: Metadata = {
-  title: "Mon abonnement — Mon Site d'Actualités",
+  title: "Mon abonnement",
   description: "Le détail de votre abonnement et son historique.",
 };
 

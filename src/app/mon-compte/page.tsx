@@ -31,7 +31,7 @@ import { updatePassword, updateProfile } from "./actions";
  */
 
 export const metadata: Metadata = {
-  title: "Mon compte — Mon Site d'Actualités",
+  title: "Mon compte",
   description: "Votre profil, votre abonnement et vos paiements.",
 };
 

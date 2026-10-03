@@ -23,7 +23,7 @@ import { availableLists } from "@/lib/newsletter-send";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Newsletter — Mon Site d'Actualités",
+  title: "Newsletter",
   description:
     "Recevez l'essentiel de l'actualité sportive : analyses, résultats et classements, directement dans votre boîte mail.",
   alternates: { canonical: "/newsletter" },

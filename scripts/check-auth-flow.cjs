@@ -221,7 +221,7 @@ async function main() {
   const home = await request("GET", "/");
   check(
     "WP1 : / repond 200 avec le titre",
-    home.status === 200 && home.body.includes("Mon Site d&#x27;Actualités"),
+    home.status === 200 && home.body.includes("PromptSport"),
     `status=${home.status}`,
   );
 

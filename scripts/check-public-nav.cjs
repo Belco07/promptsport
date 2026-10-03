@@ -102,7 +102,7 @@ function check(label, ok, detail) {
 async function main() {
   // 1) Visiteur anonyme : état neutre, pas de « Se connecter » figé dans le HTML.
   const home = await request("GET", "/");
-  if (!home.body.includes("Mon Site d")) {
+  if (!home.body.includes("PromptSport")) {
     throw new Error(
       `Le port ${PORT} ne sert pas promptsport (page d'accueil inconnue) : un autre projet l'occupe probablement. Relancez avec PORT=<port de promptsport>.`,
     );

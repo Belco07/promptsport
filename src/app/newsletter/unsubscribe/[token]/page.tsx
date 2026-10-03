@@ -28,7 +28,7 @@ import { getSubscriberByToken } from "@/lib/newsletter-send";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Désabonnement — Mon Site d'Actualités",
+  title: "Désabonnement",
   description: "Gérer votre abonnement à la newsletter.",
   robots: { index: false, follow: false },
 };

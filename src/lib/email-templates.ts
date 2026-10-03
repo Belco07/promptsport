@@ -89,7 +89,7 @@ ${preview}
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background-color:#ffffff;border:1px solid ${COLOURS.border};border-radius:8px;">
         <tr>
           <td style="padding:20px 28px;border-bottom:1px solid ${COLOURS.border};">
-            <span style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;color:${COLOURS.ink};">Mon Site d'Actualités</span>
+            <span style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;color:${COLOURS.ink};">PromptSport</span>
           </td>
         </tr>
         <tr>
@@ -161,7 +161,7 @@ export function renderCampaignEmail(
 <a href="${escapeHtml(
     urls.unsubscribeUrl,
   )}" style="color:${COLOURS.muted};text-decoration:underline;">Se désabonner</a>.<br />
-Pourquoi cet e-mail : inscription depuis le site Mon Site d'Actualités.`;
+Pourquoi cet e-mail : inscription depuis le site PromptSport.`;
   // Le pixel est un simple <img> de 1×1 : les clients qui bloquent les images ne
   // remontent pas d'ouverture, les webhooks Resend restent la source principale.
   const pixel = `<img src="${escapeHtml(
@@ -189,7 +189,7 @@ export function renderConfirmationEmail(
   const confirmUrl = absoluteUrl(`/newsletter/confirm/${token}`);
   const greeting = subscriber.name ? `Bonjour ${escapeHtml(subscriber.name)},` : "Bonjour,";
   const contentHtml = `<p style="margin:0 0 16px;">${greeting}</p>
-<p style="margin:0 0 16px;">Vous venez de demander à recevoir la newsletter de Mon Site d'Actualités. Il reste une étape : confirmez votre inscription.</p>
+<p style="margin:0 0 16px;">Vous venez de demander à recevoir la newsletter de PromptSport. Il reste une étape : confirmez votre inscription.</p>
 ${button(confirmUrl, "Confirmer mon inscription")}
 <p style="margin:0;color:${COLOURS.muted};font-size:13px;">Si vous n'êtes pas à l'origine de cette demande, ignorez simplement ce message : sans confirmation, aucune newsletter ne vous sera envoyée.</p>`;
 

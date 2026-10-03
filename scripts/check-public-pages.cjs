@@ -52,7 +52,7 @@ async function main() {
   check("accueil repond 200", home.status === 200, `status=${home.status}`);
   check(
     "accueil affiche le titre du site",
-    home.body.includes("Mon Site d&#x27;Actualités"),
+    home.body.includes("PromptSport"),
   );
 
   // Articles publiés en base, triés par date décroissante.

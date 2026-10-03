@@ -5,7 +5,7 @@ import { ImageResponse } from "next/og";
  * Elle sert d'aperçu à toutes les pages qui n'ont pas d'image propre.
  */
 
-export const alt = "Mon Site d'Actualités — l'actualité sportive en continu";
+export const alt = "PromptSport — l'actualité qui vibre, la passion qui déborde";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -38,10 +38,10 @@ export default function Image() {
             textAlign: "center",
           }}
         >
-          Mon Site d&apos;Actualités
+          PromptSport
         </div>
         <div style={{ display: "flex", fontSize: 36, marginTop: 28, opacity: 0.9 }}>
-          L&apos;actualité sportive en continu
+          L&apos;actualité qui vibre, la passion qui déborde
         </div>
       </div>
     ),

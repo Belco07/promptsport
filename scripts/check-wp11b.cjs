@@ -210,7 +210,7 @@ function runCli(args, { timeoutMs = 120_000 } = {}) {
       NEXT_PUBLIC_SITE_URL: ORIGIN,
       RESEND_API_KEY: STUB_API_KEY,
       RESEND_FROM_EMAIL: "onboarding@resend.dev",
-      RESEND_FROM_NAME: "Mon Site d'Actualités",
+      RESEND_FROM_NAME: "PromptSport",
       RESEND_BASE_URL: STUB_URL,
     };
 

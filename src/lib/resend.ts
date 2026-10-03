@@ -39,7 +39,7 @@ export type SendEmailResult =
 /** Expéditeur au format « Nom <adresse> ». */
 export function fromAddress(): string {
   const email = process.env.RESEND_FROM_EMAIL?.trim() || "onboarding@resend.dev";
-  const name = process.env.RESEND_FROM_NAME?.trim() || "Mon Site d'Actualités";
+  const name = process.env.RESEND_FROM_NAME?.trim() || "PromptSport";
   return `${name} <${email}>`;
 }
 

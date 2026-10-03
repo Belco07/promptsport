@@ -25,7 +25,7 @@ import { availableLists, getSubscriberByToken } from "@/lib/newsletter-send";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Mes préférences newsletter — Mon Site d'Actualités",
+  title: "Mes préférences newsletter",
   description: "Choisissez les listes de diffusion que vous souhaitez recevoir.",
   robots: { index: false, follow: false },
 };

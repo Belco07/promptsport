@@ -73,7 +73,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: author.name,
     description:
       author.bio?.trim() ||
-      `Tous les articles publiés par ${author.name} sur Mon Site d'Actualités.`,
+      `Tous les articles publiés par ${author.name} sur PromptSport.`,
     path: `/auteur/${author.slug ?? slug}`,
     images: author.photoUrl ? [author.photoUrl] : undefined,
   });

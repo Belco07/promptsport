@@ -26,7 +26,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Préférences de notification — Mon Site d'Actualités",
+  title: "Préférences de notification",
   description: "Choisissez les notifications que vous recevez par e-mail.",
   robots: { index: false, follow: false },
 };

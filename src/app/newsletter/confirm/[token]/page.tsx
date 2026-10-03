@@ -21,7 +21,7 @@ import { confirmSubscriberByToken, sendWelcomeEmail } from "@/lib/newsletter-sen
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Confirmation d'inscription — Mon Site d'Actualités",
+  title: "Confirmation d'inscription",
   description: "Confirmation de votre inscription à la newsletter.",
   robots: { index: false, follow: false },
 };

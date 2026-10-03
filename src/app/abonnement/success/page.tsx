@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Abonnement confirmé — Mon Site d'Actualités",
+  title: "Abonnement confirmé",
 };
 
 export default function SubscriptionSuccessPage() {

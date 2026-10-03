@@ -19,7 +19,7 @@ import { prisma } from "@/lib/prisma";
  */
 
 export const metadata: Metadata = {
-  title: "Notifications — Mon Site d'Actualités",
+  title: "Notifications",
   description: "Vos notifications : réponses, réactions et décisions de modération.",
 };
 

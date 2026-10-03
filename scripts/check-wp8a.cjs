@@ -132,7 +132,7 @@ async function main() {
   check("accueil : URL canonique", sameUrl(link(home.body, "canonical"), SITE_URL),
     String(link(home.body, "canonical")));
   check("accueil : og:type=website", meta(home.body, "og:type") === "website", String(meta(home.body, "og:type")));
-  check("accueil : og:site_name", meta(home.body, "og:site_name") === "Mon Site d'Actualités");
+  check("accueil : og:site_name", meta(home.body, "og:site_name") === "PromptSport");
   check("accueil : og:locale=fr_FR", meta(home.body, "og:locale") === "fr_FR");
   check("accueil : og:url", sameUrl(meta(home.body, "og:url"), SITE_URL), String(meta(home.body, "og:url")));
   check("accueil : og:image", String(meta(home.body, "og:image")).startsWith(SITE_URL),
@@ -143,7 +143,7 @@ async function main() {
   check("accueil : JSON-LD Organization", Boolean(homeLd));
   if (homeLd) {
     check("Organization : name/url/logo",
-      homeLd.name === "Mon Site d'Actualités" && homeLd.url === `${SITE_URL}/` &&
+      homeLd.name === "PromptSport" && homeLd.url === `${SITE_URL}/` &&
         typeof homeLd.logo?.url === "string" && Array.isArray(homeLd.sameAs) && homeLd.sameAs.length > 0,
       JSON.stringify({ name: homeLd.name, url: homeLd.url, sameAs: homeLd.sameAs?.length }));
   }
@@ -154,7 +154,7 @@ async function main() {
     const canonical = link(page.body, "canonical");
     check("article : URL canonique", canonical === `${SITE_URL}/article/${article.slug}`, String(canonical));
     check("article : titre avec gabarit",
-      title(page.body) === `${article.title} | Mon Site d'Actualités`, String(title(page.body)));
+      title(page.body) === `${article.title} | PromptSport`, String(title(page.body)));
     check("article : og:type=article", meta(page.body, "og:type") === "article");
     check("article : og:title = titre de l'article", meta(page.body, "og:title") === article.title);
     check("article : article:published_time", Boolean(meta(page.body, "article:published_time")),
@@ -195,7 +195,7 @@ async function main() {
 
   // 5) Scores
   const scores = await get("/scores");
-  check("scores : titre", title(scores.body) === "Scores en direct | Mon Site d'Actualités",
+  check("scores : titre", title(scores.body) === "Scores en direct | PromptSport",
     String(title(scores.body)));
   check("scores : URL canonique", link(scores.body, "canonical") === `${SITE_URL}/scores`);
   const itemList = jsonLd(scores.body).find((block) => block["@type"] === "ItemList");
@@ -211,7 +211,7 @@ async function main() {
   if (competition) {
     const page = await get(`/competition/${competition.slug}`);
     check("compétition : titre = nom de la compétition",
-      title(page.body) === `${competition.name} | Mon Site d'Actualités`, String(title(page.body)));
+      title(page.body) === `${competition.name} | PromptSport`, String(title(page.body)));
     check("compétition : URL canonique",
       link(page.body, "canonical") === `${SITE_URL}/competition/${competition.slug}`);
     const org = jsonLd(page.body).find((block) => block["@type"] === "SportsOrganization");
@@ -223,11 +223,11 @@ async function main() {
   // 7) Match
   if (match && matchTeams) {
     const page = await get(`/match/${match.id}`);
-    const expectedTitle = `${matchTeams.home} vs ${matchTeams.away} | Mon Site d'Actualités`;
+    const expectedTitle = `${matchTeams.home} vs ${matchTeams.away} | PromptSport`;
     check("match : titre « A vs B — compétition »",
       String(title(page.body)).startsWith(`${matchTeams.home} vs ${matchTeams.away} — `),
       String(title(page.body)));
-    check("match : titre avec gabarit", title(page.body) === expectedTitle || String(title(page.body)).endsWith(" | Mon Site d'Actualités"),
+    check("match : titre avec gabarit", title(page.body) === expectedTitle || String(title(page.body)).endsWith(" | PromptSport"),
       expectedTitle);
     check("match : URL canonique", link(page.body, "canonical") === `${SITE_URL}/match/${match.id}`);
     const event = jsonLd(page.body).find((block) => block["@type"] === "SportsEvent");
