@@ -358,8 +358,22 @@ type UploadImageResult =
  * Upload d'une image de couverture (Server Action).
  *
  * Appelée directement par le composant client ImageUpload : elle valide le type
- * MIME et la taille, écrit le fichier dans public/uploads/ avec un nom unique,
- * puis renvoie le chemin relatif à enregistrer en base.
+ * MIME et la taille, stocke le fichier sous un nom unique, puis renvoie l'URL à
+ * enregistrer en base.
+ *
+ * Deux stockages selon l'environnement :
+ *
+ *  - **production (Vercel)** : `BLOB_READ_WRITE_TOKEN` est défini, le fichier
+ *    part dans Vercel Blob et l'on renvoie son URL publique absolue. Le système
+ *    de fichiers d'une fonction Vercel est en lecture seule : `writeFile` y
+ *    échouerait (EROFS) ;
+ *  - **développement** : sans jeton, on écrit dans `public/uploads/` et l'on
+ *    renvoie le chemin relatif `/uploads/<uuid>.<ext>`, comme avant.
+ *
+ * Le SDK `@vercel/blob` est chargé **dynamiquement** : comme pour
+ * `@prisma/adapter-pg` (voir src/lib/prisma.ts), un import statique ferait
+ * évaluer le module dans le graphe client des Server Actions et ferait échouer
+ * toutes les actions de la page (« Cannot read properties of undefined »).
  */
 export async function uploadImage(
   formData: FormData,
@@ -389,11 +403,40 @@ export async function uploadImage(
     return { ok: false, error: "Fichier vide." };
   }
 
+  const filename = `${randomUUID()}${extension}`;
+
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+
+  if (token) {
+    try {
+      const { put } = await import("@vercel/blob");
+      // `file` (un File) est accepté tel quel par put : le SDK en diffuse le
+      // contenu sans le recopier en mémoire.
+      const blob = await put(`uploads/${filename}`, file, {
+        // URL publique : la couverture est affichée par next/image sur les pages
+        // publiques (l'hôte du store doit être autorisé dans next.config.ts).
+        access: "public",
+        contentType: file.type,
+        // Le nom est déjà unique (UUID) : pas de suffixe aléatoire ajouté.
+        addRandomSuffix: false,
+        token,
+      });
+      return { ok: true, url: blob.url };
+    } catch (error) {
+      console.error(
+        "[upload] échec de l'envoi vers Vercel Blob :",
+        error instanceof Error ? error.message : error,
+      );
+      return {
+        ok: false,
+        error: "L'envoi de l'image a échoué. Réessayez dans un instant.",
+      };
+    }
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
   const uploadsDir = path.join(process.cwd(), "public", "uploads");
   await mkdir(uploadsDir, { recursive: true });
-
-  const filename = `${randomUUID()}${extension}`;
-  const bytes = new Uint8Array(await file.arrayBuffer());
   await writeFile(path.join(uploadsDir, filename), bytes);
 
   return { ok: true, url: `/uploads/${filename}` };
