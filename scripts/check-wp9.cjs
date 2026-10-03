@@ -296,7 +296,15 @@ async function main() {
   /* --------------------------------------------------- 4) Header et footer */
   section("Header et footer publics");
   const nav = readFileSync(path.join(ROOT, "src/components/PublicNav.tsx"), "utf8");
-  check("header : logo SVG", nav.includes("<svg") && nav.includes("LogoMark"));
+  // Le logo dessiné en SVG (LogoMark) a été remplacé par le logo de la marque :
+  // le fichier public/promptsport-logo.webp est servi par next/image.
+  check(
+    "header : logo de la marque",
+    nav.includes('src="/promptsport-logo.webp"') &&
+      nav.includes('alt="PromptSport') &&
+      nav.includes("next/image"),
+    nav.includes("LogoMark") ? "ancien SVG encore présent" : undefined,
+  );
   check(
     "header : navigation Accueil / Scores / Compétitions / Abonnement",
     ["Accueil", "Scores", "Compétitions", "Abonnement"].every((label) => nav.includes(label)),

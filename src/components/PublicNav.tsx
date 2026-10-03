@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, Menu, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -36,20 +37,6 @@ const NAV_LINKS = [
   { href: "/scores", label: "Scores" },
   { href: "/abonnement", label: "Abonnement" },
 ];
-
-/** Pastille du logo : ballon stylisé sur fond rouge éditorial. */
-function LogoMark() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 32 32"
-      className="h-9 w-9 shrink-0 bg-brand-500"
-    >
-      <circle cx="16" cy="16" r="8.5" fill="none" stroke="#ffffff" strokeWidth="2" />
-      <path d="M16 11.4l3.6 2.6-1.4 4.2h-4.4L12.4 14z" fill="#ffffff" />
-    </svg>
-  );
-}
 
 export function PublicNav({ competitions = [] }: { competitions?: NavCompetition[] }) {
   const pathname = usePathname();
@@ -117,11 +104,21 @@ export function PublicNav({ competitions = [] }: { competitions?: NavCompetition
         aria-label="Navigation principale"
         className="mx-auto flex h-[82px] max-w-6xl items-center justify-between gap-4 px-4 max-[600px]:h-[66px]"
       >
-        <Link href="/" className="flex items-center gap-2.5" aria-label="Retour à l'accueil">
-          <LogoMark />
-          <span className="max-w-[220px] text-[23px] font-black italic leading-[1.05] tracking-[-1.1px] text-ink-900 max-[600px]:max-w-[175px] max-[600px]:text-[20px]">
-            Mon Site d&apos;Actualités
-          </span>
+        <Link
+          href="/"
+          className="flex shrink-0 items-center"
+          aria-label="PromptSport — retour à l'accueil"
+        >
+          {/* Logo de la marque (fichier source 4361 px décliné en 900 px dans
+              public/promptsport-logo.webp ; next/image sert la taille adaptée). */}
+          <Image
+            src="/promptsport-logo.webp"
+            alt="PromptSport — L'actualité qui vibre, la passion qui déborde"
+            width={900}
+            height={198}
+            priority
+            className="h-10 w-auto max-[600px]:h-8"
+          />
         </Link>
 
         {/* Rubriques : affichées à partir de 768 px. */}
