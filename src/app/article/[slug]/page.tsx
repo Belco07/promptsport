@@ -8,6 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { ArticleReactions } from "@/components/ArticleReactions";
+import { AdSlot } from "@/components/AdSlot";
 import { CommentsSection } from "@/components/CommentsSection";
 import { Footer } from "@/components/Footer";
 import { Paywall } from "@/components/Paywall";
@@ -541,6 +542,9 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             />
           </Suspense>
         </article>
+
+        {/* Bandeau publicitaire réservé, après le corps de l'article (voir AdSlot). */}
+        <AdSlot className="mt-10" />
 
         <Link
           href="/"

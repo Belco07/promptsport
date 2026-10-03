@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { ArticleCard, type ArticleCardData } from "@/components/ArticleCard";
+import { AdSlot } from "@/components/AdSlot";
 import { Footer } from "@/components/Footer";
 import { PremiumBadge } from "@/components/PremiumBadge";
 import { formatDate } from "@/lib/formatDate";
@@ -94,6 +95,9 @@ export default async function Home() {
             <ArrowRight aria-hidden="true" size={16} />
           </Link>
         </div>
+
+        {/* Bandeau publicitaire réservé, sous la manchette (voir AdSlot). */}
+        <AdSlot className="mb-[30px] max-[600px]:mb-5" />
 
         {lead ? (
           <div className="grid grid-cols-[minmax(0,1fr)_310px] gap-[30px] max-[900px]:grid-cols-1">

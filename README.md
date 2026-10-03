@@ -279,6 +279,33 @@ si le compte du modérateur disparaît.
   près : la page de modération `/backoffice/comments` utilise les composants du
   design system, comme le demandait son brief.
 
+## Emplacements publicitaires
+
+`src/components/AdSlot.tsx` réserve la place d'un bandeau commercial. Ce n'est
+**pas** un script de régie : le bloc impose le ratio du bandeau de référence
+(1838 × 340) au lieu d'une hauteur en pixels, pour que la surface soit identique
+à toutes les largeurs d'écran et qu'aucun contenu ne se décale le jour où une
+annonce est servie (protection du CLS mesuré au WP8c). Aucun JavaScript n'est
+chargé : le bandeau n'ajoute rien au poids de la page.
+
+Deux emplacements sont posés aujourd'hui :
+
+| Page | Position | Composant |
+| --- | --- | --- |
+| Accueil (`src/app/page.tsx`) | sous la manchette, avant la une | `<AdSlot className="mb-[30px]" />` |
+| Article (`src/app/article/[slug]/page.tsx`) | après le corps de l'article | `<AdSlot className="mt-10" />` |
+
+Pour diffuser une annonce, remplacer le contenu de l'`<aside>` par l'`<ins>` ou
+l'`<iframe>` du partenaire : la mise en page ne bouge pas. Le libellé
+« Publicité » est visible (mention obligatoire pour une insertion commerciale) ;
+il se remplace via la propriété `label`. Le repère `data-ad-slot="banner"`
+permet de compter ou de cibler les emplacements.
+
+À prévoir si la régie l'exige : bandeau latéral 300 × 250 dans la colonne de
+droite de l'accueil (l'`<aside>` existant fait 310 px), emplacements sur
+`/scores`, `/competition/[slug]` et `/match/[id]`, et masquage pour les abonnés
+premium — aucune de ces variantes n'est implémentée à ce stade.
+
 ## Rôles et droits éditoriaux
 
 Toute la rédaction voit tous les articles ; les actions dépendent du rôle et de
