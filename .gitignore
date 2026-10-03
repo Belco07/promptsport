@@ -46,6 +46,13 @@ yarn-error.log*
 # cache npm local du poste (jamais versionné)
 /.npm-cache/
 
+# exports SQL locaux (sauvegardes de base ; les migrations de prisma/migrations
+# restent versionnées, elles ne sont pas à la racine)
+/*.sql
+
+# artefacts produits par les suites de vérification
+scripts/out-*.html
+
 # sauvegardes locales de la base (SQLite d'avant migration, instantanés JSON)
 /backups/
 /tmp-results/

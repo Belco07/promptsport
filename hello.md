@@ -1,1 +1,0 @@
-Bonjour, DSH est opérationnel !
