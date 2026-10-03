@@ -42,9 +42,15 @@ const imageConfig: ImageConfig = {
   deviceSizes: [360, 420, 640, 768, 832, 1024, 1280, 1536],
   // Petites tailles : logos d'équipes (40 et 64 px) et vignettes d'articles.
   imageSizes: [40, 64, 96, 128, 256, 384],
-  // Logos des équipes servis par l'API football-data.org.
+  // Hôtes distants autorisés pour l'optimiseur d'images.
   remotePatterns: [
+    // Logos des équipes servis par l'API football-data.org.
     { protocol: "https", hostname: "crests.football-data.org" },
+    // Couvertures d'articles stockées dans Vercel Blob en production : l'URL
+    // renvoyée par put() est de la forme
+    // https://<store>.public.blob.vercel-storage.com/uploads/<uuid>.jpg, et
+    // next/image refuse par défaut tout hôte non déclaré ici.
+    { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
   ],
 };
 
