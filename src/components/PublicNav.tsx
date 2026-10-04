@@ -38,7 +38,19 @@ const NAV_LINKS = [
   { href: "/abonnement", label: "Abonnement" },
 ];
 
-export function PublicNav({ competitions = [] }: { competitions?: NavCompetition[] }) {
+export function PublicNav({
+  competitions = [],
+  scoresBar = null,
+}: {
+  competitions?: NavCompetition[];
+  /**
+   * Bandeau de scores rendu par le serveur (layout) et inséré tout en haut.
+   * Passé en `ReactNode` : un composant client ne peut pas importer un composant
+   * serveur, et le bandeau doit hériter du masquage ci-dessous (il disparaît avec
+   * la barre sur /login, /studio et /backoffice).
+   */
+  scoresBar?: React.ReactNode;
+}) {
   const pathname = usePathname();
   // L'onglet actif n'est marqué qu'après montage : le HTML du serveur et le
   // premier rendu client sont ainsi identiques, même si l'URL change pendant
@@ -99,7 +111,12 @@ export function PublicNav({ competitions = [] }: { competitions?: NavCompetition
     ].join(" ");
 
   return (
-    <header className="sticky top-0 z-30 border-b border-neutral-200 border-t-4 border-t-brand-500 bg-white/95 backdrop-blur">
+    <>
+      {/* Bandeau de scores, tout en haut des pages publiques (masqué avec la
+          barre sur /login, /studio et /backoffice). */}
+      {scoresBar}
+
+      <header className="sticky top-0 z-30 border-b border-neutral-200 border-t-4 border-t-brand-500 bg-white/95 backdrop-blur">
       <nav
         aria-label="Navigation principale"
         className="mx-auto flex h-[82px] max-w-6xl items-center justify-between gap-4 px-4 max-[600px]:h-[66px]"
@@ -276,6 +293,7 @@ export function PublicNav({ competitions = [] }: { competitions?: NavCompetition
           </div>
         </div>
       ) : null}
-    </header>
+      </header>
+    </>
   );
 }

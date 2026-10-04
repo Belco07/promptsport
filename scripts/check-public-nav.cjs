@@ -10,10 +10,13 @@
  * confirmation visuelle finale demande un navigateur.
  */
 const http = require("node:http");
+const path = require("node:path");
+const { readFileSync } = require("node:fs");
 
 const HOST = "localhost";
 const PORT = Number(process.env.PORT || 3000);
 const ORIGIN = `http://${HOST}:${PORT}`;
+const ROOT = path.resolve(__dirname, "..");
 
 function createJar() {
   const store = new Map();
@@ -136,6 +139,34 @@ async function main() {
   // 5) La page de connexion garde son bouton.
   const loginPage = await request("GET", "/login");
   check("GET /login : bouton « Se connecter »", loginPage.status === 200 && loginPage.body.includes("Se connecter"));
+
+  // 6) Bandeau de scores, tout en haut des pages publiques.
+  //
+  // Le rendu réel du direct demande de créer un match LIVE puis d'attendre
+  // l'expiration des caches (page ISR 60 s + données 30 s) : trop lent pour une
+  // suite. On contrôle donc ici la présence du bandeau et de ses données, et la
+  // source qui décide de la mise en avant du direct.
+  const stripMatches = (home.body.match(/data-scores-strip=""[\s\S]*?<\/section>/)?.[0].match(/href="\/match\//g) ?? [])
+    .length;
+  check(
+    "bandeau de scores présent sur l'accueil",
+    home.body.includes('data-scores-strip=""') && stripMatches > 0,
+    `${stripMatches} match(s) dans le bandeau`,
+  );
+  check("bandeau de scores absent de /login", !loginPage.body.includes('data-scores-strip=""'));
+
+  const layoutSource = readFileSync(path.join(ROOT, "src/app/layout.tsx"), "utf8");
+  const barSource = readFileSync(path.join(ROOT, "src/components/LiveScoresBar.tsx"), "utf8");
+  check(
+    "bandeau : matchs en direct et matchs du jour demandés",
+    layoutSource.includes("getScoresStripMatches") &&
+      layoutSource.includes('status: "LIVE"') &&
+      layoutSource.includes("scheduledAt: { gte: startOfDay, lt: endOfDay }"),
+  );
+  check(
+    "bandeau : le direct est mis en avant",
+    barSource.includes('"EN DIRECT"') && barSource.includes('status === "LIVE"'),
+  );
 
   const failed = results.filter((r) => !r).length;
   console.log(`\nRESULTAT: ${results.length - failed}/${results.length} vérifications réussies`);

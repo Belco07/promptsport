@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { Inter } from "next/font/google";
 
 import { Analytics } from "@/components/Analytics";
+import { LiveScoresBar, type ScoresStripMatch } from "@/components/LiveScoresBar";
 import { PublicNav, type NavCompetition } from "@/components/PublicNav";
 import { prisma } from "@/lib/prisma";
 import {
@@ -107,12 +108,86 @@ const getNavCompetitions = unstable_cache(
   { revalidate: 300 },
 );
 
+/**
+ * Matchs du bandeau de scores, tout en haut des pages publiques.
+ *
+ * Trois ensembles, dans cet ordre : les matchs **en direct** (quel que soit leur
+ * jour — une rencontre peut se terminer après minuit), puis les matchs du jour.
+ * Si les deux sont vides — la synchronisation sportive peut dater de plusieurs
+ * jours — on affiche les derniers résultats plutôt qu'un bandeau vide.
+ *
+ * Le cache est court (30 s) puisque le direct change vite, mais il reste un cache
+ * de données (`unstable_cache`) : les pages publiques restent prérendues, aucune
+ * ne devient dynamique. En cas d'indisponibilité de la base, le bandeau disparaît
+ * au lieu de faire échouer les pages.
+ */
+const STRIP_SELECT = {
+  id: true,
+  status: true,
+  homeScore: true,
+  awayScore: true,
+  scheduledAt: true,
+  competition: { select: { name: true, slug: true } },
+  homeTeam: { select: { name: true, shortName: true } },
+  awayTeam: { select: { name: true, shortName: true } },
+} as const;
+
+const getScoresStripMatches = unstable_cache(
+  async (): Promise<ScoresStripMatch[]> => {
+    try {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setDate(endOfDay.getDate() + 1);
+
+      const [live, today] = await Promise.all([
+        prisma.match.findMany({
+          where: { status: "LIVE" },
+          orderBy: { scheduledAt: "asc" },
+          take: 8,
+          select: STRIP_SELECT,
+        }),
+        prisma.match.findMany({
+          where: { scheduledAt: { gte: startOfDay, lt: endOfDay } },
+          orderBy: { scheduledAt: "asc" },
+          take: 12,
+          select: STRIP_SELECT,
+        }),
+      ]);
+
+      const seen = new Set<string>();
+      const collected = [...live, ...today].filter((match) => {
+        if (seen.has(match.id)) return false;
+        seen.add(match.id);
+        return true;
+      });
+
+      if (collected.length > 0) {
+        return collected;
+      }
+
+      return await prisma.match.findMany({
+        where: { status: "FINISHED", homeScore: { not: null } },
+        orderBy: { scheduledAt: "desc" },
+        take: 8,
+        select: STRIP_SELECT,
+      });
+    } catch (error) {
+      console.warn("[bandeau scores] matchs indisponibles :", error);
+      return [];
+    }
+  },
+  ["scores-strip"],
+  { revalidate: 30 },
+);
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const competitions = await getNavCompetitions();
+  const stripMatches = await getScoresStripMatches();
 
   return (
     <html lang="fr" className={inter.variable}>
@@ -135,7 +210,10 @@ export default async function RootLayout({
         >
           Aller au contenu principal
         </a>
-        <PublicNav competitions={competitions} />
+        <PublicNav
+          competitions={competitions}
+          scoresBar={<LiveScoresBar matches={stripMatches} />}
+        />
         {children}
         {/* Collecte analytics first-party (WP8d) : un beacon après `load`. */}
         <Analytics />
