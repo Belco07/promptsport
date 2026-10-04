@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import { Analytics } from "@/components/Analytics";
 import { LiveScoresBar, type ScoresStripMatch } from "@/components/LiveScoresBar";
 import { PublicNav, type NavCompetition } from "@/components/PublicNav";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { prisma } from "@/lib/prisma";
 import {
   DEFAULT_OG_IMAGE,
@@ -190,7 +191,7 @@ export default async function RootLayout({
   const stripMatches = await getScoresStripMatches();
 
   return (
-    <html lang="fr" className={inter.variable}>
+    <html lang="fr" className={inter.variable} suppressHydrationWarning>
       <head>
         {/* Découverte automatique du flux RSS (WP8b). Déclarée ici plutôt que
             dans `metadata.alternates` : chaque page publique remplace
@@ -202,7 +203,12 @@ export default async function RootLayout({
           href="/rss.xml"
         />
       </head>
-      <body className="min-h-screen bg-neutral-50 font-sans text-neutral-900 antialiased">
+      {/* `suppressHydrationWarning` sur <html> : next-themes pose la classe du
+          thème avant l'hydratation (script injecté), React constate donc un
+          attribut différent de son rendu serveur. L'avertissement est attendu et
+          sans conséquence — la classe est appliquée dès le premier paint, ce qui
+          évite le flash de thème clair. */}
+      <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         {/* Lien d'évitement : première cible du clavier (WCAG 2.4.1). */}
         <a
           href="#contenu"
@@ -210,13 +216,15 @@ export default async function RootLayout({
         >
           Aller au contenu principal
         </a>
-        <PublicNav
-          competitions={competitions}
-          scoresBar={<LiveScoresBar matches={stripMatches} />}
-        />
-        {children}
-        {/* Collecte analytics first-party (WP8d) : un beacon après `load`. */}
-        <Analytics />
+        <ThemeProvider>
+          <PublicNav
+            competitions={competitions}
+            scoresBar={<LiveScoresBar matches={stripMatches} />}
+          />
+          {children}
+          {/* Collecte analytics first-party (WP8d) : un beacon après `load`. */}
+          <Analytics />
+        </ThemeProvider>
       </body>
     </html>
   );

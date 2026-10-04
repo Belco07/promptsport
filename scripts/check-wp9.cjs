@@ -624,6 +624,11 @@ async function main() {
     // auth() côté serveur les rendrait dynamiques ; le masquage de la publicité
     // pour les abonnés premium passe donc par /api/auth/session au montage.
     "src/components/AdSlotGate.tsx",
+    // Justification (WP13a) : next-themes lit localStorage et matchMedia, qui
+    // n'existent pas au rendu serveur — le fournisseur et le sélecteur de thème
+    // sont donc nécessairement des composants clients.
+    "src/components/ThemeProvider.tsx",
+    "src/components/ThemeToggle.tsx",
     "src/components/ArticleReactions.tsx",
     "src/components/CommentReactions.tsx",
     "src/components/ImageUpload.tsx",

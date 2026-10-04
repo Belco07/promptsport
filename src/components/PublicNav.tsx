@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
 import { useMounted } from "@/lib/use-mounted";
 
@@ -201,6 +202,9 @@ export function PublicNav({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Sélecteur de thème (WP13a), à côté du compte. */}
+          <ThemeToggle />
+
           {/* Compte : sur mobile, il est replié dans le panneau burger. */}
           <div className="hidden md:block">
             <UserMenu />
@@ -290,6 +294,10 @@ export function PublicNav({
 
           <div className="mt-4 border-t border-neutral-200 pt-4">
             <UserMenu />
+          </div>
+
+          <div className="mt-3">
+            <ThemeToggle />
           </div>
         </div>
       ) : null}

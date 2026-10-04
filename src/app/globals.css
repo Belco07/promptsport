@@ -5,6 +5,42 @@
    relatif à ce fichier (src/app/ → racine du projet). */
 @config "../../tailwind.config.js";
 
+/* ------------------------------------------------------- thème clair/sombre */
+/**
+ * Variables du thème (WP13a).
+ *
+ * Format « shadcn/ui » : triplets HSL sans `hsl()`, consommés par la palette
+ * sémantique de tailwind.config.js (`background`, `foreground`, `muted`,
+ * `border`, `card`, `accent`). Le mode sombre est activé par la classe `.dark`
+ * que next-themes pose sur <html> (`darkMode: "class"`), selon le choix de
+ * l'utilisateur ou du système.
+ *
+ * Les couleurs de l'identité éditoriale (brand, ink, primary, accent-500…)
+ * gardent leurs valeurs : ce lot pose le système, la migration des composants
+ * vers ces jetons fera l'objet des sous-lots suivants.
+ */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 215 16% 47%;
+  --border: 214 20% 88%;
+  --card: 0 0% 100%;
+  /* Rouge éditorial (brand-500, #df1830) : l'accent de l'identité publique. */
+  --accent: 353 81% 48%;
+}
+
+.dark {
+  --background: 217 16% 10%;
+  --foreground: 240 2% 93%;
+  --muted: 217 15% 16%;
+  --muted-foreground: 215 15% 65%;
+  --border: 217 15% 22%;
+  --card: 218 15% 13%;
+  /* Rouge éclairci : lisible sur fond sombre. */
+  --accent: 353 85% 62%;
+}
+
 /* ------------------------------------------------------------------ base */
 
 /**

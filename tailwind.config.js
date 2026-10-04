@@ -134,9 +134,48 @@ const fallbackSans = [
 ];
 
 module.exports = {
+  /**
+   * Thème clair/sombre (WP13a) : le mode sombre est activé par la classe `.dark`
+   * posée sur <html> par next-themes. Les variants `dark:` et la palette
+   * sémantique ci-dessous en dépendent.
+   */
+  darkMode: "class",
+
   theme: {
     extend: {
-      colors: { primary, accent, success, danger, neutral, brand, ink },
+      colors: {
+        primary,
+        /**
+         * `accent` garde son échelle existante (statuts, messages d'attention) et
+         * reçoit en plus une valeur par défaut sémantique : `bg-accent` suit le
+         * thème, `text-accent-500` reste inchangé.
+         */
+        accent: { DEFAULT: "hsl(var(--accent) / <alpha-value>)", ...accent },
+        success,
+        danger,
+        neutral,
+        brand,
+        ink,
+
+        /**
+         * Couleurs sémantiques du thème (WP13a). Elles pointent vers les variables
+         * CSS définies dans src/app/globals.css (`:root` et `.dark`) : les
+         * composants pourront écrire `bg-background`, `text-muted-foreground`,
+         * `border-border`… au lieu de couleurs en dur. Aucune n'est encore
+         * appliquée aux composants existants : ce lot ne pose que le système.
+         */
+        background: "hsl(var(--background) / <alpha-value>)",
+        foreground: "hsl(var(--foreground) / <alpha-value>)",
+        muted: {
+          DEFAULT: "hsl(var(--muted) / <alpha-value>)",
+          foreground: "hsl(var(--muted-foreground) / <alpha-value>)",
+        },
+        border: "hsl(var(--border) / <alpha-value>)",
+        card: {
+          DEFAULT: "hsl(var(--card) / <alpha-value>)",
+          foreground: "hsl(var(--foreground) / <alpha-value>)",
+        },
+      },
 
       fontFamily: {
         // `--font-inter` est posé par next/font dans src/app/layout.tsx.
