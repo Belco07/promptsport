@@ -10,6 +10,8 @@ import {
   type MatchStatus,
 } from "@/components/MatchCard";
 import { Footer } from "@/components/Footer";
+import { AdSlot } from "@/components/AdSlot";
+import { AdSlotGate } from "@/components/AdSlotGate";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody } from "@/components/ui/Card";
 import { prisma } from "@/lib/prisma";
@@ -216,6 +218,11 @@ export default async function MatchPage({ params }: Props) {
             </div>
           </dl>
         </section>
+
+        {/* Bandeau publicitaire réservé (voir AdSlot / AdSlotGate). */}
+        <AdSlotGate>
+          <AdSlot className="mt-8" />
+        </AdSlotGate>
       </main>
 
       <Footer />

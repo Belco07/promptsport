@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Footer } from "@/components/Footer";
+import { AdSlot } from "@/components/AdSlot";
+import { AdSlotGate } from "@/components/AdSlotGate";
 import { StandingsTable } from "@/components/StandingsTable";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -104,6 +106,11 @@ export default async function CompetitionPage({ params }: Props) {
             <p className="mt-1 text-sm text-neutral-500">{competition.country}</p>
           ) : null}
         </header>
+
+        {/* Bandeau publicitaire réservé (voir AdSlot / AdSlotGate). */}
+        <AdSlotGate>
+          <AdSlot className="mb-8" />
+        </AdSlotGate>
 
         <section aria-labelledby="classement">
           <h2

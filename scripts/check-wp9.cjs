@@ -620,6 +620,10 @@ async function main() {
     "src/app/studio/categories/DeleteCategoryButton.tsx",
     "src/app/studio/StudioNav.tsx",
     "src/components/Analytics.tsx",
+    // Justification : les pages publiques sont prérendues (revalidate = 60) et un
+    // auth() côté serveur les rendrait dynamiques ; le masquage de la publicité
+    // pour les abonnés premium passe donc par /api/auth/session au montage.
+    "src/components/AdSlotGate.tsx",
     "src/components/ArticleReactions.tsx",
     "src/components/CommentReactions.tsx",
     "src/components/ImageUpload.tsx",

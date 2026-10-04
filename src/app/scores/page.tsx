@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Radio } from "lucide-react";
 
 import { MatchCard, type MatchCardData } from "@/components/MatchCard";
+import { AdSlot } from "@/components/AdSlot";
+import { AdSlotGate } from "@/components/AdSlotGate";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -140,6 +142,11 @@ export default async function ScoresPage({
             compétitions suivies.
           </p>
         </header>
+
+        {/* Bandeau publicitaire réservé (voir AdSlot / AdSlotGate). */}
+        <AdSlotGate>
+          <AdSlot className="mb-8" />
+        </AdSlotGate>
 
         {/* Filtres : formulaire GET, sans JavaScript côté client. */}
         <Card className="mb-8">

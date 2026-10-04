@@ -281,30 +281,45 @@ si le compte du modérateur disparaît.
 
 ## Emplacements publicitaires
 
-`src/components/AdSlot.tsx` réserve la place d'un bandeau commercial. Ce n'est
-**pas** un script de régie : le bloc impose le ratio du bandeau de référence
-(1838 × 340) au lieu d'une hauteur en pixels, pour que la surface soit identique
-à toutes les largeurs d'écran et qu'aucun contenu ne se décale le jour où une
+`src/components/AdSlot.tsx` réserve la place d'un emplacement commercial, dans
+deux formats : `banner` (bandeau large, ratio 1838 × 340) et `rectangle`
+(encart latéral 300 × 250). Ce n'est **pas** un script de régie : le bloc impose
+son ratio plutôt qu'une hauteur en pixels, pour que la surface soit identique à
+toutes les largeurs d'écran et qu'aucun contenu ne se décale le jour où une
 annonce est servie (protection du CLS mesuré au WP8c). Aucun JavaScript n'est
-chargé : le bandeau n'ajoute rien au poids de la page.
+chargé par l'emplacement lui-même.
 
-Deux emplacements sont posés aujourd'hui :
-
-| Page | Position | Composant |
+| Page | Position | Format |
 | --- | --- | --- |
-| Accueil (`src/app/page.tsx`) | sous la manchette, avant la une | `<AdSlot className="mb-[30px]" />` |
-| Article (`src/app/article/[slug]/page.tsx`) | après le corps de l'article | `<AdSlot className="mt-10" />` |
+| Accueil (`src/app/page.tsx`) | sous la manchette, avant la une | `banner` |
+| Accueil, colonne de droite | sous le fil info et l'encart abonnement | `rectangle` |
+| Article (`src/app/article/[slug]/page.tsx`) | après le corps de l'article | `banner` |
+| Scores, Compétition, Match | après l'en-tête (après la fiche pour un match) | `banner` |
 
-Pour diffuser une annonce, remplacer le contenu de l'`<aside>` par l'`<ins>` ou
-l'`<iframe>` du partenaire : la mise en page ne bouge pas. Le libellé
-« Publicité » est visible (mention obligatoire pour une insertion commerciale) ;
-il se remplace via la propriété `label`. Le repère `data-ad-slot="banner"`
-permet de compter ou de cibler les emplacements.
+### Masquage pour les abonnés premium
 
-À prévoir si la régie l'exige : bandeau latéral 300 × 250 dans la colonne de
-droite de l'accueil (l'`<aside>` existant fait 310 px), emplacements sur
-`/scores`, `/competition/[slug]` et `/match/[id]`, et masquage pour les abonnés
-premium — aucune de ces variantes n'est implémentée à ce stade.
+`src/components/AdSlotGate.tsx` n'affiche l'emplacement qu'aux visiteurs non
+abonnés. Deux chemins, pour une raison de rendu :
+
+- **Pages prérendues** (accueil, scores, compétition, match — `revalidate = 60`) :
+  la session est lue **après montage** via `/api/auth/session`, car un `auth()`
+  côté serveur rendrait ces pages dynamiques et ferait perdre le prérendu du
+  WP8c. L'abonné reçoit donc la place réservée dans le HTML puis la voit
+  disparaître.
+- **Page article** (déjà dynamique, elle lit la session pour les commentaires) :
+  `premium` est passé au composant, le serveur tranche et l'emplacement n'est
+  jamais envoyé à l'abonné.
+
+À revoir si une régie facture les impressions : il faudra alors assumer des pages
+dynamiques ou activer le rendu partiel (PPR, désactivé dans ce projet).
+
+### Diffuser une annonce
+
+Remplacer le contenu de l'`<aside>` par l'`<ins>` ou l'`<iframe>` du partenaire :
+la mise en page ne bouge pas. Le libellé « Publicité » est visible (mention
+obligatoire pour une insertion commerciale) et se remplace via la propriété
+`label` ; le repère `data-ad-slot="banner" | "rectangle"` permet de compter ou de
+cibler les emplacements.
 
 ## Rôles et droits éditoriaux
 

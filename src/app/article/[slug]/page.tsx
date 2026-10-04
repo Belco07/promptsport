@@ -9,6 +9,7 @@ import remarkGfm from "remark-gfm";
 
 import { ArticleReactions } from "@/components/ArticleReactions";
 import { AdSlot } from "@/components/AdSlot";
+import { AdSlotGate } from "@/components/AdSlotGate";
 import { CommentsSection } from "@/components/CommentsSection";
 import { Footer } from "@/components/Footer";
 import { Paywall } from "@/components/Paywall";
@@ -543,8 +544,12 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           </Suspense>
         </article>
 
-        {/* Bandeau publicitaire réservé, après le corps de l'article (voir AdSlot). */}
-        <AdSlot className="mt-10" />
+        {/* Bandeau publicitaire réservé, après le corps de l'article (voir AdSlot).
+            La page lit déjà la session (commentaires) : le serveur tranche, aucun
+            affichage transitoire pour les abonnés. */}
+        <AdSlotGate premium={session?.user?.isPremium === true}>
+          <AdSlot className="mt-10" />
+        </AdSlotGate>
 
         <Link
           href="/"
