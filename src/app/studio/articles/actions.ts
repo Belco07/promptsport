@@ -1,4 +1,5 @@
 "use server";
+import { canAccessStudio } from "@/lib/roles";
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -10,6 +11,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { notifyArticleFollowers } from "@/lib/follows";
 import { resolveSlug } from "@/lib/slug";
 import { isArticleStatus, type ArticleStatus } from "@/lib/articleStatus";
 import {
@@ -77,6 +79,7 @@ function readCheckbox(formData: FormData, field: string): boolean {
 }
 
 type ArticleInput = {
+  format: "FLASH" | "NEWS" | "ANALYSIS";
   title: string;
   slug: string;
   content: string;
@@ -85,7 +88,50 @@ type ArticleInput = {
   categoryId: string;
   status: ArticleStatus;
   isPremium: boolean;
+  /** Thèmes éditoriaux associés (WP16b). */
+  themeIds: string[];
 };
+
+/** Nombre maximal de thèmes par article (garde-fou sur le champ caché). */
+const MAX_ARTICLE_THEMES = 20;
+
+/**
+ * Lecture du champ caché `themeIds` produit par le sélecteur (WP16b).
+ *
+ * Le champ contient un tableau JSON d'identifiants. Une valeur illisible ou
+ * forgée ne fait pas échouer l'enregistrement : elle est simplement ignorée,
+ * et les identifiants inexistants sont écartés à l'écriture (voir
+ * `keepExistingThemeIds`).
+ */
+function readThemeIds(formData: FormData): string[] {
+  const raw = formData.get("themeIds");
+  if (typeof raw !== "string" || raw.trim() === "") return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+
+  const ids = parsed
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return [...new Set(ids)].slice(0, MAX_ARTICLE_THEMES);
+}
+
+/** Ne conserve que les thèmes réellement présents en base (WP16b). */
+async function keepExistingThemeIds(themeIds: string[]): Promise<string[]> {
+  if (themeIds.length === 0) return [];
+  const found = await prisma.theme.findMany({
+    where: { id: { in: themeIds } },
+    select: { id: true },
+  });
+  return found.map((theme) => theme.id);
+}
 
 type ValidationResult =
   | { ok: true; data: ArticleInput }
@@ -101,6 +147,10 @@ async function validate(
   const excerpt = readText(formData, "excerpt");
   const coverImageUrl = readText(formData, "coverImageUrl");
   const rawStatus = readText(formData, "status");
+  const format = formData.has("format") ? readText(formData, "format") : "NEWS";
+  if (format !== "FLASH" && format !== "NEWS" && format !== "ANALYSIS") {
+    return { ok: false, error: "Format invalide : choisissez Flash, Actualité ou Analyse." };
+  }
 
   if (!title) {
     return { ok: false, error: "Le titre est obligatoire." };
@@ -130,6 +180,7 @@ async function validate(
   return {
     ok: true,
     data: {
+      format,
       title,
       slug,
       content,
@@ -138,6 +189,7 @@ async function validate(
       categoryId,
       status: rawStatus,
       isPremium: readCheckbox(formData, "isPremium"),
+      themeIds: readThemeIds(formData),
     },
   };
 }
@@ -151,7 +203,7 @@ export async function createArticle(
   formData: FormData,
 ): Promise<string | undefined> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) {
     redirect("/login");
   }
 
@@ -167,17 +219,23 @@ export async function createArticle(
   }
 
   try {
-    await prisma.article.create({
+    // `themeIds` n'est pas une colonne : il alimente la relation many-to-many
+    // après vérification que les thèmes existent (WP16b).
+    const { themeIds, ...articleData } = result.data;
+    const linkedThemeIds = await keepExistingThemeIds(themeIds);
+    const created = await prisma.article.create({
       data: {
-        ...result.data,
+        ...articleData,
         // Le caractère premium est décidé par un ADMIN ou un EDITOR (WP11) :
         // un journaliste crée toujours un article en accès libre, même s'il
         // forge le champ dans sa requête.
         isPremium: canSetPremium(session.user.role) ? result.data.isPremium : false,
         authorId: session.user.id,
         publishedAt: result.data.status === "PUBLISHED" ? new Date() : null,
+        themes: { connect: linkedThemeIds.map((id) => ({ id })) },
       },
     });
+    if (created.status === "PUBLISHED") await notifyArticleFollowers(created.id);
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return `Le slug « ${result.data.slug} » est déjà utilisé par un autre article.`;
@@ -199,7 +257,7 @@ export async function updateArticle(
   formData: FormData,
 ): Promise<string | undefined> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) {
     redirect("/login");
   }
 
@@ -208,8 +266,8 @@ export async function updateArticle(
     return "Cet article n'existe plus.";
   }
 
-  // Droits : un journaliste ne modifie que ses propres articles non publiés ;
-  // un article publié n'est plus modifiable par son auteur (WP11).
+  // Un journaliste peut corriger ses propres articles, même publiés.
+  // Les changements de statut et de diffusion restent contrôlés séparément.
   const viewer = { id: session.user.id, role: session.user.role };
   if (!canEditArticle(viewer, existing)) {
     return "Vous n'avez pas le droit de modifier cet article.";
@@ -227,10 +285,15 @@ export async function updateArticle(
   }
 
   try {
+    // WP16b : `set` remplace les associations (déconnecte les anciennes,
+    // connecte les nouvelles) ; les identifiants inconnus sont écartés.
+    const { themeIds, ...articleData } = result.data;
+    const linkedThemeIds = await keepExistingThemeIds(themeIds);
     await prisma.article.update({
       where: { id },
       data: {
-        ...result.data,
+        ...articleData,
+        themes: { set: linkedThemeIds.map((themeId) => ({ id: themeId })) },
         // Le caractère premium ne suit pas le droit d'édition : un journaliste
         // qui enregistre son brouillon ne peut ni l'activer ni l'effacer. Sa
         // valeur en base est donc conservée telle quelle (WP11) — sinon un
@@ -252,6 +315,7 @@ export async function updateArticle(
   }
 
   revalidatePath("/studio/articles");
+  if (existing.status !== "PUBLISHED" && result.data.status === "PUBLISHED") await notifyArticleFollowers(id);
   // Un article publié avant ou après cette modification change l'accueil (titre,
   // extrait, diffusion premium), le sitemap et le flux RSS.
   if (existing.status === "PUBLISHED" || result.data.status === "PUBLISHED") {
@@ -266,7 +330,7 @@ export async function updateArticleStatus(
   newStatus: ArticleStatus,
 ): Promise<void> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) {
     redirect("/login");
   }
 
@@ -301,6 +365,7 @@ export async function updateArticleStatus(
 
   revalidatePath("/studio/articles");
   revalidatePath(`/article/${existing.slug}`);
+  if (existing.status !== "PUBLISHED" && newStatus === "PUBLISHED") await notifyArticleFollowers(articleId);
   // Le sélecteur de statut couvrait déjà l'accueil ; sitemap et RSS manquaient.
   if (existing.status === "PUBLISHED" || newStatus === "PUBLISHED") {
     revalidatePublicSurfaces();
@@ -310,7 +375,7 @@ export async function updateArticleStatus(
 /** Suppression d'un article, déclenchée depuis la liste. */
 export async function deleteArticle(formData: FormData): Promise<void> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) {
     redirect("/login");
   }
 
@@ -379,7 +444,7 @@ export async function uploadImage(
   formData: FormData,
 ): Promise<UploadImageResult> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) {
     return { ok: false, error: "Non authentifié." };
   }
 

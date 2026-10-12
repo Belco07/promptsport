@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
-import { ArrowLeft, Clock, User } from "lucide-react";
-import Image from "next/image";
+import { FormatBadge } from "@/components/FormatBadge";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
-import { ArticleReactions } from "@/components/ArticleReactions";
+import { ArticleHero } from "@/components/ArticleHero";
+import { ArticleMeta } from "@/components/ArticleMeta";
+import { ArticleShareLinks } from "@/components/ArticleShareLinks";
+import { ArticleReactionBars } from "@/components/ShareButtons";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+import { RelatedArticles } from "@/components/RelatedArticles";
 import { AdSlot } from "@/components/AdSlot";
 import { AdSlotGate } from "@/components/AdSlotGate";
 import { CommentsSection } from "@/components/CommentsSection";
 import { Footer } from "@/components/Footer";
 import { Paywall } from "@/components/Paywall";
-import { PremiumBadge } from "@/components/PremiumBadge";
-import { Badge } from "@/components/ui/Badge";
 import { auth } from "@/lib/auth";
 import {
   COMMENT_MAX_LENGTH,
@@ -56,8 +57,10 @@ async function getPublishedArticle(slug: string) {
   return prisma.article.findFirst({
     where: { slug, status: "PUBLISHED" },
     include: {
-      author: { select: { name: true, slug: true } },
+      author: { select: { name: true, slug: true, photoUrl: true } },
       category: { select: { name: true, slug: true } },
+      // WP16b : thèmes éditoriaux affichés à côté de la catégorie.
+      themes: { where: { active: true }, orderBy: { name: "asc" }, select: { name: true, slug: true, color: true } },
     },
   });
 }
@@ -108,36 +111,10 @@ export async function generateMetadata({
 }
 
 /**
- * Rendu Markdown (WP9) : la mise en forme vit dans `.article-body`
- * (src/app/globals.css) plutôt que dans des classes par balise. Seuls les
- * éléments qui ont besoin d'un comportement propre sont surchargés : liens
- * externes, images distantes et tableaux (défilement horizontal sur mobile).
+ * Le rendu Markdown vit désormais dans `MarkdownRenderer` (WP15d), partagé avec
+ * l'aperçu de l'éditeur : la page publique et l'aperçu affichent donc
+ * exactement le même résultat (citations enrichies, embeds sociaux, tableaux).
  */
-const markdownComponents = {
-  a: (props: React.ComponentProps<"a">) => (
-    <a target="_blank" rel="noopener noreferrer" {...props} />
-  ),
-  table: (props: React.ComponentProps<"table">) => (
-    // Les tableaux Markdown peuvent être larges : ils défilent sur mobile.
-    <div className="scroll-x my-5">
-      <table className="w-full border-collapse text-sm" {...props} />
-    </div>
-  ),
-  th: (props: React.ComponentProps<"th">) => (
-    <th className="border border-neutral-200 bg-neutral-100 px-3 py-2 text-left font-semibold" {...props} />
-  ),
-  td: (props: React.ComponentProps<"td">) => (
-    <td className="border border-neutral-200 px-3 py-2" {...props} />
-  ),
-  img: (props: React.ComponentProps<"img">) => (
-    // eslint-disable-next-line @next/next/no-img-element -- images Markdown distantes
-    <img className="my-5 w-full rounded-xl" alt="" {...props} />
-  ),
-  hr: () => <hr className="my-8 border-neutral-200" />,
-  pre: (props: React.ComponentProps<"pre">) => (
-    <pre className="scroll-x my-5 rounded-xl bg-primary-950 p-4 text-sm text-neutral-100" {...props} />
-  ),
-};
 
 /**
  * Corps de l'article (WP8c) : il porte les parties coûteuses — lecture de la
@@ -177,21 +154,20 @@ async function ArticleBody({
     const teaser = excerpt?.trim() || `${content.slice(0, PREMIUM_TEASER_LENGTH)}…`;
 
     return (
-      <div className="max-w-prose">
+      <div className="max-w-none">
         {/* Le teaser est du texte brut : tronquer du Markdown casserait le
             rendu (balises et emphases non fermées). */}
-        <p className="whitespace-pre-line text-base leading-7 text-neutral-800">{teaser}</p>
+        <p className="whitespace-pre-line text-base leading-7 text-foreground">{teaser}</p>
         <Paywall isLoggedIn={Boolean(session?.user)} />
       </div>
     );
   }
 
   return (
-    <div className="article-body max-w-prose">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-        {content}
-      </ReactMarkdown>
-    </div>
+    <MarkdownRenderer
+      markdown={content}
+      className="article-body !max-w-none !text-lg !leading-[1.7] md:!text-xl [&_p]:!leading-[1.7]"
+    />
   );
 }
 
@@ -200,103 +176,13 @@ function ArticleBodyFallback() {
   return (
     <div aria-hidden="true" className="max-w-prose space-y-4">
       {[0, 1, 2, 3].map((line) => (
-        <div key={line} className="h-4 w-full animate-pulse rounded bg-neutral-100" />
+        <div key={line} className="h-4 w-full animate-pulse rounded bg-muted" />
       ))}
-      <div className="h-4 w-2/3 animate-pulse rounded bg-neutral-100" />
+      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
     </div>
   );
 }
 
-/**
- * Articles connexes : même rubrique d'abord, complétés par les dernières
- * publications.
- *
- * Présentés sous forme de liste éditoriale (rubrique, titre, date) plutôt qu'en
- * cartes illustrées : sur une page d'article, trois vignettes supplémentaires
- * pesaient ~16 Ko d'images sans bénéfice de lecture — la contrainte de poids du
- * WP9 (≤ +10 % par rapport au WP8c) a guidé ce choix.
- */
-async function RelatedArticles({
-  slug,
-  categorySlug,
-}: {
-  slug: string;
-  categorySlug: string | null;
-}) {
-  const select = {
-    slug: true,
-    title: true,
-    publishedAt: true,
-    isPremium: true,
-    category: { select: { name: true } },
-  } as const;
-
-  const sameCategory = categorySlug
-    ? await prisma.article.findMany({
-        where: { status: "PUBLISHED", slug: { not: slug }, category: { slug: categorySlug } },
-        orderBy: { publishedAt: "desc" },
-        take: 3,
-        select,
-      })
-    : [];
-
-  // Complète avec les dernières publications si la rubrique est peu fournie.
-  const filler =
-    sameCategory.length < 3
-      ? await prisma.article.findMany({
-          where: {
-            status: "PUBLISHED",
-            slug: { notIn: [slug, ...sameCategory.map((item) => item.slug)] },
-          },
-          orderBy: { publishedAt: "desc" },
-          take: 3 - sameCategory.length,
-          select,
-        })
-      : [];
-
-  const related = [...sameCategory, ...filler];
-
-  if (related.length === 0) {
-    return null;
-  }
-
-  return (
-    <section aria-labelledby="articles-connexes" className="mt-14 border-t border-neutral-200 pt-10">
-      <h2
-        id="articles-connexes"
-        className="mb-6 text-2xl font-extrabold tracking-tight text-primary-900"
-      >
-        À lire aussi
-      </h2>
-      <ul className="divide-y divide-neutral-200 border-y border-neutral-200">
-        {related.map((item) => (
-          <li key={item.slug}>
-            <Link
-              href={`/article/${item.slug}`}
-              className="flex flex-col gap-1 py-4 transition-colors hover:bg-neutral-50 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                {item.category ? (
-                  <Badge variant="category">{item.category.name}</Badge>
-                ) : null}
-                {item.isPremium ? <PremiumBadge /> : null}
-                <span className="min-w-0 font-semibold text-neutral-900">{item.title}</span>
-              </span>
-              <span className="shrink-0 text-xs text-neutral-500">
-                {formatDate(item.publishedAt)}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/**
- * Messages affichés au-dessus du formulaire de commentaire : confirmation
- * d'envoi ou explication d'un refus (dont le bannissement).
- */
 type CommentNotice = { type: "success" | "error"; text: string } | null;
 
 function buildCommentNotice(
@@ -377,7 +263,7 @@ async function ArticleReactionsLoader({
   const mineType: ReactionType | null = mine && isReactionType(mine.type) ? mine.type : null;
 
   return (
-    <ArticleReactions
+    <ArticleReactionBars
       articleId={articleId}
       initialCounts={counts}
       initialMine={mineType}
@@ -391,7 +277,7 @@ async function ArticleReactionsLoader({
 
 /** Emplacement réservé de la barre de réactions pendant son chargement. */
 function ArticleReactionsFallback() {
-  return <div aria-hidden="true" className="h-9 w-64 animate-pulse rounded-full bg-neutral-100" />;
+  return <div aria-hidden="true" className="h-9 w-64 animate-pulse rounded-full bg-muted" />;
 }
 
 export default async function ArticlePage({ params, searchParams }: ArticlePageProps) {
@@ -403,6 +289,12 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   }
 
   const minutes = readingTime(article.content);
+
+  // Nombre de commentaires « actifs » (approuvés, donc visibles publiquement) :
+  // affiché sur le rail de partage, à gauche de l'article.
+  const activeComments = await prisma.comment.count({
+    where: { articleId: article.id, status: "APPROVED" },
+  });
 
   // État de bannissement de la personne connectée : sert à afficher le message
   // de refus à côté du formulaire, la Server Action le vérifiant de son côté.
@@ -429,7 +321,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-10">
+      <main id="contenu" className="mx-auto w-full max-w-[1200px] px-4 py-8">
         {/* Données structurées NewsArticle (WP8a). Le contenu premium n'y figure
             pas : seuls le titre, l'accroche et des métadonnées publiques. */}
         <script
@@ -452,108 +344,71 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
 
         <Link
           href="/"
-          className="mb-8 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 transition-colors hover:text-primary-900"
+          className="mb-8 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Retour à l&apos;accueil
         </Link>
 
         <article>
-          <header className="mb-8">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              {article.category ? (
-                <Badge variant="category">{article.category.name}</Badge>
-              ) : null}
-              {article.isPremium ? <PremiumBadge /> : null}
+          <div className="mb-3"><FormatBadge format={article.format} /></div>
+          <ArticleHero title={article.title} image={article.coverImageUrl} premium={article.isPremium} />
+          <div className={`mt-8 ${session?.user?.isPremium === true ? "mx-auto max-w-[720px]" : "lg:grid lg:grid-cols-[minmax(0,720px)_300px] lg:justify-between lg:gap-10"}`}>
+          <div className="w-full min-w-0 max-w-[720px]">
+            <ArticleMeta author={article.author} category={article.category} themes={article.themes} date={article.publishedAt} minutes={minutes} />
+            {/* Même retrait que le corps : rail w-12 + espacement gap-5, uniquement lorsqu’il est visible. */}
+            {article.excerpt && <p className="mb-6 text-xl font-semibold leading-relaxed text-foreground xl:ml-[4.25rem]">{article.excerpt}</p>}
+            {/*
+              Rail de partage et corps de l'article sont frères dans cette ligne :
+              le rail commence donc exactement à la première ligne du corps, sans
+              marge calculée à la main. `[&>*:first-child]:mt-0` annule la marge
+              haute du premier paragraphe, pour que l'alignement soit réel et non
+              approximatif. Le rail est masqué sous 1280 px (marge insuffisante).
+            */}
+            <div className="flex gap-5">
+              <div className="hidden w-12 shrink-0 xl:block">
+                {/* `top-32` : l'en-tête public est collant (82 px) — on garde une
+                    quarantaine de pixels d'air pour que le rail ne s'y coince pas. */}
+                <div className="sticky top-32">
+                  <ArticleShareLinks
+                    slug={article.slug}
+                    title={article.title}
+                    orientation="rail"
+                    comments={{ count: activeComments }}
+                  />
+                </div>
+              </div>
+              <div className="min-w-0 flex-1 [&>*:first-child]:mt-0">
+                <Suspense fallback={<ArticleBodyFallback />}>
+                  <ArticleBody
+                    slug={article.slug}
+                    isPremium={article.isPremium}
+                    excerpt={article.excerpt}
+                  />
+                </Suspense>
+                {/* Fin d'article : uniquement les réactions (pouce, cœur,
+                    enregistrement). Le partage reste porté par le rail, qui suit
+                    la lecture jusqu'en bas. */}
+                <div id="article-reactions-bottom" className="mt-8 border-y border-border py-5" aria-label="Réactions en fin d’article">
+                  <Suspense fallback={<ArticleReactionsFallback />}>
+                    <ArticleReactionsLoader articleId={article.id} viewerId={session?.user?.id ?? null} isBanned={banned} />
+                  </Suspense>
+                </div>
+              </div>
             </div>
-
-            <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-primary-900 sm:text-4xl lg:text-5xl">
-              {article.title}
-            </h1>
-
-            {article.excerpt ? (
-              <p className="mt-4 text-lg leading-8 text-neutral-600">{article.excerpt}</p>
-            ) : null}
-
-            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-neutral-200 py-3 text-sm text-neutral-500">
-              {article.author ? (
-                <span className="inline-flex items-center gap-1.5 font-semibold text-neutral-800">
-                  <User aria-hidden="true" className="h-4 w-4 text-neutral-400" />
-                  {article.author.slug ? (
-                    <Link
-                      href={`/auteur/${article.author.slug}`}
-                      className="transition-colors hover:text-primary-700"
-                    >
-                      {article.author.name}
-                    </Link>
-                  ) : (
-                    article.author.name
-                  )}
-                </span>
-              ) : null}
-              {article.publishedAt ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <time dateTime={article.publishedAt.toISOString()}>
-                    {formatDate(article.publishedAt)}
-                  </time>
-                </span>
-              ) : null}
-              <span className="inline-flex items-center gap-1.5">
-                <Clock aria-hidden="true" className="h-4 w-4 text-neutral-400" />
-                {minutes} min de lecture
-              </span>
+          </div>
+          <AdSlotGate premium={session?.user?.isPremium === true}>
+            <div className="hidden lg:block">
+              <AdSlot format="skyscraper" className="sticky top-40" />
             </div>
-
-            {/* Réactions de l'article (WP10b) : Like, Love et Bookmark privé. */}
-            <div className="mt-5 border-t border-neutral-200 pt-4">
-              <Suspense fallback={<ArticleReactionsFallback />}>
-                <ArticleReactionsLoader
-                  articleId={article.id}
-                  viewerId={session?.user?.id ?? null}
-                  isBanned={banned}
-                />
-              </Suspense>
-            </div>
-          </header>
-
-          {article.coverImageUrl ? (
-            // Image LCP de la page : chargée en priorité, avec des largeurs
-            // adaptées à la colonne de contenu (768 px maximum utile).
-            <Image
-              src={article.coverImageUrl}
-              alt={article.title}
-              width={1200}
-              height={630}
-              priority
-              fetchPriority="high"
-              sizes="(max-width: 768px) 100vw, 800px"
-              className="mb-3 h-auto w-full rounded-xl"
-            />
-          ) : null}
-          <p className="article-caption mb-8">
-            {article.category ? `${article.category.name} — ` : ""}
-            {article.author?.name ?? "La rédaction"}
-          </p>
-
-          <Suspense fallback={<ArticleBodyFallback />}>
-            <ArticleBody
-              slug={article.slug}
-              isPremium={article.isPremium}
-              excerpt={article.excerpt}
-            />
-          </Suspense>
+          </AdSlotGate>
+          </div>
         </article>
 
-        {/* Bandeau publicitaire réservé, après le corps de l'article (voir AdSlot).
-            La page lit déjà la session (commentaires) : le serveur tranche, aucun
-            affichage transitoire pour les abonnés. */}
-        <AdSlotGate premium={session?.user?.isPremium === true}>
-          <AdSlot className="mt-10" />
-        </AdSlotGate>
-
+        <div className={session?.user?.isPremium === true ? "mx-auto max-w-[720px]" : undefined}>
         <Link
           href="/"
-          className="mt-10 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 transition-colors hover:text-primary-900"
+          className="mt-10 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Retour à l&apos;accueil
@@ -578,6 +433,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             replyTo={query.repondre ?? null}
           />
         </Suspense>
+        </div>
       </main>
 
       <Footer />

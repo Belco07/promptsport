@@ -1,4 +1,5 @@
 import { Clock } from "lucide-react";
+import { FormatBadge, type ArticleFormat } from "@/components/FormatBadge";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -7,6 +8,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { formatDate } from "@/lib/formatDate";
 
 export type ArticleCardData = {
+  format?: ArticleFormat;
   slug: string;
   title: string;
   excerpt: string | null;
@@ -29,11 +31,14 @@ export function ArticleCard({
   priority = false,
   /** Variante éditoriale : la une affiche une image et un titre plus grands. */
   featured = false,
+  headingLevel = 2,
 }: {
   article: ArticleCardData;
   priority?: boolean;
   featured?: boolean;
+  headingLevel?: 2 | 3;
 }) {
+  const Heading = headingLevel === 3 ? "h3" : "h2";
   const href = `/article/${article.slug}`;
   const authorHref = article.author?.slug ? `/auteur/${article.author.slug}` : null;
 
@@ -41,13 +46,13 @@ export function ArticleCard({
     <Card
       as="article"
       interactive
-      className="flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 border-b border-b-ink-200 shadow-none hover:shadow-none"
+      className="editorial-card flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 border-b border-b-ink-200 shadow-none hover:shadow-none"
     >
       <Link
         href={href}
         tabIndex={-1}
         aria-hidden="true"
-        className="relative block aspect-video w-full overflow-hidden bg-neutral-100"
+        className="relative block aspect-video w-full overflow-hidden bg-neutral-100 [.public-site_&]:bg-muted"
       >
         {article.coverImageUrl ? (
           <Image
@@ -68,15 +73,16 @@ export function ArticleCard({
             className="object-cover transition-transform duration-300 hover:scale-[1.03] motion-reduce:transition-none motion-reduce:hover:scale-100"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-4xl text-neutral-300">
+          <div className="flex h-full w-full items-center justify-center bg-neutral-100 [.public-site_&]:bg-muted text-4xl text-neutral-300">
             ⚽
           </div>
         )}
       </Link>
 
-      <CardBody className="flex flex-1 flex-col bg-neutral-50 p-0 py-[17px]">
-        {article.category || article.isPremium ? (
+      <CardBody className="flex flex-1 flex-col bg-neutral-50 [.public-site_&]:bg-muted p-0 py-[17px]">
+        {article.format || article.category || article.isPremium ? (
           <div className="mb-3 flex flex-wrap items-center gap-2">
+            {article.format && <FormatBadge format={article.format} />}
             {/* Rubrique : libellé éditorial rouge, sans pastille (identité « news »). */}
             {article.category ? (
               <span className="text-[10px] font-extrabold uppercase tracking-[.6px] text-brand-600">
@@ -87,24 +93,24 @@ export function ArticleCard({
           </div>
         ) : null}
 
-        <h2
-          className={`mb-2 font-heavy leading-tight text-ink-950 ${
+        <Heading
+          className={`mb-2 font-heavy leading-tight text-ink-950 [.public-site_&]:text-foreground ${
             featured ? "text-2xl" : "text-xl tracking-[-.6px]"
           }`}
         >
           <Link href={href} className="transition-colors hover:text-brand-600">
             {article.title}
           </Link>
-        </h2>
+        </Heading>
 
         {article.excerpt ? (
-          <p className="mb-4 line-clamp-3 text-sm leading-6 text-neutral-600">
+          <p className="mb-4 line-clamp-3 text-sm leading-6 text-neutral-600 [.public-site_&]:text-muted-foreground">
             {article.excerpt}
           </p>
         ) : null}
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-neutral-100 pt-3 text-xs text-neutral-500">
-          <span className="font-semibold text-neutral-700">
+        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-neutral-100 [.public-site_&]:border-border pt-3 text-xs text-neutral-500 [.public-site_&]:text-muted-foreground">
+          <span className="font-semibold text-neutral-700 [.public-site_&]:text-foreground">
             {authorHref ? (
               <Link href={authorHref} className="transition-colors hover:text-brand-600">
                 {article.author?.name}
@@ -127,4 +133,3 @@ export function ArticleCard({
     </Card>
   );
 }
-

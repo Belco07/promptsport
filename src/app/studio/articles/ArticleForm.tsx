@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import type { ArticleFormat } from "@/components/FormatBadge";
 import { useActionState, useState } from "react";
 
 import { ImageUpload } from "@/components/ImageUpload";
+import { ThemeSelector, type ThemeOption } from "@/components/studio/ThemeSelector";
 import {
   ARTICLE_STATUSES,
   ARTICLE_STATUS_LABELS,
@@ -12,6 +15,7 @@ import {
 import { slugify } from "@/lib/slug";
 
 export type ArticleFormValues = {
+  format: ArticleFormat;
   title: string;
   slug: string;
   content: string;
@@ -20,6 +24,8 @@ export type ArticleFormValues = {
   categoryId: string;
   status: ArticleStatus;
   isPremium: boolean;
+  /** Thèmes associés (WP16b) : identifiants `Theme`. */
+  themeIds: string[];
 };
 
 export type CategoryOption = {
@@ -33,6 +39,8 @@ type ArticleFormProps = {
     formData: FormData,
   ) => Promise<string | undefined>;
   categories: CategoryOption[];
+  /** Thèmes proposés dans le sélecteur (WP16b). */
+  themes?: ThemeOption[];
   /** Valeurs initiales (création : formulaire vide). */
   defaultValues?: Partial<ArticleFormValues>;
   submitLabel: string;
@@ -51,10 +59,30 @@ type ArticleFormProps = {
 };
 
 const inputClass =
-  "w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
-const labelClass = "mb-1 block text-sm font-medium text-gray-700";
+  "w-full rounded-md border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-editorial-link focus:ring-1 focus:ring-blue-600";
+const labelClass = "mb-1 block text-sm font-medium text-foreground";
+
+/** Accroche locale : premières phrases du texte, sans balisage Markdown. */
+function summarizeContent(markdown: string): string {
+  const text = markdown
+    .replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, " ")
+    .replace(/^#{1,6}\s+.*$/gm, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/^\s*(?:>\s*|[-*+]\s+|\d+[.)]\s+)/gm, "")
+    .replace(/[*_~`]/g, "")
+    .replace(/\s+/g, " ").trim();
+  if (text.length <= 300) return text;
+  const short = text.slice(0, 300);
+  const sentence = short.match(/^([\s\S]*[.!?])(?:\s|$)/)?.[1];
+  return sentence && sentence.length >= 120
+    ? sentence
+    : `${short.replace(/\s+\S*$/, "").trimEnd()}…`;
+}
 
 const EMPTY: ArticleFormValues = {
+  format: "NEWS",
   title: "",
   slug: "",
   content: "",
@@ -63,15 +91,22 @@ const EMPTY: ArticleFormValues = {
   categoryId: "",
   status: "DRAFT",
   isPremium: false,
+  themeIds: [],
 };
 
 /**
  * Formulaire partagé par la création et l'édition.
  * Le slug suit le titre tant que l'utilisateur ne l'a pas modifié lui-même.
  */
+const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), {
+  ssr: false,
+  loading: () => <div role="status" className="min-h-80 rounded-md border border-border bg-muted p-5 text-muted-foreground">Chargement de l’éditeur…</div>,
+});
+
 export function ArticleForm({
   action,
   categories,
+  themes = [],
   defaultValues,
   submitLabel,
   allowedStatuses = [...ARTICLE_STATUSES],
@@ -81,12 +116,27 @@ export function ArticleForm({
   const initial = { ...EMPTY, ...defaultValues };
 
   const [title, setTitle] = useState(initial.title);
+  const [content, setContent] = useState(initial.content);
+  const [excerpt, setExcerpt] = useState(initial.excerpt);
+  const [manualExcerpt, setManualExcerpt] = useState(Boolean(initial.excerpt.trim()));
+  const displayedExcerpt = manualExcerpt ? excerpt : summarizeContent(content);
+  const [format, setFormat] = useState<ArticleFormat>(initial.format);
   const [slug, setSlug] = useState(initial.slug);
   const [slugEdited, setSlugEdited] = useState(initial.slug.length > 0);
   const [coverImageUrl, setCoverImageUrl] = useState(initial.coverImageUrl);
+  // WP16b : thèmes retenus, sérialisés dans un champ caché pour la Server Action.
+  const [themeIds, setThemeIds] = useState<string[]>(initial.themeIds);
 
   return (
     <form action={formAction} className="max-w-2xl space-y-5">
+      <div>
+        <label htmlFor="format" className={labelClass}>Format</label>
+        <select id="format" name="format" value={format} onChange={(event) => setFormat(event.target.value as ArticleFormat)} className={inputClass}>
+          <option value="FLASH">Flash</option>
+          <option value="NEWS">Actualité</option>
+          <option value="ANALYSIS">Analyse</option>
+        </select>
+      </div>
       <div>
         <label htmlFor="title" className={labelClass}>
           Titre
@@ -124,7 +174,7 @@ export function ArticleForm({
           placeholder="genere-automatiquement-depuis-le-titre"
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Généré depuis le titre si laissé vide. Utilisé dans l&apos;URL publique.
         </p>
       </div>
@@ -150,30 +200,44 @@ export function ArticleForm({
       </div>
 
       <div>
-        <label htmlFor="content" className={labelClass}>
-          Contenu (Markdown)
-        </label>
-        <textarea
-          id="content"
-          name="content"
-          rows={12}
-          required
-          defaultValue={initial.content}
-          className={`${inputClass} font-mono`}
-        />
+        <div id="themes-label" className={labelClass}>
+          Thèmes <span className="font-normal text-muted-foreground">(optionnel)</span>
+        </div>
+        <div role="group" aria-labelledby="themes-label">
+          <ThemeSelector themes={themes} value={themeIds} onChange={setThemeIds} />
+        </div>
+        <input type="hidden" name="themeIds" value={JSON.stringify(themeIds)} />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Thèmes éditoriaux transversaux (Mercato, Tactique…), indépendants de la catégorie sportive.
+        </p>
+      </div>
+
+      <div>
+        <div id="content-label" className={labelClass}>Contenu</div>
+        <div role="group" aria-labelledby="content-label">
+          <RichTextEditor value={content} onChange={setContent} />
+        </div>
+        <input type="hidden" name="content" value={content} />
       </div>
 
       <div>
         <label htmlFor="excerpt" className={labelClass}>
-          Extrait <span className="font-normal text-gray-500">(optionnel)</span>
+          Extrait <span className="font-normal text-muted-foreground">(optionnel)</span>
         </label>
         <textarea
           id="excerpt"
           name="excerpt"
           rows={3}
-          defaultValue={initial.excerpt}
+          value={displayedExcerpt}
+          onChange={(event) => { setExcerpt(event.target.value); setManualExcerpt(true); }}
           className={inputClass}
         />
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {manualExcerpt ? "Résumé personnalisé : vos modifications sont conservées." : "Résumé automatique à partir des premières phrases, mis à jour pendant la rédaction."}
+          </p>
+          {manualExcerpt && <button type="button" className="rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-muted" onClick={() => setManualExcerpt(false)}>Générer depuis le contenu</button>}
+        </div>
       </div>
 
       <div>
@@ -200,30 +264,32 @@ export function ArticleForm({
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Seuls les articles « Publié » sont visibles sur le site.
-          {allowedStatuses.length < ARTICLE_STATUSES.length
+          {allowedStatuses.length === 1 && initial.status === "PUBLISHED"
+            ? " Vous pouvez corriger le contenu. L’article reste publié ; seuls les éditeurs et administrateurs peuvent changer son statut."
+            : allowedStatuses.length < ARTICLE_STATUSES.length
             ? " Votre rôle ne permet pas de publier ni d'archiver : passez l'article « En revue » pour le confier à un éditeur."
             : ""}
         </p>
       </div>
 
       {canSetPremium ? (
-        <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+        <div className="rounded-md border border-border bg-muted p-4">
           <label
             htmlFor="isPremium"
-            className="flex items-center gap-2 text-sm font-medium text-gray-800"
+            className="flex items-center gap-2 text-sm font-medium text-foreground"
           >
             <input
               id="isPremium"
               name="isPremium"
               type="checkbox"
               defaultChecked={initial.isPremium}
-              className="h-4 w-4 rounded border-gray-300 text-blue-700 focus:ring-blue-600"
+              className="h-4 w-4 rounded border-border text-editorial-link focus:ring-blue-600"
             />
             Article premium
           </label>
-          <p className="mt-1 pl-6 text-xs text-gray-500">
+          <p className="mt-1 pl-6 text-xs text-muted-foreground">
             Réservé aux abonnés : le public ne verra que le début de l&apos;article.
           </p>
         </div>
@@ -231,7 +297,7 @@ export function ArticleForm({
         // Le réglage reste visible même sans le droit de le changer : l'auteur
         // doit savoir que son article est réservé aux abonnés. Aucun champ n'est
         // envoyé, la valeur en base est conservée par la Server Action.
-        <p className="rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+        <p className="rounded-md border border-border bg-muted p-4 text-sm text-foreground">
           {initial.isPremium ? (
             <>
               <span className="font-medium">Article premium</span> — réservé aux abonnés. Seuls un
@@ -249,7 +315,7 @@ export function ArticleForm({
       {errorMessage ? (
         <p
           role="alert"
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          className="rounded-md border border-status-error-border bg-status-error px-3 py-2 text-sm text-status-error-foreground"
         >
           {errorMessage}
         </p>
@@ -259,13 +325,13 @@ export function ArticleForm({
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPending ? "Enregistrement…" : submitLabel}
         </button>
         <Link
           href="/studio/articles"
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+          className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Annuler
         </Link>

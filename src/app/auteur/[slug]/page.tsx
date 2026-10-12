@@ -137,13 +137,13 @@ export default async function AuthorPage({ params }: Props) {
 
         <Link
           href="/"
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 transition-colors hover:text-primary-900"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Retour à l&apos;accueil
         </Link>
 
-        <header className="mb-10 border-b border-neutral-200 pb-8">
+        <header className="mb-10 border-b border-border pb-8">
           <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
             {author.photoUrl && optimizable ? (
               <Image
@@ -164,7 +164,7 @@ export default async function AuthorPage({ params }: Props) {
             ) : (
               <div
                 aria-hidden="true"
-                className="flex h-28 w-28 items-center justify-center rounded-full bg-primary-900 text-4xl font-extrabold text-white"
+                className="flex h-28 w-28 items-center justify-center rounded-full bg-primary text-4xl font-extrabold text-primary-foreground"
               >
                 {initial}
               </div>
@@ -175,10 +175,10 @@ export default async function AuthorPage({ params }: Props) {
                 <User aria-hidden="true" className="h-3.5 w-3.5" />
                 {ROLE_LABELS[author.role] ?? "Rédaction"}
               </Badge>
-              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-primary-900 sm:text-4xl">
+              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
                 {author.name}
               </h1>
-              <p className="mt-1 text-sm text-neutral-500">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {articles.length} article{articles.length > 1 ? "s" : ""} publié
                 {articles.length > 1 ? "s" : ""}
               </p>
@@ -186,9 +186,9 @@ export default async function AuthorPage({ params }: Props) {
           </div>
 
           {author.bio?.trim() ? (
-            <p className="mt-6 max-w-prose text-base leading-7 text-neutral-700">{author.bio}</p>
+            <p className="mt-6 max-w-prose text-base leading-7 text-foreground">{author.bio}</p>
           ) : (
-            <p className="mt-6 max-w-prose text-base leading-7 text-neutral-500">
+            <p className="mt-6 max-w-prose text-base leading-7 text-muted-foreground">
               {author.name} n&apos;a pas encore renseigné de biographie.
             </p>
           )}
@@ -197,15 +197,15 @@ export default async function AuthorPage({ params }: Props) {
         <section aria-labelledby="articles-auteur">
           <h2
             id="articles-auteur"
-            className="mb-6 flex items-center gap-2 text-2xl font-extrabold tracking-tight text-primary-900"
+            className="mb-6 flex items-center gap-2 text-2xl font-extrabold tracking-tight text-foreground"
           >
-            <FileText aria-hidden="true" className="h-5 w-5 text-accent-500" />
+            <FileText aria-hidden="true" className="h-5 w-5 text-status-warning-foreground" />
             Ses articles
           </h2>
 
           {articles.length === 0 ? (
             <Card>
-              <CardBody className="text-center text-sm text-neutral-500">
+              <CardBody className="text-center text-sm text-muted-foreground">
                 Aucun article publié pour le moment.
               </CardBody>
             </Card>

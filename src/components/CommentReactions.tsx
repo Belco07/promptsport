@@ -89,8 +89,8 @@ export function CommentReactions({
             aria-label={`${REACTION_LABELS[type]} (${count})`}
             className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               active
-                ? "border-brand-300 bg-brand-50 text-brand-700"
-                : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-neutral-900"
+                ? "border-editorial-link bg-secondary text-editorial-link"
+                : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground"
             }`}
           >
             <span aria-hidden="true">{REACTION_EMOJI[type]}</span>
@@ -100,7 +100,7 @@ export function CommentReactions({
       })}
 
       {error ? (
-        <p role="alert" className="w-full text-xs font-medium text-danger-700">
+        <p role="alert" className="w-full text-xs font-medium text-status-error-foreground">
           {error}
         </p>
       ) : null}

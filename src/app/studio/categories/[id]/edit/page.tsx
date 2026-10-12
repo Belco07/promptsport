@@ -23,10 +23,10 @@ export default async function EditCategoryPage({
 
   return (
     <div className="px-8 py-10">
-      <h1 className="mb-2 text-2xl font-bold tracking-tight text-gray-900">
+      <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">
         Modifier la catégorie
       </h1>
-      <p className="mb-6 text-sm text-gray-500">/{category.slug}</p>
+      <p className="mb-6 text-sm text-muted-foreground">/{category.slug}</p>
 
       <CategoryForm
         action={updateWithId}

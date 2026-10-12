@@ -57,23 +57,23 @@ export function ReportModal({
         onClick={() => setOpen(true)}
         disabled={!canReport}
         title={canReport ? "Signaler ce commentaire" : disabledReason}
-        className="text-xs font-medium text-neutral-500 underline transition-colors hover:text-danger-700 disabled:cursor-not-allowed disabled:opacity-60"
+        className="text-xs font-medium text-muted-foreground underline transition-colors hover:text-status-error-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
         Signaler
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby={`titre-signalement-${commentId}`}
         >
-          <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-6 shadow-xl">
-            <h2 id={`titre-signalement-${commentId}`} className="text-lg font-bold text-neutral-900">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+            <h2 id={`titre-signalement-${commentId}`} className="text-lg font-bold text-foreground">
               Signaler ce commentaire
             </h2>
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-muted-foreground">
               Le commentaire est masqué le temps qu&apos;un modérateur l&apos;examine.
             </p>
 
@@ -97,7 +97,7 @@ export function ReportModal({
                 />
 
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor={`details-${commentId}`} className="text-sm font-medium text-neutral-800">
+                  <label htmlFor={`details-${commentId}`} className="text-sm font-medium text-foreground">
                     Précisions (facultatif)
                   </label>
                   <textarea
@@ -108,7 +108,7 @@ export function ReportModal({
                     value={details}
                     onChange={(event) => setDetails(event.target.value)}
                     placeholder="Décrivez le problème en quelques mots."
-                    className="resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400"
+                    className="resize-y rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
 
@@ -116,7 +116,7 @@ export function ReportModal({
                   <button
                     type="button"
                     onClick={() => setOpen(false)}
-                    className="text-sm font-semibold text-neutral-700 underline"
+                    className="text-sm font-semibold text-foreground underline"
                   >
                     Annuler
                   </button>
@@ -126,8 +126,8 @@ export function ReportModal({
                 </div>
               </form>
             ) : (
-              <p className="mt-4 text-sm text-neutral-600">
-                <a href="/login" className="font-semibold text-primary-700 underline">
+              <p className="mt-4 text-sm text-muted-foreground">
+                <a href="/login" className="font-semibold text-editorial-link underline">
                   Connectez-vous
                 </a>{" "}
                 pour signaler un commentaire.
@@ -139,8 +139,8 @@ export function ReportModal({
                 role={feedback.type === "success" ? "status" : "alert"}
                 className={`mt-4 rounded-lg border px-3 py-2 text-sm font-medium ${
                   feedback.type === "success"
-                    ? "border-success-200 bg-success-50 text-success-800"
-                    : "border-danger-200 bg-danger-50 text-danger-700"
+                    ? "border-status-success-border bg-status-success text-status-success-foreground"
+                    : "border-status-error-border bg-status-error text-status-error-foreground"
                 }`}
               >
                 {feedback.text}

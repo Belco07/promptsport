@@ -40,7 +40,7 @@ export function StatusSelect({
             await updateArticleStatus(articleId, newStatus);
           });
         }}
-        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:opacity-60"
+        className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground outline-none focus:border-editorial-link focus:ring-1 focus:ring-blue-600 disabled:opacity-60"
       >
         {allowedStatuses.map((status) => (
           <option key={status} value={status}>
@@ -48,7 +48,7 @@ export function StatusSelect({
           </option>
         ))}
       </select>
-      {isPending ? <span className="text-xs text-gray-400">…</span> : null}
+      {isPending ? <span className="text-xs text-muted-foreground">…</span> : null}
     </div>
   );
 }
