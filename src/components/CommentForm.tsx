@@ -43,8 +43,8 @@ export function CommentForm({
           role={notice.type === "success" ? "status" : "alert"}
           className={`mb-4 rounded-lg border px-4 py-3 text-sm font-medium ${
             notice.type === "success"
-              ? "border-success-200 bg-success-50 text-success-800"
-              : "border-danger-200 bg-danger-50 text-danger-700"
+              ? "border-status-success-border bg-status-success text-status-success-foreground"
+              : "border-status-error-border bg-status-error text-status-error-foreground"
           }`}
         >
           {notice.text}
@@ -52,39 +52,39 @@ export function CommentForm({
       ) : null}
 
       {!isLoggedIn ? (
-        <p className="rounded-xl border border-neutral-200 bg-white p-5 text-sm text-neutral-600">
-          <Link href="/login" className="font-semibold text-primary-700 underline">
+        <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+          <Link href="/login" className="font-semibold text-editorial-link underline">
             Connectez-vous
           </Link>{" "}
           pour participer à la discussion.
         </p>
       ) : isBanned ? (
-        <p className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-700">
+        <p className="rounded-lg border border-status-error-border bg-status-error px-4 py-3 text-sm font-medium text-status-error-foreground">
           {banMessage}
         </p>
       ) : (
-        <form action={createComment} className="rounded-xl border border-neutral-200 bg-white p-5">
+        <form action={createComment} className="rounded-xl border border-border bg-card p-5">
           <input type="hidden" name="slug" value={slug} />
           {replyTo ? <input type="hidden" name="parentId" value={replyTo.id} /> : null}
 
           {replyTo ? (
-            <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-              <p className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-neutral-700">
+            <div className="mb-4 rounded-lg border border-border bg-muted p-3">
+              <p className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-foreground">
                 <span>Réponse à {replyTo.authorName}</span>
                 <Link
                   href={`/article/${slug}#commentaires`}
-                  className="font-medium text-neutral-500 underline"
+                  className="font-medium text-muted-foreground underline"
                 >
                   Annuler
                 </Link>
               </p>
-              <p className="mt-1 text-xs italic text-neutral-500">
+              <p className="mt-1 text-xs italic text-muted-foreground">
                 « {commentExcerpt(replyTo.content, 120)} »
               </p>
             </div>
           ) : null}
 
-          <label htmlFor="champ-commentaire" className="block text-sm font-semibold text-neutral-800">
+          <label htmlFor="champ-commentaire" className="block text-sm font-semibold text-foreground">
             {replyTo ? "Votre réponse" : "Votre commentaire"}
           </label>
           <textarea
@@ -98,16 +98,16 @@ export function CommentForm({
                 ? "Répondez à ce commentaire, dans le respect des autres lecteurs."
                 : "Partagez votre analyse, dans le respect des autres lecteurs."
             }
-            className="mt-2 w-full resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400"
+            className="mt-2 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
           />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-muted-foreground">
               {COMMENT_MAX_LENGTH} caractères maximum · 10 commentaires par heure · publié après
               validation.
             </p>
             <button
               type="submit"
-              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+              className="rounded-lg bg-editorial-action px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-editorial-action"
             >
               {replyTo ? "Répondre" : "Publier"}
             </button>

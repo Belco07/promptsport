@@ -85,7 +85,7 @@ export function CommentsTab({
   return (
     <div className="mt-6">
       {/* Filtres : formulaire GET, sans JavaScript. */}
-      <form method="get" action={basePath} className="flex flex-wrap items-end gap-4 rounded-lg border border-gray-200 bg-white p-4">
+      <form method="get" action={basePath} className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card p-4">
         <input type="hidden" name="tab" value="comments" />
         <Select
           name="status"
@@ -110,7 +110,7 @@ export function CommentsTab({
           placeholder="Tous les articles"
         />
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="champ-auteur" className="text-sm font-medium text-neutral-800">
+          <label htmlFor="champ-auteur" className="text-sm font-medium text-foreground">
             Auteur
           </label>
           <input
@@ -119,7 +119,7 @@ export function CommentsTab({
             type="text"
             defaultValue={filters.author}
             placeholder="Nom ou e-mail"
-            className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400"
+            className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -131,8 +131,8 @@ export function CommentsTab({
       </form>
 
       {/* Barre d'actions groupées : les cases du tableau lui sont rattachées. */}
-      <form id="bulk-form" action={bulkModerate} className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-        <p className="text-sm font-medium text-gray-700">
+      <form id="bulk-form" action={bulkModerate} className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted px-4 py-3">
+        <p className="text-sm font-medium text-foreground">
           {total} commentaire{total > 1 ? "s" : ""} · page {page} / {totalPages}
         </p>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -148,10 +148,10 @@ export function CommentsTab({
         </div>
       </form>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Commentaires à modérer</caption>
-          <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+          <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-3 font-semibold">
                 <span className="sr-only">Sélection</span>
@@ -176,16 +176,16 @@ export function CommentsTab({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   Aucun commentaire ne correspond à ces filtres.
                 </td>
               </tr>
             ) : (
               rows.map((comment) => (
-                <tr key={comment.id} className="align-top hover:bg-gray-50">
+                <tr key={comment.id} className="align-top hover:bg-muted">
                   <td className="px-3 py-3">
                     <input
                       type="checkbox"
@@ -193,41 +193,41 @@ export function CommentsTab({
                       value={comment.id}
                       form="bulk-form"
                       aria-label={`Sélectionner le commentaire de ${comment.author.name}`}
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-border"
                     />
                   </td>
                   <td className="px-3 py-3">
                     <Link
                       href={`/backoffice/users/${comment.author.id}/edit`}
-                      className="font-medium text-gray-900 underline transition-colors hover:text-blue-800"
+                      className="font-medium text-foreground underline transition-colors hover:text-editorial-link"
                     >
                       {comment.author.name}
                     </Link>
-                    <span className="block text-xs text-gray-500">{comment.author.email}</span>
+                    <span className="block text-xs text-muted-foreground">{comment.author.email}</span>
                   </td>
                   <td className="px-3 py-3">
                     <Link
                       href={`/article/${comment.article.slug}`}
-                      className="text-blue-700 underline transition-colors hover:text-blue-900"
+                      className="text-editorial-link underline transition-colors hover:text-editorial-link"
                     >
                       {comment.article.title}
                     </Link>
                   </td>
-                  <td className="max-w-md px-3 py-3 text-gray-700">
+                  <td className="max-w-md px-3 py-3 text-foreground">
                     {commentExcerpt(comment.content)}
                     {comment.reports.length > 0 ? (
-                      <ul className="mt-2 space-y-1.5 border-l-2 border-red-200 pl-2.5">
+                      <ul className="mt-2 space-y-1.5 border-l-2 border-status-error-border pl-2.5">
                         {comment.reports.map((report) => (
                           <li key={report.id} className="text-xs">
-                            <span className="font-semibold text-red-800">
+                            <span className="font-semibold text-status-error-foreground">
                               {isReportReason(report.reason)
                                 ? REPORT_REASON_LABELS[report.reason]
                                 : report.reason}
                             </span>
-                            <span className="text-gray-600">
+                            <span className="text-muted-foreground">
                               {" "}
                               — signalé le {formatDate(report.createdAt)} par{" "}
-                              <span className="font-medium text-gray-800">
+                              <span className="font-medium text-foreground">
                                 {report.reporter.name}
                               </span>{" "}
                               ({report.reporter.email})
@@ -236,7 +236,7 @@ export function CommentsTab({
                               <ReportStatusBadge status={report.status} />
                             </span>
                             {report.details ? (
-                              <span className="mt-0.5 block italic text-gray-600">
+                              <span className="mt-0.5 block italic text-muted-foreground">
                                 « {commentExcerpt(report.details, 160)} »
                               </span>
                             ) : null}
@@ -248,10 +248,10 @@ export function CommentsTab({
                   <td className="px-3 py-3">
                     <CommentStatusBadge status={comment.status} />
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-gray-600">
+                  <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
                     {formatDate(comment.createdAt)}
                     {comment.editedAt ? (
-                      <span className="block text-xs text-gray-400">modifié</span>
+                      <span className="block text-xs text-muted-foreground">modifié</span>
                     ) : null}
                   </td>
                   <td className="px-3 py-3">
@@ -261,7 +261,7 @@ export function CommentsTab({
                         type="submit"
                         name="intent"
                         value="approve"
-                        className="text-sm font-medium text-green-700 underline transition-colors hover:text-green-900"
+                        className="text-sm font-medium text-status-success-foreground underline transition-colors hover:text-green-900"
                       >
                         Approuver
                       </button>
@@ -277,7 +277,7 @@ export function CommentsTab({
                         type="submit"
                         name="intent"
                         value="delete"
-                        className="text-sm font-medium text-red-700 underline transition-colors hover:text-red-900"
+                        className="text-sm font-medium text-status-error-foreground underline transition-colors hover:text-status-error-foreground"
                       >
                         Supprimer
                       </button>
@@ -285,7 +285,7 @@ export function CommentsTab({
                         href={`/article/${comment.article.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm font-medium text-blue-700 underline transition-colors hover:text-blue-900"
+                        className="text-sm font-medium text-editorial-link underline transition-colors hover:text-editorial-link"
                       >
                         Voir l&apos;article
                       </a>
@@ -301,21 +301,21 @@ export function CommentsTab({
       {totalPages > 1 ? (
         <nav aria-label="Pagination des commentaires" className="mt-4 flex items-center justify-between text-sm">
           {page > 1 ? (
-            <Link href={pageHref(page - 1)} className="font-semibold text-blue-700 underline">
+            <Link href={pageHref(page - 1)} className="font-semibold text-editorial-link underline">
               ← Page précédente
             </Link>
           ) : (
-            <span className="text-gray-400">← Page précédente</span>
+            <span className="text-muted-foreground">← Page précédente</span>
           )}
-          <span className="text-gray-600">
+          <span className="text-muted-foreground">
             Page {page} sur {totalPages}
           </span>
           {page < totalPages ? (
-            <Link href={pageHref(page + 1)} className="font-semibold text-blue-700 underline">
+            <Link href={pageHref(page + 1)} className="font-semibold text-editorial-link underline">
               Page suivante →
             </Link>
           ) : (
-            <span className="text-gray-400">Page suivante →</span>
+            <span className="text-muted-foreground">Page suivante →</span>
           )}
         </nav>
       ) : null}

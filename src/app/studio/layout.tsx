@@ -20,32 +20,34 @@ export default async function StudioLayout({
     redirect("/login");
   }
 
+  if (!["ADMIN", "EDITOR", "JOURNALIST"].includes(session.user.role)) redirect("/mon-compte");
+
   const displayName = session.user.name ?? session.user.email ?? "auteur";
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="flex w-60 shrink-0 flex-col justify-between border-r border-gray-200 bg-white p-4">
+    <div className="workspace-theme flex min-h-screen bg-background">
+      <aside className="flex w-60 shrink-0 flex-col justify-between border-r border-border bg-card p-4">
         <div>
-          <p className="mb-6 px-3 text-sm font-bold uppercase tracking-wide text-gray-900">
+          <p className="mb-6 px-3 text-sm font-bold uppercase tracking-wide text-foreground">
             Rédaction
           </p>
           <StudioNav />
         </div>
 
-        <div className="space-y-2 border-t border-gray-200 pt-4">
-          <p className="px-3 text-xs text-gray-500">
-            Connecté : <span className="font-medium text-gray-700">{displayName}</span>
+        <div className="space-y-2 border-t border-border pt-4">
+          <p className="px-3 text-xs text-muted-foreground">
+            Connecté : <span className="font-medium text-foreground">{displayName}</span>
           </p>
           <Link
             href="/"
-            className="block rounded-md px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+            className="block rounded-md px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
           >
             Voir le site
           </Link>
           <form action={logout}>
             <button
               type="submit"
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-800 transition-colors hover:bg-gray-100"
+              className="w-full rounded-md border border-border bg-card px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted"
             >
               Se déconnecter
             </button>

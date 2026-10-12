@@ -19,21 +19,21 @@ export function Paywall({ isLoggedIn }: { isLoggedIn: boolean }) {
       {/* Fondu : recouvre la fin du texte tronqué qui précède. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none -mt-24 h-24 w-full bg-gradient-to-b from-transparent to-white"
+        className="pointer-events-none -mt-24 h-24 w-full bg-gradient-to-b from-transparent to-white [.public-site_&]:to-background"
       />
 
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-card sm:p-8">
+      <div className="rounded-2xl border border-amber-200 [.public-site_&]:border-status-premium-border bg-amber-50 [.public-site_&]:bg-status-premium p-6 text-center shadow-card sm:p-8">
         <span
           aria-hidden="true"
-          className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-800"
+          className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 [.public-site_&]:bg-status-premium text-amber-800 [.public-site_&]:text-status-premium-foreground"
         >
           <Lock className="h-6 w-6" />
         </span>
 
-        <p className="text-xl font-extrabold tracking-tight text-primary-900">
+        <p className="text-xl font-extrabold tracking-tight text-primary-900 [.public-site_&]:text-foreground">
           Cet article est réservé aux abonnés
         </p>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-neutral-600">
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-neutral-600 [.public-site_&]:text-muted-foreground">
           Abonnez-vous pour lire l&apos;intégralité de cet article et soutenir un
           journalisme sportif indépendant.
         </p>
@@ -49,7 +49,7 @@ export function Paywall({ isLoggedIn }: { isLoggedIn: boolean }) {
           <p className="mt-4 text-sm">
             <Link
               href="/login"
-              className="font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
+              className="font-semibold text-primary-700 [.public-site_&]:text-editorial-link underline transition-colors hover:text-primary-900 [.public-site_&]:hover:text-foreground"
             >
               Déjà abonné ? Se connecter
             </Link>

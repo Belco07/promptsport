@@ -9,7 +9,9 @@ import type { NextConfig } from "next";
  */
 
 /** Assets immuables produits par le build (nom de fichier haché). */
-const STATIC_ASSETS_CACHE = "public, max-age=31536000, immutable";
+const STATIC_ASSETS_CACHE = process.env.NODE_ENV === "production"
+  ? "public, max-age=31536000, immutable"
+  : "no-store";
 /** Images optimisées : court en navigateur, mais service immédiat depuis le cache. */
 const OPTIMIZED_IMAGE_CACHE = "public, max-age=60, stale-while-revalidate=86400";
 /**
@@ -44,6 +46,7 @@ const imageConfig: ImageConfig = {
   imageSizes: [40, 64, 96, 128, 256, 384],
   // Hôtes distants autorisés pour l'optimiseur d'images.
   remotePatterns: [
+    { protocol: "https", hostname: "media.api-sports.io" },
     // Logos des équipes servis par l'API football-data.org.
     { protocol: "https", hostname: "crests.football-data.org" },
     // Couvertures d'articles stockées dans Vercel Blob en production : l'URL
@@ -55,6 +58,8 @@ const imageConfig: ImageConfig = {
 };
 
 const nextConfig: NextConfig = {
+  // Development and production builds must not overwrite each other's manifests.
+  distDir: process.env.NODE_ENV === "production" ? ".next-production" : ".next",
   experimental: {
     serverActions: {
       // Par défaut, Next limite le corps des Server Actions à 1 Mo.

@@ -8,11 +8,12 @@
  */
 import type { ArticleStatus } from "./articleStatus";
 
-export const USER_ROLES = ["ADMIN", "EDITOR", "JOURNALIST"] as const;
+export const USER_ROLES = ["ADMIN", "EDITOR", "JOURNALIST", "READER"] as const;
 
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  READER: "Lecteur",
   ADMIN: "Administrateur",
   EDITOR: "Éditeur",
   JOURNALIST: "Journaliste",
@@ -20,9 +21,10 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
 
 /** Classes Tailwind du badge selon le rôle (rouge/bleu/gris). */
 export const USER_ROLE_BADGES: Record<UserRole, string> = {
-  ADMIN: "bg-red-100 text-red-800",
-  EDITOR: "bg-blue-100 text-blue-800",
-  JOURNALIST: "bg-gray-100 text-gray-600",
+  READER: "bg-muted text-muted-foreground",
+  ADMIN: "bg-status-error text-status-error-foreground",
+  EDITOR: "bg-status-info text-editorial-link",
+  JOURNALIST: "bg-muted text-muted-foreground",
 };
 
 /** Vérifie qu'une valeur est un rôle valide. */
@@ -67,8 +69,8 @@ export function canAccessStudio(role: UserRole | undefined | null): boolean {
  * Règles éditoriales sur un article :
  *
  *  - la rédaction voit tous les articles (le studio est un espace partagé) ;
- *  - un JOURNALIST n'agit que sur **ses** articles, et seulement tant qu'ils ne
- *    sont pas publiés : une fois publié, l'article sort de son périmètre ;
+ *  - un JOURNALIST peut corriger ses articles, y compris après publication ;
+ *    les articles archivés restent en lecture seule ;
  *  - le passage en brouillon est réservé à l'auteur : un éditeur qui renvoie un
  *    article arrière le met « en revue », charge à l'auteur d'en faire un
  *    brouillon ;
@@ -95,7 +97,7 @@ function isPrivileged(role: UserRole | undefined | null): boolean {
   return role === "ADMIN" || role === "EDITOR";
 }
 
-/** Un article publié ou archivé n'est plus modifiable par son auteur. */
+/** La publication et l'archivage verrouillent le cycle de vie pour l'auteur. */
 function isOutOfAuthorHands(status: ArticleStatus): boolean {
   return status === "PUBLISHED" || status === "ARCHIVED";
 }
@@ -110,7 +112,7 @@ export function canEditArticle(viewer: ArticleViewer, article: ArticleSubject): 
   if (isPrivileged(viewer.role)) {
     return true;
   }
-  return viewer.role === "JOURNALIST" && isAuthor(viewer, article) && !isOutOfAuthorHands(article.status);
+  return viewer.role === "JOURNALIST" && isAuthor(viewer, article) && article.status !== "ARCHIVED";
 }
 
 /** Supprimer un article. */
@@ -174,11 +176,11 @@ export function readOnlyReason(
   if (canEditArticle(viewer, article) || canDeleteArticle(viewer, article)) {
     return null;
   }
-  if (isOutOfAuthorHands(article.status)) {
-    return "Article publié : hors périmètre de l'auteur";
-  }
   if (!isAuthor(viewer, article)) {
     return "Article d'un autre auteur";
+  }
+  if (article.status === "ARCHIVED") {
+    return "Article archivé : lecture seule";
   }
   return "Lecture seule";
 }

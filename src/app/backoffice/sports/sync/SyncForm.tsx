@@ -17,10 +17,10 @@ type Row = {
 };
 
 const STATUS_STYLES: Record<RowStatus, string> = {
-  pending: "bg-gray-100 text-gray-600",
-  running: "bg-blue-100 text-blue-800",
-  done: "bg-green-100 text-green-800",
-  error: "bg-red-100 text-red-800",
+  pending: "bg-muted text-muted-foreground",
+  running: "bg-status-info text-editorial-link",
+  done: "bg-status-success text-status-success-foreground",
+  error: "bg-status-error text-status-error-foreground",
 };
 
 const STATUS_LABELS: Record<RowStatus, string> = {
@@ -127,29 +127,29 @@ export function SyncForm() {
           type="button"
           onClick={runAll}
           disabled={isPending}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPending ? "Synchronisation en cours…" : "Tout synchroniser"}
         </button>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {DEFAULT_COMPETITIONS.length} compétitions · ~6 s entre chaque requête API
         </span>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white">
-        <h2 className="border-b border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900">
+      <div className="rounded-lg border border-border bg-card">
+        <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
           Progression
         </h2>
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-border">
           {rows.map((row) => (
             <li key={row.code} className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-foreground">
                   {row.label}{" "}
-                  <span className="text-xs font-normal text-gray-400">({row.code})</span>
+                  <span className="text-xs font-normal text-muted-foreground">({row.code})</span>
                 </p>
                 {row.detail ? (
-                  <p className="mt-0.5 text-xs text-gray-500">{row.detail}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{row.detail}</p>
                 ) : null}
               </div>
               <span
@@ -163,7 +163,7 @@ export function SyncForm() {
       </div>
 
       {summary ? (
-        <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p className="rounded-md border border-status-success-border bg-status-success px-3 py-2 text-sm text-status-success-foreground">
           {summary}
         </p>
       ) : null}
@@ -171,7 +171,7 @@ export function SyncForm() {
       {errors.length > 0 ? (
         <div
           role="alert"
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          className="rounded-md border border-status-error-border bg-status-error px-3 py-2 text-sm text-status-error-foreground"
         >
           <p className="font-medium">Erreurs rencontrées :</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-5">
@@ -182,8 +182,8 @@ export function SyncForm() {
         </div>
       ) : null}
 
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-semibold text-gray-900">
+      <div className="rounded-lg border border-border bg-card p-4">
+        <h2 className="mb-2 text-sm font-semibold text-foreground">
           Synchroniser une seule compétition
         </h2>
         <div className="flex flex-wrap items-center gap-3">
@@ -191,7 +191,7 @@ export function SyncForm() {
             value={singleCode}
             onChange={(event) => setSingleCode(event.target.value)}
             disabled={isPending}
-            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 disabled:opacity-60"
+            className="rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground disabled:opacity-60"
           >
             {DEFAULT_COMPETITIONS.map((code) => (
               <option key={code} value={code}>
@@ -203,7 +203,7 @@ export function SyncForm() {
             type="button"
             onClick={runOne}
             disabled={isPending}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:opacity-60"
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
           >
             Synchroniser cette compétition
           </button>

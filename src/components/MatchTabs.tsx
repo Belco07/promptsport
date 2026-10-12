@@ -1,0 +1,3 @@
+import Link from "next/link";
+export const matchTabs={resume:"Résumé",compositions:"Compositions",statistiques:"Statistiques",commentaires:"Commentaires"};
+export function MatchTabs({id,active}:{id:string;active:keyof typeof matchTabs}) {return <nav aria-label="Rubriques du match" className="my-8 flex gap-6 overflow-x-auto border-b border-border [scrollbar-width:none]">{Object.entries(matchTabs).map(([key,label])=><Link key={key} href={`/match/${id}?tab=${key}`} aria-current={active===key?"page":undefined} className={`shrink-0 border-b-2 px-1 py-4 text-sm font-bold ${active===key?"border-editorial-link text-editorial-link":"border-transparent text-muted-foreground hover:text-foreground"}`}>{label}</Link>)}</nav>;}

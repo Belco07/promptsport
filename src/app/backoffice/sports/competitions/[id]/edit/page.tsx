@@ -20,10 +20,10 @@ export default async function EditCompetitionPage({
 
   return (
     <div className="px-8 py-10">
-      <h1 className="mb-2 text-2xl font-bold tracking-tight text-gray-900">
+      <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">
         Modifier la compétition
       </h1>
-      <p className="mb-6 text-sm text-gray-500">/{competition.slug}</p>
+      <p className="mb-6 text-sm text-muted-foreground">/{competition.slug}</p>
       <CompetitionForm
         action={updateWithId}
         defaultValues={{

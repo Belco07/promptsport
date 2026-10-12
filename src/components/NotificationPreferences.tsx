@@ -42,10 +42,10 @@ export function NotificationPreferences({
 
   return (
     <form action={formAction} className="space-y-6">
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+      <div className="rounded-lg border border-border bg-muted p-4">
         <label
           htmlFor="emailNotificationsEnabled"
-          className="flex items-center gap-2.5 text-sm font-semibold text-neutral-800"
+          className="flex items-center gap-2.5 text-sm font-semibold text-foreground"
         >
           <input
             id="emailNotificationsEnabled"
@@ -53,14 +53,14 @@ export function NotificationPreferences({
             type="checkbox"
             defaultChecked={enabled}
             onChange={(event) => setGlobalEnabled(event.target.checked)}
-            className="h-4 w-4 rounded border-neutral-300"
+            className="h-4 w-4 rounded border-border"
           />
           Recevoir les notifications par email
         </label>
-        <p className="mt-1 pl-6 text-xs text-neutral-500">
+        <p className="mt-1 pl-6 text-xs text-muted-foreground">
           Décochez cette case pour ne plus recevoir aucun e-mail de notification. Vos notifications
           restent consultables dans{" "}
-          <Link href="/mon-compte/notifications" className="font-semibold text-primary-700 underline">
+          <Link href="/mon-compte/notifications" className="font-semibold text-editorial-link underline">
             votre espace
           </Link>
           .
@@ -68,10 +68,10 @@ export function NotificationPreferences({
       </div>
 
       <fieldset disabled={!globalEnabled} className={globalEnabled ? "" : "opacity-60"}>
-        <legend className="text-sm font-semibold text-neutral-800">
+        <legend className="text-sm font-semibold text-foreground">
           Types de notifications à recevoir par email
         </legend>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Les réactions à vos commentaires et les autres alertes restent uniquement dans
           l&apos;application.
         </p>
@@ -80,7 +80,7 @@ export function NotificationPreferences({
           {options.map((option) => {
             const isDisabled = disabledTypes.includes(option.type);
             return (
-              <li key={option.type} className="rounded-lg border border-neutral-200 bg-white p-4">
+              <li key={option.type} className="rounded-lg border border-border bg-card p-4">
                 <label htmlFor={`type-${option.type}`} className="flex items-start gap-2.5 text-sm">
                   <input
                     id={`type-${option.type}`}
@@ -88,11 +88,11 @@ export function NotificationPreferences({
                     type="checkbox"
                     value={option.type}
                     defaultChecked={!isDisabled}
-                    className="mt-0.5 h-4 w-4 rounded border-neutral-300"
+                    className="mt-0.5 h-4 w-4 rounded border-border"
                   />
                   <span>
-                    <span className="font-medium text-neutral-900">{option.label}</span>
-                    <span className="block text-xs text-neutral-500">{option.hint}</span>
+                    <span className="font-medium text-foreground">{option.label}</span>
+                    <span className="block text-xs text-muted-foreground">{option.hint}</span>
                   </span>
                 </label>
               </li>
@@ -115,7 +115,7 @@ export function NotificationPreferences({
       {errorMessage ? (
         <p
           role="alert"
-          className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm font-medium text-danger-700"
+          className="rounded-lg border border-status-error-border bg-status-error px-4 py-3 text-sm font-medium text-status-error-foreground"
         >
           {errorMessage}
         </p>
@@ -127,7 +127,7 @@ export function NotificationPreferences({
         </Button>
         <Link
           href="/mon-compte"
-          className="text-sm font-semibold text-neutral-600 underline transition-colors hover:text-neutral-900"
+          className="text-sm font-semibold text-muted-foreground underline transition-colors hover:text-foreground"
         >
           Retour à mon compte
         </Link>

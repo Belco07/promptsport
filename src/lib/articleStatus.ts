@@ -22,10 +22,10 @@ export const ARTICLE_STATUS_LABELS: Record<ArticleStatus, string> = {
 
 /** Classes Tailwind du badge selon le statut. */
 export const ARTICLE_STATUS_BADGES: Record<ArticleStatus, string> = {
-  DRAFT: "bg-gray-100 text-gray-600",
+  DRAFT: "bg-muted text-muted-foreground",
   REVIEW: "bg-orange-100 text-orange-800",
-  PUBLISHED: "bg-green-100 text-green-800",
-  ARCHIVED: "bg-red-100 text-red-800",
+  PUBLISHED: "bg-status-success text-status-success-foreground",
+  ARCHIVED: "bg-status-error text-status-error-foreground",
 };
 
 /** Vérifie qu'une valeur est un statut valide. */

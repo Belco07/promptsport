@@ -48,10 +48,10 @@ export async function authenticate(
   // rediriger immédiatement, sans relire la session.
   const author = await prisma.author.findUnique({
     where: { email },
-    select: { role: true },
+    select: { role: true, welcomeCompleted: true },
   });
 
-  redirect(author?.role === "ADMIN" ? "/backoffice" : "/studio");
+  redirect(author?.role === "ADMIN" ? "/backoffice" : author?.role === "READER" ? (author.welcomeCompleted ? "/mon-compte" : "/bienvenue") : "/studio");
 }
 
 /** Déconnexion puis retour au formulaire de connexion. */

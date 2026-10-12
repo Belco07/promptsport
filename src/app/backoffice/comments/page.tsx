@@ -304,8 +304,8 @@ export default async function BackofficeCommentsPage({
 
   return (
     <div className="px-8 py-10">
-      <h1 className="text-3xl font-bold tracking-tight text-gray-900">Modération des commentaires</h1>
-      <p className="mt-2 text-sm text-gray-600">
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">Modération des commentaires</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
         {commentCount} commentaire{commentCount > 1 ? "s" : ""} · {reportCount} signalement
         {reportCount > 1 ? "s" : ""} · {authorCount} auteur{authorCount > 1 ? "s" : ""} ayant commenté.
       </p>
@@ -313,15 +313,15 @@ export default async function BackofficeCommentsPage({
       {/* Statistiques de modération. */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-gray-200 bg-white p-4">
-            <p className="text-xs uppercase tracking-wide text-gray-500">{stat.label}</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{stat.value}</p>
+          <div key={stat.label} className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">{stat.value}</p>
           </div>
         ))}
       </div>
 
       {/* Onglets : liens, sans JavaScript. */}
-      <nav aria-label="Onglets de modération" className="mt-8 flex gap-2 border-b border-gray-200">
+      <nav aria-label="Onglets de modération" className="mt-8 flex gap-2 border-b border-border">
         {TABS.map((item) => {
           const active = item.key === tab;
           const count =
@@ -333,12 +333,12 @@ export default async function BackofficeCommentsPage({
               aria-current={active ? "page" : undefined}
               className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
                 active
-                  ? "border-blue-700 text-blue-800"
-                  : "border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900"
+                  ? "border-editorial-link text-editorial-link"
+                  : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
               }`}
             >
               {item.label}
-              <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+              <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                 {count}
               </span>
             </Link>
@@ -352,7 +352,7 @@ export default async function BackofficeCommentsPage({
         <BanModal author={banTarget} closeHref={`${BASE_PATH}?${closeParams.toString()}`} />
       ) : null}
 
-      <p className="mt-8 text-xs text-gray-500">
+      <p className="mt-8 text-xs text-muted-foreground">
         Statuts disponibles : {COMMENT_STATUSES.length} pour un commentaire (dont{" "}
         {COMMENT_STATUSES.filter((status) => status === "DELETED").length} suppression douce) et{" "}
         {REPORT_STATUSES.length} pour un signalement. Aucun journal d&apos;audit n&apos;est conservé

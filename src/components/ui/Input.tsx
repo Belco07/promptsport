@@ -16,12 +16,12 @@ export function fieldStyles({
   className = "",
 }: { invalid?: boolean; className?: string } = {}): string {
   return [
-    "block w-full rounded-lg border bg-white px-3 py-2 text-sm text-neutral-900",
-    "placeholder:text-neutral-400",
-    "disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500",
+    "block w-full rounded-lg border bg-white [.public-site_&]:bg-card px-3 py-2 text-sm text-neutral-900 [.public-site_&]:text-foreground",
+    "placeholder:text-neutral-400 [.public-site_&]:placeholder:text-muted-foreground",
+    "disabled:cursor-not-allowed disabled:bg-neutral-100 [.public-site_&]:disabled:bg-muted disabled:text-neutral-500 [.public-site_&]:disabled:text-muted-foreground",
     invalid
       ? "border-danger-400 focus:border-danger-500"
-      : "border-neutral-300 focus:border-primary-500",
+      : "border-neutral-300 [.public-site_&]:border-border focus:border-primary-500",
     className,
   ]
     .filter(Boolean)
@@ -45,17 +45,17 @@ export function Field({
 }) {
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      <label htmlFor={id} className="text-sm font-medium text-neutral-800">
+      <label htmlFor={id} className="text-sm font-medium text-neutral-800 [.public-site_&]:text-foreground">
         {label}
       </label>
       {children}
       {hint && !error ? (
-        <p id={`${id}-aide`} className="text-xs text-neutral-500">
+        <p id={`${id}-aide`} className="text-xs text-neutral-500 [.public-site_&]:text-muted-foreground">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={`${id}-erreur`} className="text-xs font-medium text-danger-700">
+        <p id={`${id}-erreur`} className="text-xs font-medium text-danger-700 [.public-site_&]:text-status-danger">
           {error}
         </p>
       ) : null}

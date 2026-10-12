@@ -62,7 +62,7 @@ export default async function EditCampaignPage({
   return (
     <div className="px-8 py-10">
       <h1 className="text-3xl font-bold tracking-tight text-primary-900">Modifier la campagne</h1>
-      <p className="mt-2 text-sm text-neutral-600">
+      <p className="mt-2 text-sm text-muted-foreground">
         {campaign.subject} · statut {campaign.status === "DRAFT" ? "brouillon" : "planifiée"}
       </p>
 

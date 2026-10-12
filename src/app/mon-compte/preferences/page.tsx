@@ -67,20 +67,20 @@ export default async function NotificationPreferencesPage({
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-10">
-        <header className="mb-6 border-b border-neutral-200 pb-5">
-          <p className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800">
+      <main id="contenu" className="mx-auto w-full max-w-4xl px-4 py-10">
+        <header className="mb-6 border-b border-border pb-5">
+          <p className="inline-flex items-center gap-2 rounded-full border border-editorial-link bg-secondary px-3 py-1 text-xs font-semibold text-editorial-link">
             <BellRing aria-hidden="true" className="h-3.5 w-3.5" />
             Notifications
           </p>
-          <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-primary-900 sm:text-3xl">
+          <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
             Préférences de notification
           </h1>
-          <p className="mt-2 text-sm text-neutral-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             {author.name} · {author.email}. Vos notifications restent visibles dans{" "}
             <Link
               href="/mon-compte/notifications"
-              className="font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
+              className="font-semibold text-editorial-link underline transition-colors hover:text-editorial-link"
             >
               votre espace notifications
             </Link>{" "}
@@ -91,7 +91,7 @@ export default async function NotificationPreferencesPage({
         {params.enregistre === "1" ? (
           <p
             role="status"
-            className="mb-6 rounded-lg border border-success-200 bg-success-50 px-4 py-3 text-sm font-medium text-success-800"
+            className="mb-6 rounded-lg border border-status-success-border bg-status-success px-4 py-3 text-sm font-medium text-status-success-foreground"
           >
             Vos préférences de notification sont enregistrées.
           </p>
@@ -107,7 +107,7 @@ export default async function NotificationPreferencesPage({
           </CardBody>
         </Card>
 
-        <p className="mt-6 text-xs text-neutral-500">
+        <p className="mt-6 text-xs text-muted-foreground">
           Un e-mail est envoyé pour chaque notification importante (réponse à un commentaire,
           décision de modération, suspension de compte), dans la limite de 20 messages par heure.
           Aucun e-mail de notification ne contient de pixel de suivi.

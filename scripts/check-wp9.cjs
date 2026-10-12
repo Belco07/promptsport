@@ -461,10 +461,11 @@ async function main() {
   check("session ADMIN ouverte", adminJar.has("authjs.session-token"));
   const account = await get("/mon-compte", { jar: adminJar });
   check(
-    "GET /mon-compte -> 200 (sections Profil / Abonnement / Paiements / Sécurité)",
+    "GET /mon-compte -> 200 (sections Profil / Sécurité uniquement)",
     account.status === 200 &&
-      ["Profil", "Abonnement", "Historique des paiements", "Sécurité"].every((label) =>
-        account.body.includes(label),
+      ["Profil", "Sécurité"].every((label) => account.body.includes(label)) &&
+      ["Historique des paiements", "Voir toutes les notifications"].every(
+        (label) => !account.body.includes(label),
       ),
     `status=${account.status}`,
   );
@@ -579,11 +580,15 @@ async function main() {
     "classement : défilement horizontal sur mobile",
     standingsCss.includes("overflow-x-auto"),
   );
-  const accountScroll = account.body.includes("scroll-x");
+  // L'historique des paiements a été déplacé vers /mon-compte/abonnement.
+  const accountSubscription = await get("/mon-compte/abonnement", { jar: adminJar });
+  const accountScroll = accountSubscription.body.includes("scroll-x");
   check("tableaux de l'espace abonné : défilement horizontal", accountScroll);
   check(
     "tableaux Markdown : défilement horizontal",
-    readFileSync(path.join(ROOT, "src/app/article/[slug]/page.tsx"), "utf8").includes("scroll-x"),
+    // Le rendu Markdown vit dans MarkdownRenderer depuis le WP15d : les tableaux
+    // y sont enroulés dans .scroll-x, pas dans la page article.
+    readFileSync(path.join(ROOT, "src/components/MarkdownRenderer.tsx"), "utf8").includes("scroll-x"),
   );
   check("classe .scroll-x définie en CSS", css.includes(".scroll-x"));
 

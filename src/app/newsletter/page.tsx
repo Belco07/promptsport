@@ -41,15 +41,15 @@ export default async function NewsletterPage() {
   return (
     <>
       <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-12">
-        <header className="mb-8 border-b border-neutral-200 pb-6">
-          <p className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800">
+        <header className="mb-8 border-b border-border pb-6">
+          <p className="inline-flex items-center gap-2 rounded-full border border-editorial-link bg-secondary px-3 py-1 text-xs font-semibold text-editorial-link">
             <MailPlus aria-hidden="true" className="h-3.5 w-3.5" />
             Newsletter
           </p>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-primary-900 sm:text-4xl">
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             Recevez l&apos;essentiel de l&apos;actualité sportive
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-600">
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
             Choisissez vos listes, confirmez votre adresse par e-mail, et c&apos;est tout. Aucune
             donnée n&apos;est revendue, aucun profil publicitaire n&apos;est construit à partir de
             votre adresse.
@@ -64,12 +64,12 @@ export default async function NewsletterPage() {
           </Card>
 
           <aside className="space-y-4 text-sm">
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-              <h2 className="text-sm font-bold text-neutral-800">Ce que vous recevez</h2>
-              <ul className="mt-2 space-y-2 text-neutral-600">
+            <div className="rounded-xl border border-border bg-muted p-4">
+              <h2 className="text-sm font-bold text-foreground">Ce que vous recevez</h2>
+              <ul className="mt-2 space-y-2 text-muted-foreground">
                 {PROMISES.map((promise) => (
                   <li key={promise} className="flex gap-2">
-                    <span aria-hidden="true" className="text-primary-700">
+                    <span aria-hidden="true" className="text-editorial-link">
                       ·
                     </span>
                     <span>{promise}</span>
@@ -78,8 +78,8 @@ export default async function NewsletterPage() {
               </ul>
             </div>
 
-            <div className="rounded-xl border border-neutral-200 bg-white p-4 text-neutral-600">
-              <h2 className="text-sm font-bold text-neutral-800">Déjà inscrit ?</h2>
+            <div className="rounded-xl border border-border bg-card p-4 text-muted-foreground">
+              <h2 className="text-sm font-bold text-foreground">Déjà inscrit ?</h2>
               <p className="mt-2">
                 Chaque e-mail contient un lien pour gérer vos listes ou vous désabonner. Saisissez de
                 nouveau votre adresse ci-contre : nous vous renvoyons ce lien.
@@ -87,7 +87,7 @@ export default async function NewsletterPage() {
               <p className="mt-3">
                 <Link
                   href="/confidentialite"
-                  className="font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
+                  className="font-semibold text-editorial-link underline transition-colors hover:text-editorial-link"
                 >
                   Politique de confidentialité
                 </Link>

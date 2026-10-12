@@ -16,27 +16,27 @@ export default async function TeamsPage() {
 
   return (
     <div className="px-8 py-10">
-      <h1 className="mb-6 text-2xl font-bold tracking-tight text-gray-900">Sports</h1>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Sports</h1>
       <SportTabs />
 
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-gray-900">Équipes</h2>
+        <h2 className="text-lg font-semibold text-foreground">Équipes</h2>
         <Link
           href="/backoffice/sports/teams/new"
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
         >
           Nouvelle équipe
         </Link>
       </div>
 
       {teams.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+        <p className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
           Aucune équipe.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-semibold">Nom</th>
                 <th className="px-4 py-3 font-semibold">Abrév.</th>
@@ -47,27 +47,27 @@ export default async function TeamsPage() {
                 <th className="px-4 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {teams.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{t.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{t.shortName ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-700">{t.sport}</td>
-                  <td className="px-4 py-3 text-gray-600">{t.country ?? "—"}</td>
+                <tr key={t.id} className="hover:bg-muted">
+                  <td className="px-4 py-3 font-medium text-foreground">{t.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{t.shortName ?? "—"}</td>
+                  <td className="px-4 py-3 text-foreground">{t.sport}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{t.country ?? "—"}</td>
                   <td className="px-4 py-3">
                     {t.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element -- logo externe
                       <img src={t.logoUrl} alt="" className="h-8 w-8 rounded-full object-contain" />
                     ) : (
-                      <span className="text-gray-400">—</span>
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {t._count.homeMatches + t._count.awayMatches}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <Link href={`/backoffice/sports/teams/${t.id}/edit`} className="text-blue-700 underline hover:text-blue-900">Éditer</Link>
+                      <Link href={`/backoffice/sports/teams/${t.id}/edit`} className="text-editorial-link underline hover:text-editorial-link">Éditer</Link>
                       <DeleteButton action={deleteTeam} id={t.id} label={t.name} />
                     </div>
                   </td>

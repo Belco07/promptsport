@@ -67,8 +67,8 @@ export default async function NewsletterConfirmPage({
                 aria-hidden="true"
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
                   outcome.status === "bounced"
-                    ? "bg-danger-50 text-danger-700"
-                    : "bg-success-50 text-success-700"
+                    ? "bg-status-error text-status-error-foreground"
+                    : "bg-status-success text-status-success-foreground"
                 }`}
               >
                 {outcome.status === "bounced" ? (
@@ -78,8 +78,8 @@ export default async function NewsletterConfirmPage({
                 )}
               </span>
               <div>
-                <h1 className="text-2xl font-extrabold tracking-tight text-primary-900">{title}</h1>
-                <p className="mt-2 text-sm text-neutral-700">
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{title}</h1>
+                <p className="mt-2 text-sm text-foreground">
                   {outcome.status === "confirmed" ? (
                     <>
                       Merci ! L&apos;adresse <strong>{outcome.subscriber.email}</strong> recevra
@@ -101,7 +101,7 @@ export default async function NewsletterConfirmPage({
                 <p className="mt-4 flex flex-wrap items-center gap-4 text-sm">
                   <Link
                     href="/"
-                    className="font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
+                    className="font-semibold text-editorial-link underline transition-colors hover:text-editorial-link"
                   >
                     Retour à l&apos;accueil
                   </Link>
@@ -110,7 +110,7 @@ export default async function NewsletterConfirmPage({
                   {outcome.status !== "bounced" ? (
                     <Link
                       href={`/newsletter/preferences/${token}`}
-                      className="font-semibold text-neutral-600 underline transition-colors hover:text-neutral-900"
+                      className="font-semibold text-muted-foreground underline transition-colors hover:text-foreground"
                     >
                       Gérer mes préférences
                     </Link>

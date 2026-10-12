@@ -1,4 +1,5 @@
 "use server";
+import { canAccessStudio } from "@/lib/roles";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -64,7 +65,7 @@ export async function createCategory(
   formData: FormData,
 ): Promise<string | undefined> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) {
     redirect("/login");
   }
 
@@ -93,7 +94,7 @@ export async function updateCategory(
   formData: FormData,
 ): Promise<string | undefined> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) {
     redirect("/login");
   }
 
@@ -125,7 +126,7 @@ type DeleteCategoryResult = { ok: true } | { ok: false; error: string };
 /** Suppression d'une catégorie (refusée si des articles la référencent). */
 export async function deleteCategory(formData: FormData): Promise<DeleteCategoryResult> {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) {
     redirect("/login");
   }
 

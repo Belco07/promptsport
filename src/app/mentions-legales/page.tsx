@@ -19,9 +19,9 @@ export const metadata: Metadata = buildPageMetadata({
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-t border-neutral-200 pt-6 first:border-0 first:pt-0">
-      <h2 className="text-lg font-bold tracking-tight text-primary-900">{title}</h2>
-      <div className="mt-2 space-y-3 text-sm leading-7 text-neutral-700">{children}</div>
+    <section className="border-t border-border pt-6 first:border-0 first:pt-0">
+      <h2 className="text-lg font-bold tracking-tight text-foreground">{title}</h2>
+      <div className="mt-2 space-y-3 text-sm leading-7 text-foreground">{children}</div>
     </section>
   );
 }
@@ -32,18 +32,18 @@ export default function LegalNoticePage() {
       <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-10">
         <Link
           href="/"
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 transition-colors hover:text-primary-900"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Retour à l&apos;accueil
         </Link>
 
         <header className="mb-8">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent-700">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-status-warning-foreground">
             <Scale aria-hidden="true" className="h-4 w-4" />
             Informations légales
           </p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-primary-900 sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             Mentions légales
           </h1>
         </header>
@@ -100,7 +100,7 @@ export default function LegalNoticePage() {
                 page{" "}
                 <Link
                   href="/confidentialite"
-                  className="font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
+                  className="font-semibold text-editorial-link underline transition-colors hover:text-editorial-link"
                 >
                   Politique de confidentialité
                 </Link>

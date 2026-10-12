@@ -34,6 +34,13 @@ function createCuid() {
   return `c${timestamp}${counter}${fingerprint}${random}`;
 }
 
+/**
+ * Thèmes éditoriaux par défaut : liste partagée avec `prisma/seed-themes.cjs`
+ * (production, thèmes uniquement) pour éviter toute divergence. `src/lib/themes.ts`
+ * ne porte que les helpers d'affichage (badge, icône).
+ */
+const DEFAULT_THEMES = require("./default-themes.cjs");
+
 async function main() {
   const db = new Database();
   console.log("Base : PostgreSQL (DATABASE_URL)");
@@ -79,6 +86,48 @@ async function main() {
 
   const total = db.prepare("SELECT count(*) AS n FROM Author").get();
   console.log(`Total auteurs en base : ${total.n}`);
+
+  // ------------------------------------------------------------------ WP16a
+  // Thèmes éditoriaux par défaut : transversaux aux sports, distincts des
+  // catégories (« Football », « Rugby »…). Le seed est idempotent : le slug sert
+  // de clé, relancer `npm run db:seed` met à jour sans créer de doublon.
+  //
+  // WP20 : `active` fait partie des champs mis à jour — désactiver un thème dans
+  // le seed doit se propager à une base existante, pas seulement à la création.
+  for (const theme of DEFAULT_THEMES) {
+    const existingTheme = db.prepare("SELECT id FROM Theme WHERE slug = ?").get(theme.slug);
+    if (existingTheme) {
+      db.prepare(
+        `UPDATE Theme SET name = ?, description = ?, color = ?, icon = ?, active = ?, "updatedAt" = CURRENT_TIMESTAMP
+         WHERE slug = ?`,
+      ).run(
+        theme.name,
+        theme.description,
+        theme.color,
+        theme.icon,
+        theme.active ? 1 : 0,
+        theme.slug,
+      );
+      console.log(`Theme mis a jour : ${theme.slug}${theme.active ? "" : " (desactive)"}`);
+    } else {
+      db.prepare(
+        `INSERT INTO Theme (id, name, slug, description, color, icon, active, "createdAt", "updatedAt")
+         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      ).run(
+        createCuid(),
+        theme.name,
+        theme.slug,
+        theme.description,
+        theme.color,
+        theme.icon,
+        theme.active ? 1 : 0,
+      );
+      console.log(`Theme cree : ${theme.slug}${theme.active ? "" : " (desactive)"}`);
+    }
+  }
+  const themeTotal = db.prepare("SELECT count(*) AS n FROM Theme").get();
+  const themeActive = db.prepare("SELECT count(*) AS n FROM Theme WHERE active = true").get();
+  console.log(`Total themes en base : ${themeTotal.n} (actifs : ${themeActive.n})`);
 
   db.close();
 

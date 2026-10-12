@@ -1,0 +1,29 @@
+/* Shared controls across the public site, reader account and editorial tools. */
+.public-site { --control-radius: 6px; }
+.public-site button[class],
+.public-site .app-button[class],
+.public-site a[role="button"],
+.public-site a.rounded-full {
+  border-radius: var(--control-radius);
+}
+.public-site :is(button[type="submit"], .app-button) {
+  min-height: 44px;
+  font-weight: 750;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  transition: background-color .15s, color .15s, opacity .15s;
+}
+.public-site :is(button[type="submit"], .app-button):disabled { cursor: not-allowed; opacity: .55; }
+.public-site :is(button, .app-button).bg-primary { background-color: hsl(var(--primary)); color: white; }
+.public-site :is(button, .app-button).bg-primary:hover:not(:disabled) { background-color: hsl(var(--primary-hover)); }
+.workspace-theme { font-family: var(--font-inter), Arial, sans-serif; background: hsl(var(--background)); color: hsl(var(--foreground)); }
+.workspace-content > main { width: 100%; max-width: none; padding-inline: 0; }
+.workspace-content > footer { display: none; }
+.workspace-content > div > main { max-width: none; padding-inline: 0; }
+.workspace-theme :is(input,select,textarea) { background-color: hsl(var(--card)); color: hsl(var(--foreground)); border-color: hsl(var(--border)); }
+.workspace-theme :is(input,textarea)::placeholder { color: hsl(var(--muted-foreground)); }
+.workspace-theme table { color: hsl(var(--foreground)); }
+.workspace-theme h1 { font-size: clamp(1.6rem, 3vw, 2.25rem); }
+@media (max-width: 1023px) {
+  .workspace-content { overflow-wrap: anywhere; }
+}

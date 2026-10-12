@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 
 import { Analytics } from "@/components/Analytics";
-import { LiveScoresBar, type ScoresStripMatch } from "@/components/LiveScoresBar";
+import { AdSlot } from "@/components/AdSlot";
+import { AdSlotGate } from "@/components/AdSlotGate";
 import { PublicNav, type NavCompetition } from "@/components/PublicNav";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { UrgentBanner } from "@/components/UrgentBanner";
+import { getUrgentArticle } from "@/lib/featured";
 import { prisma } from "@/lib/prisma";
 import {
   DEFAULT_OG_IMAGE,
@@ -17,11 +20,14 @@ import {
   absoluteUrl,
 } from "@/lib/seo";
 import "./globals.css";
+import "./editorial.css";
+import "./workspace.css";
+import { PublicShell } from "@/components/PublicShell";
 
 /**
  * Police du design system (WP9).
  *
- * Inter est auto-hébergée par next/font : aucun appel à Google au chargement,
+ * Inter variable locale (mêmes fichiers et alternantes que Clipmagic) : aucun appel à Google au chargement,
  * aucune requête tierce, et `display: "swap"` évite un texte invisible pendant
  * le téléchargement. La variable `--font-inter` est consommée par
  * tailwind.config.js (fontFamily.sans / fontFamily.display), ce qui permet de
@@ -30,8 +36,13 @@ import "./globals.css";
  * Les graisses 700/800 servent aux titres : une seule famille suffit, ce qui
  * évite de télécharger une seconde police pour un gain visuel marginal.
  */
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: [
+    { path: "./fonts/Inter-roman.var.woff2", weight: "100 900", style: "normal" },
+    { path: "./fonts/Inter-italic.var.woff2", weight: "100 900", style: "italic" },
+  ],
+  declarations: [{ prop: "font-feature-settings", value: "'salt'" }],
+  adjustFontFallback: false,
   display: "swap",
   variable: "--font-inter",
 });
@@ -109,86 +120,30 @@ const getNavCompetitions = unstable_cache(
   { revalidate: 300 },
 );
 
+
 /**
- * Matchs du bandeau de scores, tout en haut des pages publiques.
+ * Article du bandeau urgent, mis en cache une minute.
  *
- * Trois ensembles, dans cet ordre : les matchs **en direct** (quel que soit leur
- * jour — une rencontre peut se terminer après minuit), puis les matchs du jour.
- * Si les deux sont vides — la synchronisation sportive peut dater de plusieurs
- * jours — on affiche les derniers résultats plutôt qu'un bandeau vide.
- *
- * Le cache est court (30 s) puisque le direct change vite, mais il reste un cache
- * de données (`unstable_cache`) : les pages publiques restent prérendues, aucune
- * ne devient dynamique. En cas d'indisponibilité de la base, le bandeau disparaît
- * au lieu de faire échouer les pages.
+ * Le bandeau est affiché par le layout sur toutes les pages publiques : la
+ * requête ne doit donc pas partir à chaque affichage. Le choix manuel
+ * (`/studio/une`) prime sur le repli automatique (dernier FLASH/NEWS publié).
  */
-const STRIP_SELECT = {
-  id: true,
-  status: true,
-  homeScore: true,
-  awayScore: true,
-  scheduledAt: true,
-  competition: { select: { name: true, slug: true } },
-  homeTeam: { select: { name: true, shortName: true } },
-  awayTeam: { select: { name: true, shortName: true } },
-} as const;
-
-const getScoresStripMatches = unstable_cache(
-  async (): Promise<ScoresStripMatch[]> => {
-    try {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(startOfDay);
-      endOfDay.setDate(endOfDay.getDate() + 1);
-
-      const [live, today] = await Promise.all([
-        prisma.match.findMany({
-          where: { status: "LIVE" },
-          orderBy: { scheduledAt: "asc" },
-          take: 8,
-          select: STRIP_SELECT,
-        }),
-        prisma.match.findMany({
-          where: { scheduledAt: { gte: startOfDay, lt: endOfDay } },
-          orderBy: { scheduledAt: "asc" },
-          take: 12,
-          select: STRIP_SELECT,
-        }),
-      ]);
-
-      const seen = new Set<string>();
-      const collected = [...live, ...today].filter((match) => {
-        if (seen.has(match.id)) return false;
-        seen.add(match.id);
-        return true;
-      });
-
-      if (collected.length > 0) {
-        return collected;
-      }
-
-      return await prisma.match.findMany({
-        where: { status: "FINISHED", homeScore: { not: null } },
-        orderBy: { scheduledAt: "desc" },
-        take: 8,
-        select: STRIP_SELECT,
-      });
-    } catch (error) {
-      console.warn("[bandeau scores] matchs indisponibles :", error);
-      return [];
-    }
-  },
-  ["scores-strip"],
-  { revalidate: 30 },
+const getCachedUrgentArticle = unstable_cache(
+  async () => getUrgentArticle(),
+  ["home-urgent"],
+  { revalidate: 60 },
 );
+
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const competitions = await getNavCompetitions();
-  const stripMatches = await getScoresStripMatches();
+  const [competitions, urgent] = await Promise.all([
+    getNavCompetitions(),
+    getCachedUrgentArticle().catch(() => null),
+  ]);
 
   return (
     <html lang="fr" className={inter.variable} suppressHydrationWarning>
@@ -217,13 +172,15 @@ export default async function RootLayout({
           Aller au contenu principal
         </a>
         <ThemeProvider>
-          <PublicNav
+          <PublicShell header={<PublicNav
             competitions={competitions}
-            scoresBar={<LiveScoresBar matches={stripMatches} />}
-          />
+            urgentBar={urgent ? <UrgentBanner article={urgent} /> : null}
+            scoresBar={<AdSlotGate><div className="border-b border-border bg-background px-3 py-3"><AdSlot format="leaderboard" /></div></AdSlotGate>}
+          />}>
           {children}
           {/* Collecte analytics first-party (WP8d) : un beacon après `load`. */}
           <Analytics />
+          </PublicShell>
         </ThemeProvider>
       </body>
     </html>

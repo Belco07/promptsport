@@ -154,8 +154,10 @@ function actionIdForField(html, fieldName) {
 
 /** Identifiant d'une Server Action appelée depuis le client (manifeste Next). */
 function clientActionId(exportedName) {
+  // Les actions d'abonnement (annuler, réactiver, portail) sont rendues par la
+  // page « Mon abonnement » depuis que /mon-compte ne garde que le profil.
   const manifestPath = path.resolve(
-    ".next/server/app/mon-compte/page/server-reference-manifest.json",
+    ".next/server/app/mon-compte/abonnement/page/server-reference-manifest.json",
   );
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   for (const [id, entry] of Object.entries(manifest.node ?? {})) {
@@ -244,9 +246,9 @@ async function main() {
     (anonSub.status === 307 || anonSub.status === 302) && String(anonSub.location).includes("/login"),
     `${anonSub.status} ${anonSub.location}`);
 
-  // 4) Sans abonnement (compte éditeur)
+  // 4) Sans abonnement (compte éditeur) : l'état est affiché sur la page dédiée.
   const editorJar = await login("editor@example.com", "password123");
-  const editorPage = await request("GET", "/mon-compte", { jar: editorJar });
+  const editorPage = await request("GET", "/mon-compte/abonnement", { jar: editorJar });
   check("sans abonnement : message « Vous n'avez pas d'abonnement actif »",
     editorPage.body.includes("Vous n&#x27;avez pas d&#x27;abonnement actif"));
   check("sans abonnement : bouton « Voir les offres » vers /abonnement",
@@ -256,16 +258,28 @@ async function main() {
   const adminJar = await login("admin@example.com", "admin123");
   const account = await request("GET", "/mon-compte", { jar: adminJar });
   check("abonné : GET /mon-compte -> 200", account.status === 200, `status=${account.status}`);
+  // « Détails du compte » ne contient que le profil et les identifiants : ni
+  // abonnement, ni notifications, ni paiements (ils ont leurs propres pages).
   for (const [label, marker] of [
     ["section Profil", "Profil"],
-    ["section Abonnement", "Abonnement"],
-    ["section Historique des paiements", "Historique des paiements"],
     ["section Sécurité", "Sécurité"],
   ]) {
     check(`page : ${label}`, account.body.includes(marker));
   }
+  for (const [label, marker] of [
+    ["abonnement", "Historique des paiements"],
+    ["notifications", "Voir toutes les notifications"],
+    ["date de renouvellement", "Prochain renouvellement"],
+  ]) {
+    check(`page : plus de bloc « ${label} » sur /mon-compte`, !account.body.includes(marker));
+  }
   check("profil : nom et e-mail affichés",
     account.body.includes(admin.name) && account.body.includes(admin.email));
+
+  // 5 bis) L'abonnement vit désormais sur /mon-compte/abonnement
+  const accountSub = await request("GET", "/mon-compte/abonnement", { jar: adminJar });
+  check("abonné : GET /mon-compte/abonnement -> 200", accountSub.status === 200,
+    `status=${accountSub.status}`);
   // La formule affichée est celle de l'abonnement actif en base : on la lit au
   // lieu de figer le plan à vie (d'autres suites peuvent créer un abonnement).
   const activePlan = db
@@ -277,13 +291,14 @@ async function main() {
   const activePrice = activePlan ? (activePlan.price / 100).toFixed(2).replace(".", ",") : null;
   check(
     "abonnement : formule et prix affichés",
-    Boolean(activePlan) && account.body.includes(activePlan.name) && account.body.includes(activePrice),
+    Boolean(activePlan) && accountSub.body.includes(activePlan.name) && accountSub.body.includes(activePrice),
     activePlan ? `${activePlan.name} / ${activePrice}` : "aucun abonnement actif",
   );
   check("abonnement : bouton « Gérer mon abonnement »",
-    account.body.includes("Gérer mon abonnement"));
+    accountSub.body.includes("Gérer mon abonnement"));
+  check("abonnement : historique des paiements", accountSub.body.includes("Historique des paiements"));
   check("historique : lien « Voir la facture » (facture Stripe hébergée)",
-    account.body.includes("Voir la facture"));
+    accountSub.body.includes("Voir la facture"));
   const invoiceUrl = db
     .prepare("SELECT invoiceUrl FROM Payment WHERE userId = ? AND invoiceUrl IS NOT NULL LIMIT 1")
     .get(admin.id)?.invoiceUrl;
@@ -419,7 +434,7 @@ async function main() {
       db.prepare("SELECT status FROM Subscription WHERE stripeSubscriptionId = ?").get(subscriptionId)?.status === "ACTIVE");
 
     const journalistJar = await login("journalist@example.com", "password123");
-    const journalistPage = await request("GET", "/mon-compte", { jar: journalistJar });
+    const journalistPage = await request("GET", "/mon-compte/abonnement", { jar: journalistJar });
     check("abonné : date de renouvellement affichée",
       journalistPage.body.includes("Prochain renouvellement"));
     check("abonné : bouton « Annuler l'abonnement »",
@@ -434,7 +449,7 @@ async function main() {
       Boolean(cancelId && reactivateId && portalId));
 
     if (cancelId) {
-      const cancelResult = await callAction(journalistJar, "/mon-compte", cancelId);
+      const cancelResult = await callAction(journalistJar, "/mon-compte/abonnement", cancelId);
       check("annulation : action acceptée", cancelResult.status === 200, `status=${cancelResult.status}`);
       await sleep(1500);
       const stripeState = await stripe.subscriptions.retrieve(subscriptionId);
@@ -443,12 +458,12 @@ async function main() {
       check("annulation : cancelAtPeriodEnd en base",
         db.prepare("SELECT cancelAtPeriodEnd FROM Subscription WHERE stripeSubscriptionId = ?").get(subscriptionId)?.cancelAtPeriodEnd === 1);
 
-      const afterCancel = await request("GET", "/mon-compte", { jar: journalistJar });
+      const afterCancel = await request("GET", "/mon-compte/abonnement", { jar: journalistJar });
       check("annulation : « Votre abonnement se termine le … »",
         /Votre abonnement se termine le/.test(afterCancel.body));
       check("annulation : bouton « Réactiver » affiché", afterCancel.body.includes("Réactiver"));
 
-      const reactivateResult = await callAction(journalistJar, "/mon-compte", reactivateId);
+      const reactivateResult = await callAction(journalistJar, "/mon-compte/abonnement", reactivateId);
       check("réactivation : action acceptée", reactivateResult.status === 200, `status=${reactivateResult.status}`);
       await sleep(1500);
       const reactivated = await stripe.subscriptions.retrieve(subscriptionId);
@@ -457,7 +472,7 @@ async function main() {
       check("réactivation : cancelAtPeriodEnd en base",
         db.prepare("SELECT cancelAtPeriodEnd FROM Subscription WHERE stripeSubscriptionId = ?").get(subscriptionId)?.cancelAtPeriodEnd === 0);
 
-      const portalResult = await callAction(journalistJar, "/mon-compte", portalId);
+      const portalResult = await callAction(journalistJar, "/mon-compte/abonnement", portalId);
       const portalUrl = (portalResult.body.match(/https:\/\/billing\.stripe\.com\/[^"\\\s]+/) ?? [])[0];
       check("portail de facturation : URL renvoyée", Boolean(portalUrl),
         portalUrl ? portalUrl.slice(0, 50) + "…" : portalResult.body.slice(0, 120));

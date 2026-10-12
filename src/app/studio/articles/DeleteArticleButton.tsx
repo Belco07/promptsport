@@ -26,7 +26,7 @@ export function DeleteArticleButton({ id, title }: { id: string; title: string }
           await deleteArticle(formData);
         });
       }}
-      className="text-red-700 underline transition-colors hover:text-red-900 disabled:opacity-50"
+      className="text-status-error-foreground underline transition-colors hover:text-status-error-foreground disabled:opacity-50"
     >
       {isPending ? "Suppression…" : "Supprimer"}
     </button>

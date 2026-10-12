@@ -106,16 +106,16 @@ export function ImageUpload({
 
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-gray-700">
+      <label className="mb-1 block text-sm font-medium text-foreground">
         Image de couverture{" "}
-        <span className="font-normal text-gray-500">(optionnel)</span>
+        <span className="font-normal text-muted-foreground">(optionnel)</span>
       </label>
 
       {/* Champ caché soumis au formulaire : le serveur lit cette valeur. */}
       <input type="hidden" name={name} value={value} />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="flex w-full items-center justify-center overflow-hidden rounded-md border border-gray-300 bg-gray-50 sm:w-64">
+        <div className="flex w-full items-center justify-center overflow-hidden rounded-md border border-border bg-muted sm:w-64">
           {displayedImage ? (
             // eslint-disable-next-line @next/next/no-img-element -- aperçu client (blob) ou chemin public
             <img
@@ -124,7 +124,7 @@ export function ImageUpload({
               className="max-h-48 w-full object-contain"
             />
           ) : (
-            <div className="flex h-36 w-full items-center justify-center text-sm text-gray-400">
+            <div className="flex h-36 w-full items-center justify-center text-sm text-muted-foreground">
               Aucune image
             </div>
           )}
@@ -142,7 +142,7 @@ export function ImageUpload({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={isUploading}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isUploading ? "Upload en cours…" : "Choisir une image"}
           </button>
@@ -152,7 +152,7 @@ export function ImageUpload({
               type="button"
               onClick={handleRemove}
               disabled={isUploading}
-              className="rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-60"
+              className="rounded-md border border-status-error-border bg-card px-4 py-2 text-sm font-medium text-status-error-foreground transition-colors hover:bg-status-error disabled:opacity-60"
             >
               Supprimer l&apos;image
             </button>
@@ -161,12 +161,12 @@ export function ImageUpload({
       </div>
 
       {error ? (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-status-error-foreground">
           {error}
         </p>
       ) : null}
 
-      <p className="mt-1 text-xs text-gray-500">
+      <p className="mt-1 text-xs text-muted-foreground">
         JPEG, PNG, WebP ou GIF — 5 Mo maximum.
       </p>
     </div>

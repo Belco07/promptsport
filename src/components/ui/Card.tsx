@@ -15,9 +15,9 @@ export function cardStyles({
   className = "",
 }: { interactive?: boolean; className?: string } = {}): string {
   return [
-    "rounded-xl border border-neutral-200 bg-white shadow-card",
+    "rounded-xl border border-neutral-200 [.public-site_&]:border-border bg-white [.public-site_&]:bg-card [.public-site_&]:text-card-foreground shadow-card",
     interactive
-      ? "transition-shadow duration-200 hover:border-neutral-300 hover:shadow-card-hover"
+      ? "transition-shadow duration-200 hover:border-neutral-300 [.public-site_&]:hover:border-border hover:shadow-card-hover"
       : "",
     className,
   ]

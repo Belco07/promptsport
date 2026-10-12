@@ -1,0 +1,3 @@
+import Link from "next/link";
+export const competitionTabs = {classement:"Classement",resultats:"Résultats",calendrier:"Calendrier"};
+export function CompetitionTabs({slug,active}:{slug:string;active:keyof typeof competitionTabs}) {return <nav aria-label="Rubriques de la compétition" className="mb-8 flex gap-6 overflow-x-auto border-b border-border [scrollbar-width:none]">{Object.entries(competitionTabs).map(([key,label])=><Link key={key} href={`/competition/${slug}?tab=${key}`} aria-current={active===key?"page":undefined} className={`shrink-0 border-b-2 px-1 py-4 text-sm font-bold ${active===key?"border-editorial-link text-editorial-link":"border-transparent text-muted-foreground hover:text-foreground"}`}>{label}</Link>)}</nav>;}

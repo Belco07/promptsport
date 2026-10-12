@@ -25,7 +25,7 @@ export default async function EditMatchPage({
 
   return (
     <div className="px-8 py-10">
-      <h1 className="mb-6 text-2xl font-bold tracking-tight text-gray-900">Modifier le match</h1>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Modifier le match</h1>
       <MatchForm
         action={updateWithId}
         competitions={competitions}

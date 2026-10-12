@@ -31,7 +31,7 @@ export type NewsletterListRow = {
 /** Bloc de création, rendu au-dessus du tableau. */
 export function ListCreateHint() {
   return (
-    <p className="text-sm text-neutral-600">
+    <p className="text-sm text-muted-foreground">
       Une liste regroupe des abonnés. Seuls les abonnés <strong>confirmés</strong> d&apos;une liste
       reçoivent ses campagnes ; une liste inactive est ignorée à l&apos;envoi et disparaît du
       formulaire public.
@@ -55,25 +55,25 @@ export function ListsTab({
   return (
     <div className="mt-6 space-y-6">
       <section aria-labelledby="nouvelle-liste">
-        <h2 id="nouvelle-liste" className="text-sm font-bold text-neutral-800">
+        <h2 id="nouvelle-liste" className="text-sm font-bold text-foreground">
           Créer une liste de diffusion
         </h2>
-        <div className="mt-3 rounded-xl border border-neutral-200 bg-white p-5">{createForm}</div>
+        <div className="mt-3 rounded-xl border border-border bg-card p-5">{createForm}</div>
       </section>
 
       {detailForm ? (
-        <section aria-labelledby="modifier-liste" className="rounded-xl border border-primary-200 bg-white p-5">
-          <h2 id="modifier-liste" className="text-sm font-bold text-neutral-800">
+        <section aria-labelledby="modifier-liste" className="rounded-xl border border-primary-200 bg-card p-5">
+          <h2 id="modifier-liste" className="text-sm font-bold text-foreground">
             Modifier la liste
           </h2>
           <div className="mt-3">{detailForm}</div>
         </section>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Listes de diffusion</caption>
-          <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+          <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-3 font-semibold">
                 Liste
@@ -98,30 +98,30 @@ export function ListsTab({
           <tbody className="divide-y divide-neutral-100">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-neutral-500">
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   Aucune liste de diffusion. Créez-en une ci-dessus pour pouvoir inscrire des
                   abonnés et envoyer une campagne.
                 </td>
               </tr>
             ) : (
               rows.map((list) => (
-                <tr key={list.id} className="align-top hover:bg-neutral-50">
+                <tr key={list.id} className="align-top hover:bg-muted">
                   <td className="px-3 py-3">
-                    <span className="font-medium text-neutral-900">{list.name}</span>
+                    <span className="font-medium text-foreground">{list.name}</span>
                     {list.description ? (
-                      <span className="block max-w-md text-xs text-neutral-500">
+                      <span className="block max-w-md text-xs text-muted-foreground">
                         {list.description}
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-3 py-3 font-mono text-xs text-neutral-500">{list.slug}</td>
-                  <td className="px-3 py-3 tabular-nums text-neutral-700">
+                  <td className="px-3 py-3 font-mono text-xs text-muted-foreground">{list.slug}</td>
+                  <td className="px-3 py-3 tabular-nums text-foreground">
                     {list.subscriberCount}
-                    <span className="block text-xs text-neutral-500">
+                    <span className="block text-xs text-muted-foreground">
                       dont {list.confirmedCount} confirmé{list.confirmedCount > 1 ? "s" : ""}
                     </span>
                   </td>
-                  <td className="px-3 py-3 tabular-nums text-neutral-700">{list.campaignCount}</td>
+                  <td className="px-3 py-3 tabular-nums text-foreground">{list.campaignCount}</td>
                   <td className="px-3 py-3">
                     {list.active ? (
                       <Badge variant="status" tone="success">
@@ -143,7 +143,7 @@ export function ListsTab({
                         Modifier
                       </Link>
                       <form action={toggleList.bind(null, list.id)}>
-                        <button type="submit" className="text-sm font-semibold text-neutral-600 underline">
+                        <button type="submit" className="text-sm font-semibold text-muted-foreground underline">
                           {list.active ? "Désactiver" : "Activer"}
                         </button>
                       </form>

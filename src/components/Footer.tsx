@@ -26,8 +26,8 @@ function socialLabel(url: string): string {
 
 export function Footer() {
   return (
-    <footer className="mt-16 border-t-4 border-t-brand-500 bg-ink-900 text-neutral-300">
-      <div className="mx-auto max-w-6xl px-4 py-12">
+    <footer className="editorial-footer mt-16 border-t-4 border-t-brand-500 bg-ink-900 text-neutral-300">
+      <div className="mx-auto max-w-[1280px] px-4 py-12">
         <div className="flex flex-col gap-2 border-b border-white/10 pb-8">
           <p className="text-lg font-extrabold tracking-tight text-white">{SITE_NAME}</p>
           <p className="max-w-xl text-sm text-neutral-400">{SITE_DESCRIPTION}</p>
@@ -42,6 +42,7 @@ export function Footer() {
               Navigation
             </h2>
             <ul className="mt-4 flex flex-col gap-2.5 text-sm">
+              <li><Link href="/archives" className="transition-colors hover:text-brand-300">Archives</Link></li>
               <li>
                 <Link href="/" className="transition-colors hover:text-brand-300">
                   Accueil
@@ -134,7 +135,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-[1280px] flex-col gap-2 px-4 py-5 text-xs text-neutral-400 sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {new Date().getFullYear()} {SITE_NAME} — l&apos;actualité sportive en continu.
           </p>
@@ -144,4 +145,3 @@ export function Footer() {
     </footer>
   );
 }
-

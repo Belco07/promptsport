@@ -15,14 +15,14 @@ export type ButtonSize = "sm" | "md" | "lg";
 const VARIANTS: Record<ButtonVariant, string> = {
   /* Bleu profond : action principale, contraste 15,9:1 avec le blanc. */
   primary:
-    "bg-primary-900 text-white shadow-sm hover:bg-primary-800 active:bg-primary-950",
+    "bg-primary-900 [.public-site_&]:bg-primary text-white shadow-sm hover:bg-primary-800 [.public-site_&]:hover:bg-primary active:bg-primary-950 [.public-site_&]:active:bg-primary",
   /* Contour : action secondaire, sans concurrencer l'action principale. */
   secondary:
-    "border border-neutral-300 bg-white text-neutral-800 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800",
+    "border border-neutral-300 [.public-site_&]:border-border bg-white [.public-site_&]:bg-card text-neutral-800 [.public-site_&]:text-foreground hover:border-primary-300 [.public-site_&]:hover:border-border hover:bg-primary-50 [.public-site_&]:hover:bg-muted hover:text-primary-800 [.public-site_&]:hover:text-editorial-link",
   /* Texte seul : actions tertiaires (annuler, revenir). */
-  ghost: "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900",
+  ghost: "text-neutral-700 [.public-site_&]:text-foreground hover:bg-neutral-100 [.public-site_&]:hover:bg-muted hover:text-neutral-900 [.public-site_&]:hover:text-foreground",
   /* Rouge : actions destructrices ou annulation d'abonnement. */
-  danger: "bg-danger-600 text-white shadow-sm hover:bg-danger-700 active:bg-danger-800",
+  danger: "bg-danger-600 [.public-site_&]:bg-destructive text-white shadow-sm hover:bg-danger-700 [.public-site_&]:hover:bg-destructive active:bg-danger-800 [.public-site_&]:active:bg-destructive",
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -45,7 +45,7 @@ export function buttonStyles({
   className?: string;
 } = {}): string {
   return [
-    "inline-flex items-center justify-center rounded-lg font-semibold transition-colors",
+    "app-button inline-flex items-center justify-center rounded-md font-semibold transition-colors",
     "focus-visible:outline-2 focus-visible:outline-offset-2",
     "disabled:cursor-not-allowed disabled:opacity-55",
     VARIANTS[variant],

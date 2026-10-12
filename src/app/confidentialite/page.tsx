@@ -22,9 +22,9 @@ export const metadata: Metadata = buildPageMetadata({
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-t border-neutral-200 pt-6 first:border-0 first:pt-0">
-      <h2 className="text-lg font-bold tracking-tight text-primary-900">{title}</h2>
-      <div className="mt-2 space-y-3 text-sm leading-7 text-neutral-700">{children}</div>
+    <section className="border-t border-border pt-6 first:border-0 first:pt-0">
+      <h2 className="text-lg font-bold tracking-tight text-foreground">{title}</h2>
+      <div className="mt-2 space-y-3 text-sm leading-7 text-foreground">{children}</div>
     </section>
   );
 }
@@ -57,21 +57,21 @@ export default function PrivacyPage() {
       <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-10">
         <Link
           href="/"
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 transition-colors hover:text-primary-900"
+          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Retour à l&apos;accueil
         </Link>
 
         <header className="mb-8">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent-700">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-status-warning-foreground">
             <ShieldCheck aria-hidden="true" className="h-4 w-4" />
             Vie privée
           </p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-primary-900 sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             Politique de confidentialité
           </h1>
-          <p className="mt-3 text-sm text-neutral-600">
+          <p className="mt-3 text-sm text-muted-foreground">
             Principe directeur : collecter le minimum, ne rien revendre, et ne pas suivre les
             lecteurs d&apos;un site à l&apos;autre.
           </p>
@@ -99,7 +99,7 @@ export default function PrivacyPage() {
               <div className="scroll-x">
                 <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-500">
+                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <th scope="col" className="py-2 pr-4 font-semibold">
                         Cookie
                       </th>
@@ -116,12 +116,12 @@ export default function PrivacyPage() {
                   </thead>
                   <tbody>
                     {COOKIES.map((cookie) => (
-                      <tr key={cookie.name} className="border-b border-neutral-100 last:border-0">
-                        <td className="py-2.5 pr-4 font-mono text-xs text-neutral-900">
+                      <tr key={cookie.name} className="border-b border-border last:border-0">
+                        <td className="py-2.5 pr-4 font-mono text-xs text-foreground">
                           {cookie.name}
                         </td>
-                        <td className="py-2.5 pr-4 text-neutral-700">{cookie.purpose}</td>
-                        <td className="py-2.5 pr-4 whitespace-nowrap text-neutral-700">
+                        <td className="py-2.5 pr-4 text-foreground">{cookie.purpose}</td>
+                        <td className="py-2.5 pr-4 whitespace-nowrap text-foreground">
                           {cookie.life}
                         </td>
                         <td className="py-2.5">
@@ -159,7 +159,7 @@ export default function PrivacyPage() {
                 Vous pouvez consulter et corriger votre nom depuis la page{" "}
                 <Link
                   href="/mon-compte"
-                  className="font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
+                  className="font-semibold text-editorial-link underline transition-colors hover:text-editorial-link"
                 >
                   Mon compte
                 </Link>

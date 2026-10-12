@@ -102,10 +102,10 @@ export default async function SubscriptionPlansPage() {
             <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
             Contenus premium
           </Badge>
-          <h1 className="text-3xl font-extrabold tracking-tight text-primary-900 sm:text-4xl">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
             Abonnez-vous
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-base text-neutral-600">
+          <p className="mx-auto mt-3 max-w-2xl text-base text-muted-foreground">
             Accédez à tous les contenus premium du site et soutenez un journalisme sportif
             indépendant.
           </p>
@@ -115,9 +115,9 @@ export default async function SubscriptionPlansPage() {
           {BENEFITS.map((benefit) => (
             <li
               key={benefit}
-              className="flex items-start gap-2 rounded-xl border border-neutral-200 bg-white p-4 text-sm text-neutral-700 shadow-card"
+              className="flex items-start gap-2 rounded-xl border border-border bg-card p-4 text-sm text-foreground shadow-card"
             >
-              <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-success-600" />
+              <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-status-success-foreground" />
               {benefit}
             </li>
           ))}
@@ -126,7 +126,7 @@ export default async function SubscriptionPlansPage() {
         {!isStripeConfigured() ? (
           <p
             role="alert"
-            className="mb-8 rounded-xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-800"
+            className="mb-8 rounded-xl border border-status-warning-border bg-status-warning px-4 py-3 text-sm text-status-warning-foreground"
           >
             Les paiements ne sont pas encore configurés (clé Stripe absente). La souscription sera
             indisponible jusqu&apos;à l&apos;ajout de{" "}
@@ -135,7 +135,7 @@ export default async function SubscriptionPlansPage() {
         ) : null}
 
         {plans.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-neutral-300 bg-white p-10 text-center text-sm text-neutral-500">
+          <p className="rounded-xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
             Aucun plan disponible pour le moment.
           </p>
         ) : (
@@ -147,12 +147,12 @@ export default async function SubscriptionPlansPage() {
                   key={plan.id}
                   className={
                     isRecommended
-                      ? "relative rounded-2xl bg-gradient-to-b from-accent-500 to-accent-600 p-[2px] shadow-card-hover lg:-mt-3"
+                      ? "relative rounded-2xl bg-gradient-to-b from-decorative-start to-decorative-end p-[2px] shadow-card-hover lg:-mt-3"
                       : ""
                   }
                 >
                   {isRecommended ? (
-                    <p className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-accent-700 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                    <p className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-status-warning-foreground px-3 py-1 text-xs font-bold uppercase tracking-wide text-status-warning">
                       Recommandé
                     </p>
                   ) : null}
@@ -171,18 +171,18 @@ export default async function SubscriptionPlansPage() {
         <section aria-labelledby="faq" className="mt-14">
           <h2
             id="faq"
-            className="mb-5 text-2xl font-extrabold tracking-tight text-primary-900"
+            className="mb-5 text-2xl font-extrabold tracking-tight text-foreground"
           >
             Questions fréquentes
           </h2>
           <div className="space-y-3">
             {FAQ.map((item) => (
               // <details> : repli accessible et sans JavaScript.
-              <details key={item.question} className="rounded-xl border border-neutral-200 bg-white">
-                <summary className="cursor-pointer rounded-xl px-5 py-4 text-sm font-bold text-neutral-800 marker:text-accent-500">
+              <details key={item.question} className="rounded-xl border border-border bg-card">
+                <summary className="cursor-pointer rounded-xl px-5 py-4 text-sm font-bold text-foreground marker:text-status-warning-foreground">
                   {item.question}
                 </summary>
-                <p className="px-5 pb-4 text-sm leading-7 text-neutral-600">{item.answer}</p>
+                <p className="px-5 pb-4 text-sm leading-7 text-muted-foreground">{item.answer}</p>
               </details>
             ))}
           </div>
@@ -190,8 +190,8 @@ export default async function SubscriptionPlansPage() {
 
         <Card className="mt-12">
           <CardBody className="flex flex-col items-center gap-4 text-center">
-            <Lock aria-hidden="true" className="h-6 w-6 text-neutral-400" />
-            <p className="max-w-xl text-sm text-neutral-600">
+            <Lock aria-hidden="true" className="h-6 w-6 text-muted-foreground" />
+            <p className="max-w-xl text-sm text-muted-foreground">
               Vous préférez d&apos;abord lire ? Consultez les scores et les derniers articles ;
               l&apos;abonnement n&apos;est nécessaire que pour les contenus marqués « Premium ».
             </p>

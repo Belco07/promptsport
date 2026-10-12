@@ -18,6 +18,9 @@ export type RateLimitOptions = {
   windowMs: number;
 };
 
+/** Recherche publique : trente requêtes par minute et par adresse IP. */
+export const SEARCH_RATE_LIMIT: RateLimitOptions = { max: 30, windowMs: 60_000 };
+
 /** Limite demandée par le brief : 10 commentaires par heure et par utilisateur. */
 export const COMMENT_RATE_LIMIT: RateLimitOptions = {
   max: 10,

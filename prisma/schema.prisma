@@ -18,11 +18,16 @@ datasource db {
   //
   // `url = env("DATABASE_URL")` n'est pas répété ici : depuis la v7, la CLI lit
   // l'URL dans prisma.config.ts, et une seconde déclaration doit rester
-  // cohérente avec `DIRECT_URL` (connexion sans pooling chez Neon). Une seule
-  // source de vérité, donc : le fichier de configuration.
+  // cohérente avec `DIRECT_URL` (connexion directe de Prisma Postgres, hors
+  // pooler). Une seule source de vérité, donc : le fichier de configuration.
 }
 
 model Author {
+  followedTeams Team[] @relation("ReaderFollowedTeams")
+  followedCompetitions Competition[] @relation("ReaderFollowedCompetitions")
+  welcomeCompleted Boolean @default(true)
+  favoriteCompetitions String[] @default([])
+  oauthAccounts OAuthAccount[]
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
@@ -73,9 +78,20 @@ model Author {
 }
 
 enum UserRole {
+  READER
   ADMIN
   EDITOR
   JOURNALIST
+}
+
+model OAuthAccount {
+  provider String
+  providerAccountId String
+  authorId String
+  author Author @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([authorId])
 }
 
 model Category {
@@ -87,7 +103,16 @@ model Category {
   articles Article[]
 }
 
+enum ArticleFormat {
+  FLASH
+  NEWS
+  ANALYSIS
+}
+
 model Article {
+  featuredSlots FeaturedSlot[]
+  searchVector  Unsupported("tsvector")?
+  format        ArticleFormat @default(NEWS)
   id            String        @id @default(cuid())
   title         String
   slug          String        @unique
@@ -109,6 +134,8 @@ model Article {
   /// Engagement (WP10a) : commentaires et réactions sur cet article.
   comments   Comment[]
   reactions  ArticleReaction[]
+  /// Thèmes éditoriaux (WP16a) : un article peut en porter plusieurs.
+  themes     Theme[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -116,6 +143,49 @@ model Article {
   @@index([authorId])
   @@index([categoryId])
   @@index([status])
+}
+
+/// Thème éditorial (WP16a).
+///
+/// « Mercato », « Tactique », « Interviews »… sont transversaux aux sports :
+/// un même thème s'applique à plusieurs catégories (Football, Rugby, Tennis).
+/// `Category` continue de porter le classement par sport ; les deux notions sont
+/// donc séparées, avec une relation many-to-many implicite (table de jointure
+/// `_ArticleToTheme`) entre `Article` et `Theme`.
+enum FeaturedSlotType {
+  HERO
+  SECONDARY_1
+  SECONDARY_2
+  URGENT
+}
+
+model FeaturedSlot {
+  id        String @id @default(cuid())
+  slot      FeaturedSlotType
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  position  Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([slot])
+}
+
+model Theme {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  /// Code hexadécimal du badge, ex. "#d7ff00".
+  color       String?
+  /// Nom d'icône lucide, ex. "Repeat".
+  icon        String?
+  active      Boolean  @default(true)
+
+  articles Article[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +271,7 @@ enum ArticleStatus {
 // ---------------------------------------------------------------------------
 
 model Competition {
+  followers Author[] @relation("ReaderFollowedCompetitions")
   id         String   @id @default(cuid())
   name       String
   slug       String   @unique
@@ -216,6 +287,7 @@ model Competition {
 }
 
 model Team {
+  followers Author[] @relation("ReaderFollowedTeams")
   id         String  @id @default(cuid())
   name       String
   slug       String  @unique
@@ -575,6 +647,7 @@ model Notification {
 }
 
 enum NotificationType {
+  ARTICLE_PUBLISHED
   COMMENT_REPLY
   COMMENT_REACTION
   COMMENT_APPROVED

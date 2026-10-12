@@ -1,4 +1,7 @@
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import Google from "next-auth/providers/google";
+import Facebook from "next-auth/providers/facebook";
+import { authorAdapter } from "./oauth-adapter";
+import { availableOAuthProviders } from "./oauth-providers";
 import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
@@ -10,14 +13,8 @@ import { authConfig } from "./auth.config";
 /**
  * Configuration Auth.js (NextAuth v5) — runtime Node.
  *
- * Stratégie : Credentials (email + mot de passe), session JWT.
- *
- * Note sur l'adaptateur Prisma : avec une stratégie Credentials, la session est
- * un JWT signé et aucune table de session n'est utilisée. L'adaptateur est
- * branché conformément au brief, mais notre schéma Prisma ne définit pas les
- * modèles User/Account/Session/VerificationToken/Authenticator (le brief WP2b
- * interdit de modifier le schéma au-delà de Author) : il est donc casté, car ses
- * méthodes ne seront jamais appelées dans ce flux.
+ * Identifiants et fournisseurs OAuth configurés, sessions JWT.
+ * L'adaptateur associe les identités OAuth à Author sans stocker leurs jetons.
  */
 /**
  * Durée de validité du statut premium mis en cache dans le JWT.
@@ -32,9 +29,7 @@ const PREMIUM_REFRESH_MS = 60 * 1000;
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET,
   ...authConfig,
-  adapter: PrismaAdapter(
-    prisma as unknown as Parameters<typeof PrismaAdapter>[0],
-  ),
+  adapter: authorAdapter,
   session: {
     strategy: "jwt",
   },
@@ -48,6 +43,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
    */
   trustHost: true,
   providers: [
+    ...(availableOAuthProviders().google ? [Google({ clientId: process.env.AUTH_GOOGLE_ID, clientSecret: process.env.AUTH_GOOGLE_SECRET })] : []),
+    ...(availableOAuthProviders().facebook ? [Facebook({ clientId: process.env.AUTH_FACEBOOK_ID, clientSecret: process.env.AUTH_FACEBOOK_SECRET })] : []),
     Credentials({
       name: "Email et mot de passe",
       credentials: {
@@ -90,11 +87,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
+    async signIn({ account, user }) {
+      return account?.provider === "credentials" || Boolean(user.email);
+    },
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         // Expose le rôle dans le JWT pour que le middleware puisse le lire.
-        token.role = isUserRole(user.role) ? user.role : "JOURNALIST";
+        token.role = isUserRole(user.role) ? user.role : "READER";
       }
 
       // Rôle et abonnement vivent en base : on les relit à la connexion, sur
@@ -113,6 +113,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.role = author.role;
           token.isPremium = author.isPremium;
           token.premiumCheckedAt = Date.now();
+        } else {
+          return null;
         }
       }
 
@@ -121,7 +123,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = typeof token.id === "string" ? token.id : token.sub ?? "";
-        session.user.role = isUserRole(token.role) ? token.role : "JOURNALIST";
+        session.user.role = isUserRole(token.role) ? token.role : "READER";
         session.user.isPremium = token.isPremium === true;
       }
       return session;

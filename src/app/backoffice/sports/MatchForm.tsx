@@ -1,4 +1,6 @@
 "use client";
+import { CalendarInput } from "@/components/CalendarInput";
+
 
 import Link from "next/link";
 import { useActionState } from "react";
@@ -6,8 +8,8 @@ import { useActionState } from "react";
 import { MATCH_STATUS_LABELS, type MatchStatus } from "@/components/MatchCard";
 
 const inputClass =
-  "w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
-const labelClass = "mb-1 block text-sm font-medium text-gray-700";
+  "w-full rounded-md border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-editorial-link focus:ring-1 focus:ring-blue-600";
+const labelClass = "mb-1 block text-sm font-medium text-foreground";
 
 const STATUSES = Object.keys(MATCH_STATUS_LABELS) as MatchStatus[];
 
@@ -81,7 +83,7 @@ export function MatchForm({ action, competitions, teams, defaultValues, submitLa
 
       <div>
         <label htmlFor="scheduledAt" className={labelClass}>Date / heure</label>
-        <input
+        <CalendarInput
           id="scheduledAt" name="scheduledAt" type="datetime-local" required
           defaultValue={initial.scheduledAt ? toDateTimeLocal(initial.scheduledAt) : ""}
           className={inputClass}
@@ -111,13 +113,13 @@ export function MatchForm({ action, competitions, teams, defaultValues, submitLa
         <input id="venue" name="venue" type="text" defaultValue={initial.venue} className={inputClass} />
       </div>
 
-      {errorMessage ? <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorMessage}</p> : null}
+      {errorMessage ? <p role="alert" className="rounded-md border border-status-error-border bg-status-error px-3 py-2 text-sm text-status-error-foreground">{errorMessage}</p> : null}
 
       <div className="flex items-center gap-3 pt-2">
-        <button type="submit" disabled={isPending} className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800 disabled:opacity-60">
+        <button type="submit" disabled={isPending} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-60">
           {isPending ? "Enregistrement…" : submitLabel}
         </button>
-        <Link href="/backoffice/sports/matches" className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100">
+        <Link href="/backoffice/sports/matches" className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
           Annuler
         </Link>
       </div>

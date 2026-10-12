@@ -43,63 +43,63 @@ export default async function BackofficePage() {
 
   return (
     <div className="px-8 py-10">
-      <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">
         Bienvenue dans le backoffice, {displayName}
       </h1>
 
-      <p className="mt-2 text-sm text-gray-600">
+      <p className="mt-2 text-sm text-muted-foreground">
         Espace d&apos;administration.
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Abonnements actifs
           </p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{activeSubscriptions}</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{activeSubscriptions}</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Revenu mensuel récurrent (MRR)
           </p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
+          <p className="mt-1 text-2xl font-bold text-foreground">
             {formatPrice(mrrCents)}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Revenu annuel récurrent (ARR)
           </p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
+          <p className="mt-1 text-2xl font-bold text-foreground">
             {formatPrice(arrCents)}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Total encaissé
           </p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
+          <p className="mt-1 text-2xl font-bold text-foreground">
             {formatPrice(totalPaidCents)}
           </p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             abonnements et achats uniques
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Nouveaux abonnés (ce mois)
           </p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{metrics.newThisMonth}</p>
-          <p className="mt-1 text-xs text-gray-500">abonnements créés ce mois-ci</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{metrics.newThisMonth}</p>
+          <p className="mt-1 text-xs text-muted-foreground">abonnements créés ce mois-ci</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-gray-500">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Taux de churn (ce mois)
           </p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
+          <p className="mt-1 text-2xl font-bold text-foreground">
             {metrics.churnRatePercent.toLocaleString("fr-FR")} %
           </p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             {metrics.churnedThisMonth} annulation{metrics.churnedThisMonth > 1 ? "s" : ""} sur la
             période
           </p>
@@ -109,38 +109,38 @@ export default async function BackofficePage() {
       <div className="mt-8 flex flex-wrap gap-4">
         <Link
           href="/backoffice/users"
-          className="inline-block rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
+          className="inline-block rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
         >
           Gérer les utilisateurs ({userCount})
         </Link>
         <Link
           href="/backoffice/sports"
-          className="inline-block rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+          className="inline-block rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Sports ({upcomingMatches} match à venir)
         </Link>
         <Link
           href="/backoffice/comments"
-          className="inline-block rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+          className="inline-block rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Commentaires ({pendingComments} en attente · {pendingReports} signalement
           {pendingReports > 1 ? "s" : ""})
         </Link>
         <Link
           href="/backoffice/analytics"
-          className="inline-block rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+          className="inline-block rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Analytics (audience)
         </Link>
         <Link
           href="/backoffice/newsletter"
-          className="inline-block rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+          className="inline-block rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Newsletter ({confirmedSubscribers} confirmé{confirmedSubscribers > 1 ? "s" : ""})
         </Link>
         <Link
           href="/backoffice/subscriptions"
-          className="inline-block rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+          className="inline-block rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Abonnements ({activeSubscriptions} actif{activeSubscriptions > 1 ? "s" : ""})
         </Link>

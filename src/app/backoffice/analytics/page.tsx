@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-const cardClass = "rounded-lg border border-gray-200 bg-white p-4";
+const cardClass = "rounded-lg border border-border bg-card p-4";
 const thClass = "px-4 py-3 font-semibold";
 const tdClass = "px-4 py-3";
 
@@ -47,9 +47,9 @@ function KpiCard({
 }) {
   return (
     <div className={cardClass}>
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-gray-500">{hint}</p> : null}
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -67,26 +67,26 @@ function TopList({
 }) {
   return (
     <section className={cardClass}>
-      <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-      <p className="mt-1 text-xs text-gray-500">{description}</p>
+      <h2 className="text-base font-semibold text-foreground">{title}</h2>
+      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
 
       {entries.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-500">{emptyLabel}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{emptyLabel}</p>
       ) : (
         <ol className="mt-4 space-y-2">
           {entries.map((entry, index) => (
             <li key={`${entry.label}-${index}`} className="flex items-baseline justify-between gap-3 text-sm">
               <span className="min-w-0 truncate">
-                <span className="mr-2 text-xs text-gray-400">{index + 1}.</span>
+                <span className="mr-2 text-xs text-muted-foreground">{index + 1}.</span>
                 {entry.href ? (
-                  <Link href={entry.href} className="text-blue-700 underline transition-colors hover:text-blue-900">
+                  <Link href={entry.href} className="text-editorial-link underline transition-colors hover:text-editorial-link">
                     {entry.label}
                   </Link>
                 ) : (
-                  <span className="text-gray-800">{entry.label}</span>
+                  <span className="text-foreground">{entry.label}</span>
                 )}
               </span>
-              <span className="shrink-0 font-medium text-gray-900">{entry.count}</span>
+              <span className="shrink-0 font-medium text-foreground">{entry.count}</span>
             </li>
           ))}
         </ol>
@@ -134,8 +134,8 @@ export default async function AnalyticsDashboardPage() {
 
   return (
     <div className="px-8 py-10">
-      <h1 className="mb-2 text-2xl font-bold tracking-tight text-gray-900">Analytics</h1>
-      <p className="mb-6 text-sm text-gray-600">
+      <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">Analytics</h1>
+      <p className="mb-6 text-sm text-muted-foreground">
         Audience mesurée en first-party, sans cookie tiers ni donnée personnelle.
       </p>
 
@@ -152,7 +152,7 @@ export default async function AnalyticsDashboardPage() {
       </div>
 
       {!hasData ? (
-        <p className="mt-8 rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+        <p className="mt-8 rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
           Aucune donnée d&apos;audience pour le moment : les visites des pages publiques
           apparaîtront ici, et les agrégats journaliers après exécution de{" "}
           <code className="font-mono">npm run analytics:aggregate</code>.
@@ -160,10 +160,10 @@ export default async function AnalyticsDashboardPage() {
       ) : null}
 
       <section className={`${cardClass} mt-6`}>
-        <h2 className="text-base font-semibold text-gray-900">
+        <h2 className="text-base font-semibold text-foreground">
           Visiteurs uniques par jour (30 derniers jours)
         </h2>
-        <p className="mb-4 mt-1 text-xs text-gray-500">
+        <p className="mb-4 mt-1 text-xs text-muted-foreground">
           Jours agrégés + aujourd&apos;hui compté en direct.
         </p>
         <AnalyticsChart
@@ -196,17 +196,17 @@ export default async function AnalyticsDashboardPage() {
       </div>
 
       <section className={`${cardClass} mt-6`}>
-        <h2 className="text-base font-semibold text-gray-900">Détail par jour</h2>
-        <p className="mt-1 text-xs text-gray-500">
+        <h2 className="text-base font-semibold text-foreground">Détail par jour</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
           Agrégats journaliers (calculés par <code className="font-mono">npm run analytics:aggregate</code>).
         </p>
 
         {dailyRows.length === 0 ? (
-          <p className="mt-4 text-sm text-gray-500">Aucun agrégat journalier disponible.</p>
+          <p className="mt-4 text-sm text-muted-foreground">Aucun agrégat journalier disponible.</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+              <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className={thClass}>Jour</th>
                   <th className={thClass}>Visiteurs</th>
@@ -215,14 +215,14 @@ export default async function AnalyticsDashboardPage() {
                   <th className={thClass}>Pages vues</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {dailyRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
-                    <td className={`${tdClass} text-gray-900`}>{formatDate(row.date)}</td>
-                    <td className={`${tdClass} font-medium text-gray-900`}>{row.visitors}</td>
-                    <td className={`${tdClass} text-gray-700`}>{row.newVisitors}</td>
-                    <td className={`${tdClass} text-gray-700`}>{row.returningVisitors}</td>
-                    <td className={`${tdClass} text-gray-700`}>{row.pageViews}</td>
+                  <tr key={row.id} className="hover:bg-muted">
+                    <td className={`${tdClass} text-foreground`}>{formatDate(row.date)}</td>
+                    <td className={`${tdClass} font-medium text-foreground`}>{row.visitors}</td>
+                    <td className={`${tdClass} text-foreground`}>{row.newVisitors}</td>
+                    <td className={`${tdClass} text-foreground`}>{row.returningVisitors}</td>
+                    <td className={`${tdClass} text-foreground`}>{row.pageViews}</td>
                   </tr>
                 ))}
               </tbody>
@@ -231,7 +231,7 @@ export default async function AnalyticsDashboardPage() {
         )}
       </section>
 
-      <p className="mt-6 text-xs text-gray-500">
+      <p className="mt-6 text-xs text-muted-foreground">
         Rétention : les événements bruts (pages vues) sont purgés au-delà de 90 jours par
         le script d&apos;agrégation ; les agrégats journaliers sont conservés sans limite.
         Aucune adresse IP n&apos;est stockée.

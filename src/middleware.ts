@@ -41,7 +41,7 @@ export default async function middleware(request: Request) {
   const token = await getToken({
     req: request as Parameters<typeof getToken>[0]["req"],
     secret: process.env.AUTH_SECRET,
-    secureCookie: process.env.NODE_ENV === "production",
+    secureCookie: new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto") === "https",
   });
 
   const role = typeof token?.role === "string" ? token.role : null;

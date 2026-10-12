@@ -16,6 +16,7 @@ export const authConfig = {
      * boucler sur la page de connexion elle-même.
      */
     signIn: "/login",
+    error: "/login",
   },
   providers: [],
   callbacks: {

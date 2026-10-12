@@ -24,7 +24,7 @@ export function SportTabs() {
   const mounted = useMounted();
 
   return (
-    <div className="mb-6 flex items-end justify-between gap-4 border-b border-gray-200">
+    <div className="mb-6 flex items-end justify-between gap-4 border-b border-gray-200 [.public-site_&]:border-border">
       <nav className="flex gap-2">
         {TABS.map((tab) => {
           const isActive =
@@ -36,8 +36,8 @@ export function SportTabs() {
               aria-current={isActive ? "page" : undefined}
               className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
                 isActive
-                  ? "border-blue-700 text-blue-700"
-                  : "border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900"
+                  ? "border-blue-700 [.public-site_&]:border-editorial-link text-blue-700 [.public-site_&]:text-editorial-link"
+                  : "border-transparent text-gray-600 [.public-site_&]:text-muted-foreground hover:border-gray-300 [.public-site_&]:hover:border-border hover:text-gray-900 [.public-site_&]:hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -48,7 +48,7 @@ export function SportTabs() {
 
       <Link
         href="/backoffice/sports/sync"
-        className="mb-2 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
+        className="mb-2 rounded-md bg-blue-700 [.public-site_&]:bg-primary px-4 py-2 text-sm font-medium text-white [.public-site_&]:text-primary-foreground transition-colors hover:bg-blue-800 [.public-site_&]:hover:bg-primary-hover"
       >
         Synchroniser les données
       </Link>

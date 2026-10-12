@@ -26,11 +26,11 @@ export function BanModal({
       aria-modal="true"
       aria-labelledby="titre-bannissement"
     >
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
-        <h2 id="titre-bannissement" className="text-lg font-bold text-gray-900">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+        <h2 id="titre-bannissement" className="text-lg font-bold text-foreground">
           Bannir {author.name}
         </h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm text-muted-foreground">
           {author.email} ne pourra plus publier de commentaire pendant la durée choisie.
         </p>
 
@@ -46,7 +46,7 @@ export function BanModal({
           />
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="champ-ban-reason" className="text-sm font-medium text-neutral-800">
+            <label htmlFor="champ-ban-reason" className="text-sm font-medium text-foreground">
               Raison
             </label>
             <textarea
@@ -54,12 +54,12 @@ export function BanModal({
               name="reason"
               rows={3}
               placeholder="Motif communiqué à l'auteur (facultatif)"
-              className="resize-y rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400"
+              className="resize-y rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="flex items-center justify-end gap-3">
-            <Link href={closeHref} className="text-sm font-semibold text-neutral-700 underline">
+            <Link href={closeHref} className="text-sm font-semibold text-foreground underline">
               Annuler
             </Link>
             <Button type="submit" variant="danger">
