@@ -63,14 +63,14 @@ export function SubscribersTab({
 
   return (
     <div className="mt-6">
-      <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-medium text-neutral-700">
+      <p className="rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium text-foreground">
         {total} abonné{total > 1 ? "s" : ""} · page {page} / {totalPages}
       </p>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Abonnés à la newsletter</caption>
-          <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+          <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-3 font-semibold">
                 Email
@@ -98,30 +98,30 @@ export function SubscribersTab({
           <tbody className="divide-y divide-neutral-100">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-neutral-500">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   Aucun abonné pour le moment. Créez-en un dans Prisma Studio
                   (<code className="font-mono text-xs">npx prisma studio</code>).
                 </td>
               </tr>
             ) : (
               rows.map((subscriber) => (
-                <tr key={subscriber.id} className="align-top hover:bg-neutral-50">
-                  <td className="px-3 py-3 font-medium text-neutral-900">{subscriber.email}</td>
-                  <td className="px-3 py-3 text-neutral-700">{subscriber.name ?? "—"}</td>
+                <tr key={subscriber.id} className="align-top hover:bg-muted">
+                  <td className="px-3 py-3 font-medium text-foreground">{subscriber.email}</td>
+                  <td className="px-3 py-3 text-foreground">{subscriber.name ?? "—"}</td>
                   <td className="px-3 py-3">
                     <Badge variant="status" tone={SUBSCRIBER_STATUS_TONES[subscriber.status]}>
                       {SUBSCRIBER_STATUS_LABELS[subscriber.status]}
                     </Badge>
                   </td>
-                  <td className="px-3 py-3 text-neutral-700">
+                  <td className="px-3 py-3 text-foreground">
                     {subscriberSourceLabel(subscriber.source)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-neutral-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-foreground">
                     {formatDate(subscriber.createdAt)}
                   </td>
                   <td className="px-3 py-3">
                     {subscriber.lists.length === 0 ? (
-                      <span className="text-neutral-500">—</span>
+                      <span className="text-muted-foreground">—</span>
                     ) : (
                       <span className="flex flex-wrap gap-1.5">
                         {subscriber.lists.map((list) => (
@@ -142,7 +142,7 @@ export function SubscribersTab({
                         Voir
                       </Link>
                       {subscriber.status === "UNSUBSCRIBED" ? (
-                        <span className="text-xs text-neutral-500">Désabonné</span>
+                        <span className="text-xs text-muted-foreground">Désabonné</span>
                       ) : (
                         <form action={unsubscribeSubscriber.bind(null, subscriber.id)}>
                           <button
@@ -172,9 +172,9 @@ export function SubscribersTab({
               ← Page précédente
             </Link>
           ) : (
-            <span className="text-neutral-400">← Page précédente</span>
+            <span className="text-muted-foreground">← Page précédente</span>
           )}
-          <span className="text-neutral-600">
+          <span className="text-muted-foreground">
             Page {page} sur {totalPages}
           </span>
           {page < totalPages ? (
@@ -182,7 +182,7 @@ export function SubscribersTab({
               Page suivante →
             </Link>
           ) : (
-            <span className="text-neutral-400">Page suivante →</span>
+            <span className="text-muted-foreground">Page suivante →</span>
           )}
         </nav>
       ) : null}

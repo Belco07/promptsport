@@ -69,18 +69,18 @@ export function ListForm({
 
       <label
         htmlFor={`list-active-${mode}`}
-        className="flex items-center gap-2.5 text-sm font-medium text-neutral-800"
+        className="flex items-center gap-2.5 text-sm font-medium text-foreground"
       >
         <input
           id={`list-active-${mode}`}
           name="active"
           type="checkbox"
           defaultChecked={initial.active}
-          className="h-4 w-4 rounded border-neutral-300"
+          className="h-4 w-4 rounded border-border"
         />
         Liste active
       </label>
-      <p className="pl-6 text-xs text-neutral-500">
+      <p className="pl-6 text-xs text-muted-foreground">
         Une liste inactive ne peut plus être rejointe et ne reçoit plus de campagne. Décochez-la
         plutôt que de la supprimer pour conserver son historique.
       </p>

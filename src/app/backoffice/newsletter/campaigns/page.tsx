@@ -147,7 +147,7 @@ export default async function CampaignsPage({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary-900">Campagnes</h1>
-          <p className="mt-2 text-sm text-neutral-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             {total} campagne{total > 1 ? "s" : ""}
             {scheduled > 0 ? ` · ${scheduled} planifiée${scheduled > 1 ? "s" : ""}` : ""} · configuration
             de l&apos;envoi dans{" "}
@@ -186,7 +186,7 @@ export default async function CampaignsPage({
         <CardBody className="p-4">
           <form className="flex flex-wrap items-end gap-3">
             <div className="min-w-[12rem] flex-1">
-              <label htmlFor="q" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              <label htmlFor="q" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Recherche par sujet
               </label>
               <input
@@ -195,18 +195,18 @@ export default async function CampaignsPage({
                 type="search"
                 defaultValue={params.q ?? ""}
                 placeholder="mots du sujet"
-                className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label htmlFor="statut" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              <label htmlFor="statut" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Statut
               </label>
               <select
                 id="statut"
                 name="statut"
                 defaultValue={params.statut ?? ""}
-                className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
               >
                 <option value="">Tous</option>
                 {CAMPAIGN_STATUSES.map((status) => (
@@ -217,14 +217,14 @@ export default async function CampaignsPage({
               </select>
             </div>
             <div>
-              <label htmlFor="liste" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              <label htmlFor="liste" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Liste
               </label>
               <select
                 id="liste"
                 name="liste"
                 defaultValue={params.liste ?? ""}
-                className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
               >
                 <option value="">Toutes</option>
                 {lists.map((list) => (
@@ -238,7 +238,7 @@ export default async function CampaignsPage({
               Filtrer
             </Button>
             {params.statut || params.liste || params.q ? (
-              <Link href={BASE_PATH} className="text-sm font-semibold text-neutral-600 underline">
+              <Link href={BASE_PATH} className="text-sm font-semibold text-muted-foreground underline">
                 Réinitialiser
               </Link>
             ) : null}
@@ -246,10 +246,10 @@ export default async function CampaignsPage({
         </CardBody>
       </Card>
 
-      <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Campagnes de newsletter</caption>
-          <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+          <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-3 font-semibold">Sujet</th>
               <th scope="col" className="px-3 py-3 font-semibold">Liste</th>
@@ -264,7 +264,7 @@ export default async function CampaignsPage({
           <tbody className="divide-y divide-neutral-100">
             {campaigns.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-sm text-neutral-500">
+                <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   Aucune campagne ne correspond à ces filtres.{" "}
                   <Link href={`${BASE_PATH}/new`} className="font-semibold text-primary-700 underline">
                     Créer la première campagne
@@ -274,15 +274,15 @@ export default async function CampaignsPage({
               </tr>
             ) : (
               campaigns.map((campaign) => (
-                <tr key={campaign.id} className="align-top hover:bg-neutral-50">
+                <tr key={campaign.id} className="align-top hover:bg-muted">
                   <td className="px-3 py-3">
                     <Link
                       href={`${BASE_PATH}/${campaign.id}`}
-                      className="font-medium text-neutral-900 underline transition-colors hover:text-primary-800"
+                      className="font-medium text-foreground underline transition-colors hover:text-primary-800"
                     >
                       {campaign.subject}
                     </Link>
-                    <span className="block text-xs text-neutral-500">
+                    <span className="block text-xs text-muted-foreground">
                       créée le {formatDate(campaign.createdAt)} par {campaign.createdBy.name}
                     </span>
                   </td>
@@ -296,23 +296,23 @@ export default async function CampaignsPage({
                       {CAMPAIGN_STATUS_LABELS[campaign.status]}
                     </Badge>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-neutral-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-foreground">
                     {campaign.sentAt
                       ? formatDate(campaign.sentAt)
                       : campaign.scheduledAt
                         ? formatDate(campaign.scheduledAt)
                         : "—"}
                   </td>
-                  <td className="px-3 py-3 tabular-nums text-neutral-700">
+                  <td className="px-3 py-3 tabular-nums text-foreground">
                     {campaign.recipientCount}
-                    <span className="block text-xs text-neutral-500">
+                    <span className="block text-xs text-muted-foreground">
                       {campaign._count.sends} envoi{campaign._count.sends > 1 ? "s" : ""}
                     </span>
                   </td>
-                  <td className="px-3 py-3 tabular-nums text-neutral-700">
+                  <td className="px-3 py-3 tabular-nums text-foreground">
                     {percent(campaign.openCount, campaign.deliveredCount)}
                   </td>
-                  <td className="px-3 py-3 tabular-nums text-neutral-700">
+                  <td className="px-3 py-3 tabular-nums text-foreground">
                     {percent(campaign.clickCount, campaign.deliveredCount)}
                   </td>
                   <td className="px-3 py-3">
@@ -326,13 +326,13 @@ export default async function CampaignsPage({
                       {campaign.status === "DRAFT" || campaign.status === "SCHEDULED" ? (
                         <Link
                           href={`${BASE_PATH}/${campaign.id}/edit`}
-                          className="text-sm font-semibold text-neutral-600 underline"
+                          className="text-sm font-semibold text-muted-foreground underline"
                         >
                           Éditer
                         </Link>
                       ) : null}
                       <form action={duplicateCampaign.bind(null, campaign.id)}>
-                        <button type="submit" className="text-sm font-semibold text-neutral-600 underline">
+                        <button type="submit" className="text-sm font-semibold text-muted-foreground underline">
                           Dupliquer
                         </button>
                       </form>
@@ -367,9 +367,9 @@ export default async function CampaignsPage({
               ← Page précédente
             </Link>
           ) : (
-            <span className="text-neutral-400">← Page précédente</span>
+            <span className="text-muted-foreground">← Page précédente</span>
           )}
-          <span className="text-neutral-600">
+          <span className="text-muted-foreground">
             Page {page} sur {totalPages}
           </span>
           {page < totalPages ? (
@@ -377,7 +377,7 @@ export default async function CampaignsPage({
               Page suivante →
             </Link>
           ) : (
-            <span className="text-neutral-400">Page suivante →</span>
+            <span className="text-muted-foreground">Page suivante →</span>
           )}
         </nav>
       ) : null}

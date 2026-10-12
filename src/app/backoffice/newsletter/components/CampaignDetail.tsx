@@ -55,9 +55,9 @@ export type CampaignDetailData = {
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-neutral-500">{label}</dt>
-      <dd className="text-lg font-bold tabular-nums text-neutral-900">{value}</dd>
-      {hint ? <p className="text-xs text-neutral-500">{hint}</p> : null}
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="text-lg font-bold tabular-nums text-foreground">{value}</dd>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -83,7 +83,7 @@ export function CampaignDetail({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold tracking-tight text-primary-900">{campaign.subject}</h2>
-            <p className="text-sm text-neutral-600">
+            <p className="text-sm text-muted-foreground">
               Liste {campaign.list.name}
               {campaign.list.active ? "" : " (inactive)"} · créée par {campaign.createdBy.name}
             </p>
@@ -94,7 +94,7 @@ export function CampaignDetail({
             </Badge>
             <Link
               href={closeHref}
-              className="text-sm font-semibold text-neutral-600 underline transition-colors hover:text-neutral-900"
+              className="text-sm font-semibold text-muted-foreground underline transition-colors hover:text-foreground"
             >
               Fermer
             </Link>
@@ -102,7 +102,7 @@ export function CampaignDetail({
         </div>
 
         {campaign.previewText ? (
-          <p className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm italic text-neutral-700">
+          <p className="mt-3 rounded-lg border border-border bg-muted px-3 py-2 text-sm italic text-foreground">
             Pré-en-tête : {campaign.previewText}
           </p>
         ) : null}
@@ -125,42 +125,42 @@ export function CampaignDetail({
 
         <dl className="mt-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">Créée le</dt>
-            <dd className="text-neutral-800">{formatDate(campaign.createdAt)}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Créée le</dt>
+            <dd className="text-foreground">{formatDate(campaign.createdAt)}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">Envoi prévu</dt>
-            <dd className="text-neutral-800">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Envoi prévu</dt>
+            <dd className="text-foreground">
               {campaign.scheduledAt ? formatDate(campaign.scheduledAt) : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">Envoyée le</dt>
-            <dd className="text-neutral-800">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Envoyée le</dt>
+            <dd className="text-foreground">
               {campaign.sentAt ? formatDate(campaign.sentAt) : "—"}
             </dd>
           </div>
         </dl>
 
         <div className="mt-5">
-          <h3 className="text-sm font-bold text-neutral-800">
+          <h3 className="text-sm font-bold text-foreground">
             Source HTML {truncated ? `(tronquée à ${htmlPreviewLength} caractères)` : ""}
           </h3>
-          <pre className="mt-2 max-h-72 overflow-auto rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+          <pre className="mt-2 max-h-72 overflow-auto rounded-lg border border-border bg-muted p-3 text-xs text-foreground">
             {htmlPreview}
           </pre>
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             Affichée en texte échappé : le rendu et l&apos;aperçu HTML arrivent avec le WP11d.
             {campaign.contentText ? " Une version texte brut est également enregistrée." : ""}
           </p>
         </div>
 
         <div className="mt-5">
-          <h3 className="text-sm font-bold text-neutral-800">
+          <h3 className="text-sm font-bold text-foreground">
             Envois ({campaign.sendCount})
           </h3>
           {campaign.sends.length === 0 ? (
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-muted-foreground">
               Aucun envoi individuel : rien n&apos;a encore été expédié (WP11b).
             </p>
           ) : (
@@ -170,8 +170,8 @@ export function CampaignDetail({
                   <Badge variant="status" tone={SEND_STATUS_TONES[send.status]}>
                     {SEND_STATUS_LABELS[send.status]}
                   </Badge>
-                  <span className="text-neutral-800">{send.subscriber.email}</span>
-                  <span className="text-xs text-neutral-500">
+                  <span className="text-foreground">{send.subscriber.email}</span>
+                  <span className="text-xs text-muted-foreground">
                     {send.sentAt ? formatDate(send.sentAt) : "non envoyé"}
                   </span>
                   {send.errorMessage ? (
@@ -182,7 +182,7 @@ export function CampaignDetail({
             </ul>
           )}
           {campaign.sendCount > campaign.sends.length ? (
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {campaign.sendCount - campaign.sends.length} autre
               {campaign.sendCount - campaign.sends.length > 1 ? "s" : ""} envoi
               {campaign.sendCount - campaign.sends.length > 1 ? "s" : ""} non affiché
@@ -191,7 +191,7 @@ export function CampaignDetail({
           ) : null}
         </div>
 
-        <p className="mt-5 text-xs text-neutral-500">
+        <p className="mt-5 text-xs text-muted-foreground">
           Dernière modification : {formatDate(campaign.updatedAt)}.
         </p>
       </CardBody>

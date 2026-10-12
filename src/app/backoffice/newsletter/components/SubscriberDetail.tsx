@@ -59,7 +59,7 @@ export function SubscriberDetail({
             <h2 className="text-lg font-bold tracking-tight text-primary-900">
               {subscriber.name ?? subscriber.email}
             </h2>
-            <p className="text-sm text-neutral-600">{subscriber.email}</p>
+            <p className="text-sm text-muted-foreground">{subscriber.email}</p>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="status" tone={SUBSCRIBER_STATUS_TONES[subscriber.status]}>
@@ -67,7 +67,7 @@ export function SubscriberDetail({
             </Badge>
             <Link
               href={closeHref}
-              className="text-sm font-semibold text-neutral-600 underline transition-colors hover:text-neutral-900"
+              className="text-sm font-semibold text-muted-foreground underline transition-colors hover:text-foreground"
             >
               Fermer
             </Link>
@@ -76,45 +76,45 @@ export function SubscriberDetail({
 
         <dl className="mt-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">Origine</dt>
-            <dd className="text-neutral-800">{subscriberSourceLabel(subscriber.source)}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Origine</dt>
+            <dd className="text-foreground">{subscriberSourceLabel(subscriber.source)}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">Inscrit le</dt>
-            <dd className="text-neutral-800">{formatDate(subscriber.createdAt)}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Inscrit le</dt>
+            <dd className="text-foreground">{formatDate(subscriber.createdAt)}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">Confirmé le</dt>
-            <dd className="text-neutral-800">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Confirmé le</dt>
+            <dd className="text-foreground">
               {subscriber.confirmedAt ? formatDate(subscriber.confirmedAt) : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">Désabonné le</dt>
-            <dd className="text-neutral-800">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Désabonné le</dt>
+            <dd className="text-foreground">
               {subscriber.unsubscribedAt ? formatDate(subscriber.unsubscribedAt) : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">Compte lié</dt>
-            <dd className="text-neutral-800">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Compte lié</dt>
+            <dd className="text-foreground">
               {subscriber.user ? `${subscriber.user.name} (${subscriber.user.email})` : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-500">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Jeton de confirmation
             </dt>
-            <dd className="break-all font-mono text-xs text-neutral-800">
+            <dd className="break-all font-mono text-xs text-foreground">
               {subscriber.confirmationToken ?? "—"}
             </dd>
           </div>
         </dl>
 
         <div className="mt-5">
-          <h3 className="text-sm font-bold text-neutral-800">Listes</h3>
+          <h3 className="text-sm font-bold text-foreground">Listes</h3>
           {subscriber.lists.length === 0 ? (
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-muted-foreground">
               Cet abonné n&apos;est inscrit à aucune liste.
             </p>
           ) : (
@@ -132,11 +132,11 @@ export function SubscriberDetail({
         </div>
 
         <div className="mt-5">
-          <h3 className="text-sm font-bold text-neutral-800">
+          <h3 className="text-sm font-bold text-foreground">
             Derniers envois ({subscriber.sends.length})
           </h3>
           {subscriber.sends.length === 0 ? (
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-muted-foreground">
               Aucun envoi : les campagnes n&apos;ont pas encore été expédiées (WP11b).
             </p>
           ) : (
@@ -146,8 +146,8 @@ export function SubscriberDetail({
                   <Badge variant="status" tone={SEND_STATUS_TONES[send.status]}>
                     {SEND_STATUS_LABELS[send.status]}
                   </Badge>
-                  <span className="text-neutral-800">{send.campaignSubject}</span>
-                  <span className="text-xs text-neutral-500">
+                  <span className="text-foreground">{send.campaignSubject}</span>
+                  <span className="text-xs text-muted-foreground">
                     {send.sentAt ? formatDate(send.sentAt) : "non envoyé"}
                   </span>
                 </li>
@@ -156,7 +156,7 @@ export function SubscriberDetail({
           )}
         </div>
 
-        <p className="mt-5 text-xs text-neutral-500">
+        <p className="mt-5 text-xs text-muted-foreground">
           Dernière modification : {formatDate(subscriber.updatedAt)}.
         </p>
       </CardBody>

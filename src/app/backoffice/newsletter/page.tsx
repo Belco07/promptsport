@@ -72,9 +72,9 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   return (
     <Card>
       <CardBody className="p-4">
-        <p className="text-xs uppercase tracking-wide text-neutral-500">{label}</p>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
         <p className="mt-1 text-2xl font-bold tabular-nums text-primary-900">{value}</p>
-        {hint ? <p className="mt-1 text-xs text-neutral-500">{hint}</p> : null}
+        {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
       </CardBody>
     </Card>
   );
@@ -460,7 +460,7 @@ export default async function BackofficeNewsletterPage({
   return (
     <div className="px-8 py-10">
       <h1 className="text-3xl font-bold tracking-tight text-primary-900">Newsletter</h1>
-      <p className="mt-2 text-sm text-neutral-600">
+      <p className="mt-2 text-sm text-muted-foreground">
         {subscriberCount} abonné{subscriberCount > 1 ? "s" : ""} · {listCount} liste
         {listCount > 1 ? "s" : ""} de diffusion · {campaignCount} campagne
         {campaignCount > 1 ? "s" : ""}. Les listes et les abonnés se gèrent ici ; la rédaction et
@@ -492,7 +492,7 @@ export default async function BackofficeNewsletterPage({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-muted-foreground">
           Créer, prévisualiser et envoyer une campagne se fait dans l&apos;espace dédié (WP11d).
         </p>
         <Link
@@ -504,7 +504,7 @@ export default async function BackofficeNewsletterPage({
       </div>
 
       {/* Onglets : simples liens, sans JavaScript. */}
-      <nav aria-label="Onglets de la newsletter" className="mt-6 flex gap-2 border-b border-neutral-200">
+      <nav aria-label="Onglets de la newsletter" className="mt-6 flex gap-2 border-b border-border">
         {TABS.map((item) => {
           const active = item.key === tab;
           const count =
@@ -521,12 +521,12 @@ export default async function BackofficeNewsletterPage({
               className={`-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
                 active
                   ? "border-primary-900 text-primary-900"
-                  : "border-transparent text-neutral-600 hover:border-neutral-300 hover:text-neutral-900"
+                  : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
               }`}
             >
               <Users aria-hidden="true" className="h-4 w-4" />
               {item.label}
-              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
                 {count}
               </span>
             </Link>
@@ -579,13 +579,13 @@ export default async function BackofficeNewsletterPage({
             {canSend ? (
               <form action={sendCampaignAction.bind(null, campaignDetail.id)}>
                 <Button type="submit">Envoyer la campagne</Button>
-                <p className="mt-2 text-xs text-neutral-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Envoi immédiat aux abonnés confirmés de la liste, un message par destinataire
                   (100 ms d&apos;intervalle). Le compte rendu s&apos;affiche ici.
                 </p>
               </form>
             ) : (
-              <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+              <p className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
                 {campaignDetail.status === "SENT"
                   ? "Campagne déjà envoyée : elle ne peut pas être réexpédiée (dupliquez-la pour un nouvel envoi)."
                   : `Une campagne « ${campaignDetail.status} » ne peut pas être expédiée.`}
@@ -595,7 +595,7 @@ export default async function BackofficeNewsletterPage({
         </>
       ) : null}
 
-      <p className="mt-8 text-xs text-neutral-500">
+      <p className="mt-8 text-xs text-muted-foreground">
         Périmètre : couche de données et consultation (WP11a), envoi via Resend et suivi des
         interactions (WP11b). La création de campagne (WP11d) et l&apos;inscription publique
         (WP11c) viendront ensuite. Les listes se composent dans Prisma Studio, via la relation{" "}

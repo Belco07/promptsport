@@ -70,11 +70,11 @@ export function SendCampaignButton({
           aria-labelledby="titre-confirmation-envoi"
           className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4"
         >
-          <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-6 shadow-card">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-card">
             <h2 id="titre-confirmation-envoi" className="text-lg font-bold text-primary-900">
               Envoyer cette campagne ?
             </h2>
-            <p className="mt-2 text-sm text-neutral-700">
+            <p className="mt-2 text-sm text-foreground">
               « {subject} » partira immédiatement vers{" "}
               <strong>
                 {recipients} destinataire{recipients > 1 ? "s" : ""}
@@ -89,7 +89,7 @@ export function SendCampaignButton({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-sm font-semibold text-neutral-700 underline"
+                className="text-sm font-semibold text-foreground underline"
               >
                 Annuler
               </button>

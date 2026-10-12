@@ -55,14 +55,14 @@ export function UsersTab({
 
   return (
     <div className="mt-6">
-      <p className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700">
+      <p className="rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium text-foreground">
         {total} auteur{total > 1 ? "s" : ""} ayant commenté · page {page} / {totalPages}
       </p>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Auteurs ayant commenté</caption>
-          <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+          <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-3 font-semibold">
                 Auteur
@@ -84,32 +84,32 @@ export function UsersTab({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-border">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500">
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   Aucun auteur n&apos;a encore commenté.
                 </td>
               </tr>
             ) : (
               rows.map((author) => (
-                <tr key={author.id} className="align-top hover:bg-gray-50">
+                <tr key={author.id} className="align-top hover:bg-muted">
                   <td className="px-3 py-3">
                     <Link
                       href={`/backoffice/users/${author.id}/edit`}
-                      className="font-medium text-gray-900 underline transition-colors hover:text-blue-800"
+                      className="font-medium text-foreground underline transition-colors hover:text-editorial-link"
                     >
                       {author.name}
                     </Link>
-                    <span className="block text-xs text-gray-500">{author.email}</span>
+                    <span className="block text-xs text-muted-foreground">{author.email}</span>
                   </td>
-                  <td className="px-3 py-3 font-medium text-gray-900">{author.comments}</td>
-                  <td className="px-3 py-3 text-gray-700">{author.rejected}</td>
-                  <td className="px-3 py-3 text-gray-700">{author.flagged}</td>
+                  <td className="px-3 py-3 font-medium text-foreground">{author.comments}</td>
+                  <td className="px-3 py-3 text-foreground">{author.rejected}</td>
+                  <td className="px-3 py-3 text-foreground">{author.flagged}</td>
                   <td className="px-3 py-3">
                     <BanStatusBadge author={author} now={now} />
                     {isBanned(author, now) && author.bannedUntil ? (
-                      <span className="mt-1 block text-xs text-gray-500">
+                      <span className="mt-1 block text-xs text-muted-foreground">
                         jusqu&apos;au {formatDate(author.bannedUntil)}
                         {author.banReason ? ` — ${author.banReason}` : ""}
                       </span>
@@ -119,7 +119,7 @@ export function UsersTab({
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
                         href={banHref(author.id)}
-                        className="text-sm font-medium text-red-700 underline transition-colors hover:text-red-900"
+                        className="text-sm font-medium text-status-error-foreground underline transition-colors hover:text-status-error-foreground"
                       >
                         Bannir
                       </Link>
@@ -127,7 +127,7 @@ export function UsersTab({
                         <form action={unbanUser.bind(null, author.id)}>
                           <button
                             type="submit"
-                            className="text-sm font-medium text-green-700 underline transition-colors hover:text-green-900"
+                            className="text-sm font-medium text-status-success-foreground underline transition-colors hover:text-green-900"
                           >
                             Débannir
                           </button>
@@ -145,21 +145,21 @@ export function UsersTab({
       {totalPages > 1 ? (
         <nav aria-label="Pagination des utilisateurs" className="mt-4 flex items-center justify-between text-sm">
           {page > 1 ? (
-            <Link href={pageHref(page - 1)} className="font-semibold text-blue-700 underline">
+            <Link href={pageHref(page - 1)} className="font-semibold text-editorial-link underline">
               ← Page précédente
             </Link>
           ) : (
-            <span className="text-gray-400">← Page précédente</span>
+            <span className="text-muted-foreground">← Page précédente</span>
           )}
-          <span className="text-gray-600">
+          <span className="text-muted-foreground">
             Page {page} sur {totalPages}
           </span>
           {page < totalPages ? (
-            <Link href={pageHref(page + 1)} className="font-semibold text-blue-700 underline">
+            <Link href={pageHref(page + 1)} className="font-semibold text-editorial-link underline">
               Page suivante →
             </Link>
           ) : (
-            <span className="text-gray-400">Page suivante →</span>
+            <span className="text-muted-foreground">Page suivante →</span>
           )}
         </nav>
       ) : null}

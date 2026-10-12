@@ -17,8 +17,8 @@ type UserFormProps = {
 };
 
 const inputClass =
-  "w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
-const labelClass = "mb-1 block text-sm font-medium text-gray-700";
+  "w-full rounded-md border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-editorial-link focus:ring-1 focus:ring-blue-600";
+const labelClass = "mb-1 block text-sm font-medium text-foreground";
 
 export function UserForm({ action, mode, defaultValues, submitLabel }: UserFormProps) {
   const [errorMessage, formAction, isPending] = useActionState(action, undefined);
@@ -68,12 +68,12 @@ export function UserForm({ action, mode, defaultValues, submitLabel }: UserFormP
             autoComplete="new-password"
             className={inputClass}
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             Au moins 6 caractères. La réinitialisation viendra plus tard.
           </p>
         </div>
       ) : (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Le mot de passe n&apos;est pas modifiable ici.
         </p>
       )}
@@ -94,20 +94,20 @@ export function UserForm({ action, mode, defaultValues, submitLabel }: UserFormP
       {mode === "create" ? (
         // Case décochée par défaut : l'abonnement à la newsletter est un choix,
         // jamais une conséquence automatique de la création d'un compte (WP11c).
-        <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+        <div className="rounded-md border border-border bg-muted p-4">
           <label
             htmlFor="newsletter"
-            className="flex items-center gap-2 text-sm font-medium text-gray-800"
+            className="flex items-center gap-2 text-sm font-medium text-foreground"
           >
             <input
               id="newsletter"
               name="newsletter"
               type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-blue-700 focus:ring-blue-600"
+              className="h-4 w-4 rounded border-border text-editorial-link focus:ring-blue-600"
             />
             Recevoir la newsletter
           </label>
-          <p className="mt-1 pl-6 text-xs text-gray-500">
+          <p className="mt-1 pl-6 text-xs text-muted-foreground">
             L&apos;abonnement est créé en statut « confirmé » : l&apos;adresse du compte est vérifiée
             par la création du compte. La personne pourra gérer ses listes depuis chaque e-mail.
           </p>
@@ -117,7 +117,7 @@ export function UserForm({ action, mode, defaultValues, submitLabel }: UserFormP
       {errorMessage ? (
         <p
           role="alert"
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          className="rounded-md border border-status-error-border bg-status-error px-3 py-2 text-sm text-status-error-foreground"
         >
           {errorMessage}
         </p>
@@ -127,13 +127,13 @@ export function UserForm({ action, mode, defaultValues, submitLabel }: UserFormP
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPending ? "Enregistrement…" : submitLabel}
         </button>
         <Link
           href="/backoffice/users"
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+          className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Annuler
         </Link>

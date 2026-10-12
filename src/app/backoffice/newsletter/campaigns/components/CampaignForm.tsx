@@ -1,4 +1,6 @@
 "use client";
+import { CalendarInput } from "@/components/CalendarInput";
+
 
 import Link from "next/link";
 import { useActionState } from "react";
@@ -30,8 +32,8 @@ export type CampaignListOption = {
 };
 
 const inputClass =
-  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600";
-const labelClass = "mb-1 block text-sm font-semibold text-neutral-800";
+  "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600";
+const labelClass = "mb-1 block text-sm font-semibold text-foreground";
 
 const PLACEHOLDER_HTML = `<h1>Bonjour,</h1>
 <p>Voici l'essentiel de la semaine :</p>
@@ -84,7 +86,7 @@ export function CampaignForm({
           placeholder="L'essentiel du week-end sportif"
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           150 caractères maximum. C&apos;est la ligne que verront les abonnés dans leur boîte.
         </p>
       </div>
@@ -117,7 +119,7 @@ export function CampaignForm({
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Seuls les abonnés <strong>confirmés</strong> de cette liste recevront la campagne.
         </p>
       </div>
@@ -135,7 +137,7 @@ export function CampaignForm({
           placeholder={PLACEHOLDER_HTML}
           className={`${inputClass} resize-y font-mono text-xs leading-5`}
         />
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           HTML brut : titres, paragraphes, listes et liens (les styles en ligne sont conservés tels
           quels). La mise en page de l&apos;e-mail — bandeau, pied de page, lien de désabonnement —
           est ajoutée automatiquement.
@@ -146,14 +148,14 @@ export function CampaignForm({
         <label htmlFor="scheduledAt" className={labelClass}>
           Planifier l&apos;envoi (facultatif)
         </label>
-        <input
+        <CalendarInput
           id="scheduledAt"
           name="scheduledAt"
           type="datetime-local"
           defaultValue={initial.scheduledAt}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Sans date, la campagne reste en brouillon. Avec une date, elle passe « planifiée » et
           partira à l&apos;échéance, via l&apos;endpoint de cron.
         </p>
@@ -183,13 +185,13 @@ export function CampaignForm({
           name="intent"
           value="preview"
           disabled={isPending}
-          className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition-colors hover:border-primary-300 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary-300 hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Enregistrer et prévisualiser
         </button>
         <Link
           href={campaignId ? `/backoffice/newsletter/campaigns/${campaignId}` : "/backoffice/newsletter/campaigns"}
-          className="text-sm font-semibold text-neutral-600 underline transition-colors hover:text-neutral-900"
+          className="text-sm font-semibold text-muted-foreground underline transition-colors hover:text-foreground"
         >
           Annuler
         </Link>

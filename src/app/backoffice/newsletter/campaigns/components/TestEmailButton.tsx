@@ -20,7 +20,7 @@ export function TestEmailButton({ campaignId }: { campaignId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition-colors hover:border-primary-300 hover:bg-primary-50"
+        className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary-300 hover:bg-primary-50"
       >
         Envoyer un test
       </button>
@@ -30,7 +30,7 @@ export function TestEmailButton({ campaignId }: { campaignId: string }) {
       <noscript>
         <form action={sendTestEmail.bind(null, campaignId)} className="mt-4 flex flex-wrap items-end gap-3">
           <div>
-            <label htmlFor="test-email-noscript" className="mb-1 block text-sm font-semibold text-neutral-800">
+            <label htmlFor="test-email-noscript" className="mb-1 block text-sm font-semibold text-foreground">
               Adresse du test
             </label>
             <input
@@ -39,7 +39,7 @@ export function TestEmailButton({ campaignId }: { campaignId: string }) {
               type="email"
               required
               placeholder="vous@exemple.fr"
-              className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
             />
           </div>
           <button
@@ -58,18 +58,18 @@ export function TestEmailButton({ campaignId }: { campaignId: string }) {
           aria-labelledby="titre-test-envoi"
           className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/50 p-4"
         >
-          <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-6 shadow-card">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-card">
             <h2 id="titre-test-envoi" className="text-lg font-bold text-primary-900">
               Envoyer un test
             </h2>
-            <p className="mt-2 text-sm text-neutral-700">
+            <p className="mt-2 text-sm text-foreground">
               L&apos;e-mail part à une seule adresse, avec des liens de désabonnement et de suivi
               neutralisés. Aucun abonné n&apos;est touché.
             </p>
 
             <form action={sendTestEmail.bind(null, campaignId)} className="mt-4 space-y-3">
               <div>
-                <label htmlFor="test-email" className="mb-1 block text-sm font-semibold text-neutral-800">
+                <label htmlFor="test-email" className="mb-1 block text-sm font-semibold text-foreground">
                   Adresse du test
                 </label>
                 <input
@@ -78,7 +78,7 @@ export function TestEmailButton({ campaignId }: { campaignId: string }) {
                   type="email"
                   required
                   placeholder="vous@exemple.fr"
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600"
                 />
               </div>
 
@@ -86,7 +86,7 @@ export function TestEmailButton({ campaignId }: { campaignId: string }) {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="text-sm font-semibold text-neutral-700 underline"
+                  className="text-sm font-semibold text-foreground underline"
                 >
                   Annuler
                 </button>

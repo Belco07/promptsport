@@ -71,14 +71,14 @@ export function CampaignsTab({
 
   return (
     <div className="mt-6">
-      <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-medium text-neutral-700">
+      <p className="rounded-lg border border-border bg-muted px-4 py-3 text-sm font-medium text-foreground">
         {total} campagne{total > 1 ? "s" : ""} · page {page} / {totalPages}
       </p>
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Campagnes de newsletter</caption>
-          <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+          <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-3 font-semibold">
                 Sujet
@@ -106,17 +106,17 @@ export function CampaignsTab({
           <tbody className="divide-y divide-neutral-100">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-neutral-500">
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   Aucune campagne pour le moment. Créez-en une dans Prisma Studio
                   (<code className="font-mono text-xs">npx prisma studio</code>).
                 </td>
               </tr>
             ) : (
               rows.map((campaign) => (
-                <tr key={campaign.id} className="align-top hover:bg-neutral-50">
+                <tr key={campaign.id} className="align-top hover:bg-muted">
                   <td className="px-3 py-3">
-                    <span className="font-medium text-neutral-900">{campaign.subject}</span>
-                    <span className="block text-xs text-neutral-500">
+                    <span className="font-medium text-foreground">{campaign.subject}</span>
+                    <span className="block text-xs text-muted-foreground">
                       créée le {formatDate(campaign.createdAt)} par {campaign.createdByName}
                     </span>
                   </td>
@@ -130,23 +130,23 @@ export function CampaignsTab({
                       {CAMPAIGN_STATUS_LABELS[campaign.status]}
                     </Badge>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-neutral-700">
+                  <td className="whitespace-nowrap px-3 py-3 text-foreground">
                     {campaign.sentAt
                       ? formatDate(campaign.sentAt)
                       : campaign.scheduledAt
                         ? `prévue le ${formatDate(campaign.scheduledAt)}`
                         : "—"}
                   </td>
-                  <td className="px-3 py-3 tabular-nums text-neutral-700">
+                  <td className="px-3 py-3 tabular-nums text-foreground">
                     {campaign.recipientCount}
-                    <span className="block text-xs text-neutral-500">
+                    <span className="block text-xs text-muted-foreground">
                       {campaign.deliveredCount} délivré{campaign.deliveredCount > 1 ? "s" : ""} ·{" "}
                       {campaign.sendCount} envoi{campaign.sendCount > 1 ? "s" : ""}
                     </span>
                   </td>
-                  <td className="px-3 py-3 tabular-nums text-neutral-700">
+                  <td className="px-3 py-3 tabular-nums text-foreground">
                     {openRate(campaign)}
-                    <span className="block text-xs text-neutral-500">
+                    <span className="block text-xs text-muted-foreground">
                       {campaign.openCount} ouverture{campaign.openCount > 1 ? "s" : ""} ·{" "}
                       {campaign.clickCount} clic{campaign.clickCount > 1 ? "s" : ""} ·{" "}
                       {campaign.bounceCount} rejet{campaign.bounceCount > 1 ? "s" : ""}
@@ -164,7 +164,7 @@ export function CampaignsTab({
                       <form action={duplicateCampaign.bind(null, campaign.id)}>
                         <button
                           type="submit"
-                          className="text-sm font-semibold text-neutral-600 underline transition-colors hover:text-neutral-900"
+                          className="text-sm font-semibold text-muted-foreground underline transition-colors hover:text-foreground"
                         >
                           Dupliquer
                         </button>
@@ -188,9 +188,9 @@ export function CampaignsTab({
               ← Page précédente
             </Link>
           ) : (
-            <span className="text-neutral-400">← Page précédente</span>
+            <span className="text-muted-foreground">← Page précédente</span>
           )}
-          <span className="text-neutral-600">
+          <span className="text-muted-foreground">
             Page {page} sur {totalPages}
           </span>
           {page < totalPages ? (
@@ -198,7 +198,7 @@ export function CampaignsTab({
               Page suivante →
             </Link>
           ) : (
-            <span className="text-neutral-400">Page suivante →</span>
+            <span className="text-muted-foreground">Page suivante →</span>
           )}
         </nav>
       ) : null}

@@ -92,7 +92,7 @@ export default async function PreviewCampaignPage({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary-900">Prévisualisation</h1>
-          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-neutral-600">
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="status" tone={CAMPAIGN_STATUS_TONES[campaign.status]}>
               {CAMPAIGN_STATUS_LABELS[campaign.status]}
             </Badge>
@@ -108,13 +108,13 @@ export default async function PreviewCampaignPage({
           <TestEmailButton campaignId={campaign.id} />
           <Link
             href={`/backoffice/newsletter/campaigns/${campaign.id}/edit`}
-            className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition-colors hover:border-primary-300 hover:bg-primary-50"
+            className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary-300 hover:bg-primary-50"
           >
             Modifier
           </Link>
           <Link
             href={`/backoffice/newsletter/campaigns/${campaign.id}`}
-            className="text-sm font-semibold text-neutral-600 underline"
+            className="text-sm font-semibold text-muted-foreground underline"
           >
             Retour à la campagne
           </Link>
@@ -138,7 +138,7 @@ export default async function PreviewCampaignPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card>
           <CardBody className="p-0">
-            <p className="border-b border-neutral-200 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            <p className="border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Rendu de l&apos;e-mail (iframe isolée)
             </p>
             {/* sandbox vide : aucun script, aucune navigation, aucun cookie. */}
@@ -147,20 +147,20 @@ export default async function PreviewCampaignPage({
               srcDoc={rendered.html}
               sandbox=""
               referrerPolicy="no-referrer"
-              className="h-[640px] w-full rounded-b-xl border-0 bg-neutral-100"
+              className="h-[640px] w-full rounded-b-xl border-0 bg-muted"
             />
           </CardBody>
         </Card>
 
         <aside className="space-y-4 text-sm">
-          <div className="rounded-xl border border-neutral-200 bg-white p-4">
-            <h2 className="text-sm font-bold text-neutral-800">Version texte</h2>
-            <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h2 className="text-sm font-bold text-foreground">Version texte</h2>
+            <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-muted p-3 text-xs text-foreground">
               {rendered.text}
             </pre>
           </div>
-          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-600">
-            <h2 className="text-sm font-bold text-neutral-800">Avant d&apos;envoyer</h2>
+          <div className="rounded-xl border border-border bg-muted p-4 text-muted-foreground">
+            <h2 className="text-sm font-bold text-foreground">Avant d&apos;envoyer</h2>
             <ul className="mt-2 space-y-1.5">
               <li>· le lien de désabonnement est ajouté automatiquement ;</li>
               <li>· les images distantes peuvent être bloquées par les clients ;</li>

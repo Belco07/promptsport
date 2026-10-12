@@ -32,7 +32,7 @@ export default async function NewCampaignPage() {
   return (
     <div className="px-8 py-10">
       <h1 className="text-3xl font-bold tracking-tight text-primary-900">Nouvelle campagne</h1>
-      <p className="mt-2 text-sm text-neutral-600">
+      <p className="mt-2 text-sm text-muted-foreground">
         Le contenu est du HTML : la mise en page de l&apos;e-mail (bandeau, pied de page, lien de
         désabonnement) est ajoutée automatiquement à l&apos;envoi.
       </p>

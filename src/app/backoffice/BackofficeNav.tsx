@@ -26,7 +26,7 @@ export function BackofficeNav() {
 
   const linkClass = (active: boolean) =>
     `block rounded-md px-3 py-2 text-sm transition-colors ${
-      active ? "bg-blue-700 font-medium text-white" : "text-gray-700 hover:bg-gray-100"
+      active ? "bg-primary font-medium text-white" : "text-foreground hover:bg-muted"
     }`;
 
   /** Lien actif seulement une fois monté : évite toute divergence d'hydratation. */
@@ -56,6 +56,14 @@ export function BackofficeNav() {
         className={linkClass(isActive(pathname.startsWith("/backoffice/sports")))}
       >
         Sports
+      </Link>
+
+      <Link
+        href="/backoffice/themes"
+        aria-current={isActive(pathname.startsWith("/backoffice/themes")) ? "page" : undefined}
+        className={linkClass(isActive(pathname.startsWith("/backoffice/themes")))}
+      >
+        Thèmes
       </Link>
 
       <Link
@@ -94,7 +102,7 @@ export function BackofficeNav() {
         <span
           key={item.label}
           aria-disabled="true"
-          className="block cursor-not-allowed rounded-md px-3 py-2 text-sm text-gray-400"
+          className="block cursor-not-allowed rounded-md px-3 py-2 text-sm text-muted-foreground"
           title="Bientôt disponible"
         >
           {item.label}

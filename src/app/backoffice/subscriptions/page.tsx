@@ -32,7 +32,7 @@ const PAGE_SIZE = 20;
 const thClass = "px-4 py-3 font-semibold";
 const tdClass = "px-4 py-3";
 const inputClass =
-  "rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600";
+  "rounded-md border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-editorial-link focus:ring-1 focus:ring-blue-600";
 
 type SearchParams = {
   tab?: string;
@@ -46,7 +46,7 @@ type SearchParams = {
 
 function Empty({ label }: { label: string }) {
   return (
-    <p className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+    <p className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
       {label}
     </p>
   );
@@ -75,12 +75,12 @@ function Banner({ resultat, erreur }: { resultat?: string; erreur?: string }) {
   return (
     <div className="mb-6 space-y-2">
       {success ? (
-        <p role="status" className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p role="status" className="rounded-md border border-status-success-border bg-status-success px-3 py-2 text-sm text-status-success-foreground">
           {success}
         </p>
       ) : null}
       {error ? (
-        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-md border border-status-error-border bg-status-error px-3 py-2 text-sm text-status-error-foreground">
           {error}
         </p>
       ) : null}
@@ -149,11 +149,11 @@ export default async function SubscriptionsPage({
 
   return (
     <div className="px-8 py-10">
-      <h1 className="mb-6 text-2xl font-bold tracking-tight text-gray-900">Abonnements</h1>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Abonnements</h1>
 
       <Banner resultat={params.resultat} erreur={params.erreur} />
 
-      <nav className="mb-6 flex gap-2 border-b border-gray-200">
+      <nav className="mb-6 flex gap-2 border-b border-border">
         {TABS.map((t) => {
           const isActive = t.id === activeTab;
           return (
@@ -163,8 +163,8 @@ export default async function SubscriptionsPage({
               aria-current={isActive ? "page" : undefined}
               className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
                 isActive
-                  ? "border-blue-700 text-blue-700"
-                  : "border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900"
+                  ? "border-editorial-link text-editorial-link"
+                  : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
               }`}
             >
               {t.label}
@@ -177,9 +177,9 @@ export default async function SubscriptionsPage({
         plans.length === 0 ? (
           <Empty label="Aucun plan. Créez-en un via Prisma Studio." />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto rounded-lg border border-border bg-card">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+              <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className={thClass}>Nom</th>
                   <th className={thClass}>Prix</th>
@@ -188,29 +188,29 @@ export default async function SubscriptionsPage({
                   <th className={thClass}>Abonnés</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {plans.map((plan) => (
-                  <tr key={plan.id} className="hover:bg-gray-50">
-                    <td className={`${tdClass} font-medium text-gray-900`}>
+                  <tr key={plan.id} className="hover:bg-muted">
+                    <td className={`${tdClass} font-medium text-foreground`}>
                       {plan.name}
-                      <span className="block text-xs font-normal text-gray-400">/{plan.slug}</span>
+                      <span className="block text-xs font-normal text-muted-foreground">/{plan.slug}</span>
                     </td>
-                    <td className={`${tdClass} text-gray-900`}>
+                    <td className={`${tdClass} text-foreground`}>
                       {formatPrice(plan.price, plan.currency)}
                     </td>
-                    <td className={`${tdClass} text-gray-700`}>
+                    <td className={`${tdClass} text-foreground`}>
                       {PLAN_INTERVAL_LABELS[plan.interval] ?? plan.interval}
                     </td>
                     <td className={tdClass}>
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          plan.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"
+                          plan.active ? "bg-status-success text-status-success-foreground" : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {plan.active ? "Actif" : "Inactif"}
                       </span>
                     </td>
-                    <td className={`${tdClass} text-gray-600`}>{plan._count.subscriptions}</td>
+                    <td className={`${tdClass} text-muted-foreground`}>{plan._count.subscriptions}</td>
                   </tr>
                 ))}
               </tbody>
@@ -225,7 +225,7 @@ export default async function SubscriptionsPage({
             <input type="hidden" name="tab" value="subscriptions" />
 
             <div>
-              <label htmlFor="statut" className="mb-1 block text-xs font-medium text-gray-600">
+              <label htmlFor="statut" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Statut
               </label>
               <select id="statut" name="statut" defaultValue={status ?? ""} className={inputClass}>
@@ -239,7 +239,7 @@ export default async function SubscriptionsPage({
             </div>
 
             <div>
-              <label htmlFor="plan" className="mb-1 block text-xs font-medium text-gray-600">
+              <label htmlFor="plan" className="mb-1 block text-xs font-medium text-muted-foreground">
                 Plan
               </label>
               <select id="plan" name="plan" defaultValue={planId ?? ""} className={inputClass}>
@@ -253,7 +253,7 @@ export default async function SubscriptionsPage({
             </div>
 
             <div>
-              <label htmlFor="q" className="mb-1 block text-xs font-medium text-gray-600">
+              <label htmlFor="q" className="mb-1 block text-xs font-medium text-muted-foreground">
                 E-mail de l&apos;utilisateur
               </label>
               <input
@@ -268,19 +268,19 @@ export default async function SubscriptionsPage({
 
             <button
               type="submit"
-              className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
             >
               Filtrer
             </button>
             <Link
               href="/backoffice/subscriptions?tab=subscriptions"
-              className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100"
+              className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >
               Réinitialiser
             </Link>
           </form>
 
-          <p className="mb-3 text-sm text-gray-600">
+          <p className="mb-3 text-sm text-muted-foreground">
             {subscriptionCount} abonnement{subscriptionCount > 1 ? "s" : ""} — page {page} sur{" "}
             {pageCount}
           </p>
@@ -288,9 +288,9 @@ export default async function SubscriptionsPage({
           {subscriptions.length === 0 ? (
             <Empty label="Aucun abonnement ne correspond à ces critères." />
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <div className="overflow-x-auto rounded-lg border border-border bg-card">
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className={thClass}>Utilisateur</th>
                     <th className={thClass}>Plan</th>
@@ -300,21 +300,21 @@ export default async function SubscriptionsPage({
                     <th className={thClass}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-border">
                   {subscriptions.map((subscription) => {
                     const detailHref = `/backoffice/subscriptions/${subscription.id}`;
                     const isActive = subscription.status === "ACTIVE";
                     return (
-                      <tr key={subscription.id} className="hover:bg-gray-50">
-                        <td className={`${tdClass} font-medium text-gray-900`}>
+                      <tr key={subscription.id} className="hover:bg-muted">
+                        <td className={`${tdClass} font-medium text-foreground`}>
                           {subscription.user.name}
-                          <span className="block text-xs font-normal text-gray-400">
+                          <span className="block text-xs font-normal text-muted-foreground">
                             {subscription.user.email}
                           </span>
                         </td>
-                        <td className={`${tdClass} text-gray-700`}>
+                        <td className={`${tdClass} text-foreground`}>
                           {subscription.plan.name}
-                          <span className="block text-xs text-gray-400">
+                          <span className="block text-xs text-muted-foreground">
                             {formatPrice(subscription.plan.price, subscription.plan.currency)}
                           </span>
                         </td>
@@ -322,35 +322,35 @@ export default async function SubscriptionsPage({
                           <span
                             className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
                               SUBSCRIPTION_STATUS_BADGES[subscription.status] ??
-                              "bg-gray-100 text-gray-600"
+                              "bg-muted text-muted-foreground"
                             }`}
                           >
                             {SUBSCRIPTION_STATUS_LABELS[subscription.status] ?? subscription.status}
                           </span>
                           {subscription.cancelAtPeriodEnd ? (
-                            <span className="mt-1 block text-xs text-amber-700">
+                            <span className="mt-1 block text-xs text-status-warning-foreground">
                               résiliation programmée
                             </span>
                           ) : null}
                         </td>
-                        <td className={`${tdClass} text-gray-600`}>
+                        <td className={`${tdClass} text-muted-foreground`}>
                           <time dateTime={subscription.currentPeriodEnd.toISOString()}>
                             {formatDate(subscription.currentPeriodEnd)}
                           </time>
                         </td>
-                        <td className={`${tdClass} text-gray-900`}>
+                        <td className={`${tdClass} text-foreground`}>
                           {isActive
                             ? formatPrice(monthlyRecurringCents(subscription.plan), "EUR")
                             : "—"}
                         </td>
                         <td className={`${tdClass} whitespace-nowrap`}>
-                          <Link href={detailHref} className="text-blue-700 underline hover:text-blue-900">
+                          <Link href={detailHref} className="text-editorial-link underline hover:text-editorial-link">
                             Voir le détail
                           </Link>
                           <span className="mx-2 text-gray-300">|</span>
                           <Link
                             href={`${detailHref}?confirmer=annuler`}
-                            className="text-red-700 underline hover:text-red-900"
+                            className="text-status-error-foreground underline hover:text-status-error-foreground"
                           >
                             Annuler
                           </Link>
@@ -366,18 +366,18 @@ export default async function SubscriptionsPage({
           {pageCount > 1 ? (
             <nav className="mt-5 flex items-center justify-between text-sm">
               {page > 1 ? (
-                <Link href={pageHref(page - 1)} className="text-blue-700 underline hover:text-blue-900">
+                <Link href={pageHref(page - 1)} className="text-editorial-link underline hover:text-editorial-link">
                   ← Page précédente
                 </Link>
               ) : (
-                <span className="text-gray-400">← Page précédente</span>
+                <span className="text-muted-foreground">← Page précédente</span>
               )}
               {page < pageCount ? (
-                <Link href={pageHref(page + 1)} className="text-blue-700 underline hover:text-blue-900">
+                <Link href={pageHref(page + 1)} className="text-editorial-link underline hover:text-editorial-link">
                   Page suivante →
                 </Link>
               ) : (
-                <span className="text-gray-400">Page suivante →</span>
+                <span className="text-muted-foreground">Page suivante →</span>
               )}
             </nav>
           ) : null}
@@ -388,9 +388,9 @@ export default async function SubscriptionsPage({
         payments.length === 0 ? (
           <Empty label="Aucun paiement. Créez-en un via Prisma Studio." />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto rounded-lg border border-border bg-card">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+              <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className={thClass}>Utilisateur</th>
                   <th className={thClass}>Montant</th>
@@ -399,37 +399,37 @@ export default async function SubscriptionsPage({
                   <th className={thClass}>ID Stripe</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {payments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50">
-                    <td className={`${tdClass} font-medium text-gray-900`}>
+                  <tr key={payment.id} className="hover:bg-muted">
+                    <td className={`${tdClass} font-medium text-foreground`}>
                       {payment.user.name}
-                      <span className="block text-xs font-normal text-gray-400">
+                      <span className="block text-xs font-normal text-muted-foreground">
                         {payment.user.email}
                       </span>
                     </td>
-                    <td className={`${tdClass} text-gray-900`}>
+                    <td className={`${tdClass} text-foreground`}>
                       {formatPrice(payment.amount, payment.currency)}
                     </td>
                     <td className={tdClass}>
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          PAYMENT_STATUS_BADGES[payment.status] ?? "bg-gray-100 text-gray-600"
+                          PAYMENT_STATUS_BADGES[payment.status] ?? "bg-muted text-muted-foreground"
                         }`}
                       >
                         {PAYMENT_STATUS_LABELS[payment.status] ?? payment.status}
                       </span>
                     </td>
-                    <td className={`${tdClass} text-gray-600`}>
+                    <td className={`${tdClass} text-muted-foreground`}>
                       {payment.paidAt ? (
                         <time dateTime={payment.paidAt.toISOString()}>
                           {formatDate(payment.paidAt)}
                         </time>
                       ) : (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
-                    <td className={`${tdClass} font-mono text-xs text-gray-500`}>
+                    <td className={`${tdClass} font-mono text-xs text-muted-foreground`}>
                       {payment.stripePaymentIntentId ?? "—"}
                     </td>
                   </tr>

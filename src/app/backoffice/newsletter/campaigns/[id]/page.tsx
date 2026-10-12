@@ -1,3 +1,4 @@
+import { CalendarInput } from "@/components/CalendarInput";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -73,10 +74,10 @@ function toLocalInputValue(date: Date | null): string {
 /** Bloc de métrique : libellé, valeur, précision éventuelle. */
 function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-4">
-      <p className="text-xs uppercase tracking-wide text-neutral-500">{label}</p>
+    <div className="rounded-lg border border-border bg-card p-4">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums text-primary-900">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-neutral-500">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -179,7 +180,7 @@ export default async function CampaignDetailPage({
     <div className="px-8 py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-neutral-500">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             <Link href={BASE_PATH} className="font-semibold text-primary-700 underline">
               Campagnes
             </Link>{" "}
@@ -188,7 +189,7 @@ export default async function CampaignDetailPage({
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-primary-900">
             {campaign.subject}
           </h1>
-          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-neutral-600">
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="status" tone={CAMPAIGN_STATUS_TONES[campaign.status]}>
               {CAMPAIGN_STATUS_LABELS[campaign.status]}
             </Badge>
@@ -207,14 +208,14 @@ export default async function CampaignDetailPage({
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href={`${BASE_PATH}/${campaign.id}/preview`}
-            className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition-colors hover:border-primary-300 hover:bg-primary-50"
+            className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary-300 hover:bg-primary-50"
           >
             Prévisualiser
           </Link>
           {canEdit ? (
             <Link
               href={`${BASE_PATH}/${campaign.id}/edit`}
-              className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-800 transition-colors hover:border-primary-300 hover:bg-primary-50"
+              className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary-300 hover:bg-primary-50"
             >
               Modifier
             </Link>
@@ -269,18 +270,18 @@ export default async function CampaignDetailPage({
       {canSend ? (
         <Card className="mt-6">
           <CardBody>
-            <h2 className="text-sm font-bold text-neutral-800">Planification</h2>
+            <h2 className="text-sm font-bold text-foreground">Planification</h2>
             <form action={scheduleCampaign.bind(null, campaign.id)} className="mt-3 flex flex-wrap items-end gap-3">
               <div>
-                <label htmlFor="scheduledAt" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                <label htmlFor="scheduledAt" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Date et heure d&apos;envoi
                 </label>
-                <input
+                <CalendarInput
                   id="scheduledAt"
                   name="scheduledAt"
                   type="datetime-local"
                   defaultValue={toLocalInputValue(campaign.scheduledAt)}
-                  className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm"
                 />
               </div>
               <Button type="submit" variant="secondary">
@@ -292,7 +293,7 @@ export default async function CampaignDetailPage({
                 </Button>
               ) : null}
             </form>
-            <p className="mt-2 text-xs text-neutral-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               Les campagnes planifiées partent à l&apos;échéance via{" "}
               <code className="font-mono">/api/cron/newsletter</code> (voir le README), ou
               immédiatement avec le bouton « Traiter les envois planifiés » de la liste.
@@ -307,10 +308,10 @@ export default async function CampaignDetailPage({
           Destinataires ({sendTotal})
         </h2>
 
-        <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+        <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-card">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Envois individuels de la campagne</caption>
-            <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+            <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th scope="col" className="px-3 py-3 font-semibold">Destinataire</th>
                 <th scope="col" className="px-3 py-3 font-semibold">Statut</th>
@@ -322,20 +323,20 @@ export default async function CampaignDetailPage({
             <tbody className="divide-y divide-neutral-100">
               {sends.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-neutral-500">
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
                     Aucun envoi : la campagne n&apos;a pas encore été expédiée.
                   </td>
                 </tr>
               ) : (
                 sends.map((send) => (
-                  <tr key={send.id} className="align-top hover:bg-neutral-50">
+                  <tr key={send.id} className="align-top hover:bg-muted">
                     <td className="px-3 py-3">
-                      <span className="font-medium text-neutral-900">{send.subscriber.email}</span>
+                      <span className="font-medium text-foreground">{send.subscriber.email}</span>
                       {send.subscriber.name ? (
-                        <span className="block text-xs text-neutral-500">{send.subscriber.name}</span>
+                        <span className="block text-xs text-muted-foreground">{send.subscriber.name}</span>
                       ) : null}
                       {send.subscriber.status === "UNSUBSCRIBED" ? (
-                        <span className="block text-xs text-neutral-500">désabonné depuis</span>
+                        <span className="block text-xs text-muted-foreground">désabonné depuis</span>
                       ) : null}
                     </td>
                     <td className="px-3 py-3">
@@ -348,13 +349,13 @@ export default async function CampaignDetailPage({
                         </span>
                       ) : null}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-neutral-700">
+                    <td className="whitespace-nowrap px-3 py-3 text-foreground">
                       {send.sentAt ? formatDate(send.sentAt) : "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-neutral-700">
+                    <td className="whitespace-nowrap px-3 py-3 text-foreground">
                       {send.openedAt ? formatDate(send.openedAt) : "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-neutral-700">
+                    <td className="whitespace-nowrap px-3 py-3 text-foreground">
                       {send.clickedAt ? formatDate(send.clickedAt) : "—"}
                     </td>
                   </tr>
@@ -371,9 +372,9 @@ export default async function CampaignDetailPage({
                 ← Page précédente
               </Link>
             ) : (
-              <span className="text-neutral-400">← Page précédente</span>
+              <span className="text-muted-foreground">← Page précédente</span>
             )}
-            <span className="text-neutral-600">
+            <span className="text-muted-foreground">
               Page {page} sur {totalPages}
             </span>
             {page < totalPages ? (
@@ -381,15 +382,15 @@ export default async function CampaignDetailPage({
                 Page suivante →
               </Link>
             ) : (
-              <span className="text-neutral-400">Page suivante →</span>
+              <span className="text-muted-foreground">Page suivante →</span>
             )}
           </nav>
         ) : null}
       </section>
 
       {/* Actions secondaires. */}
-      <section className="mt-8 border-t border-neutral-200 pt-6">
-        <h2 className="text-sm font-bold text-neutral-800">Actions</h2>
+      <section className="mt-8 border-t border-border pt-6">
+        <h2 className="text-sm font-bold text-foreground">Actions</h2>
         <div className="mt-3 flex flex-wrap items-center gap-4">
           {canRetarget ? (
             <form action={resendToNonOpeners.bind(null, campaign.id)}>
@@ -410,12 +411,12 @@ export default async function CampaignDetailPage({
               </Button>
             </form>
           ) : (
-            <span className="text-sm text-neutral-500">
+            <span className="text-sm text-muted-foreground">
               Une campagne envoyée ne peut pas être supprimée (dupliquez-la pour repartir).
             </span>
           )}
         </div>
-        <p className="mt-3 text-xs text-neutral-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           « Renvoyer aux non-ouvreurs » crée une liste composée des destinataires qui n&apos;ont pas
           ouvert, puis une campagne en brouillon visant cette liste : rien n&apos;est expédié sans
           votre validation.
