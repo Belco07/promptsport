@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ScoresScroller } from "@/components/ScoresScroller";
 
 /**
  * Bandeau de scores, tout en haut des pages publiques.
@@ -8,9 +9,8 @@ import Link from "next/link";
  * vide l'essentiel du temps, la synchronisation sportive ne tournant que quelques
  * fois par jour.
  *
- * Composant **serveur** : aucun JavaScript n'est envoyé pour ce bandeau, il
- * n'ajoute donc rien au coût d'hydratation des pages publiques. Le défilement
- * horizontal est du CSS (`overflow-x-auto`), pas un carrousel.
+ * Données et liens rendus côté serveur ; ScoresScroller fournit uniquement
+ * les commandes de défilement accessibles.
  *
  * Les logos d'équipes ne sont pas affichés : le bandeau est présent sur toutes
  * les pages, au-dessus de la ligne de flottaison — des images y coûteraient des
@@ -102,15 +102,15 @@ export function LiveScoresBar({ matches }: { matches: ScoresStripMatch[] }) {
     <section
       aria-label="Scores et matchs en direct"
       data-scores-strip=""
-      className="border-b border-white/10 bg-ink-950 text-white"
+      className="border-b border-border bg-muted text-primary-foreground"
     >
       <div className="mx-auto flex max-w-6xl items-stretch">
-        <p className="flex shrink-0 items-center gap-2 border-r border-white/10 px-[14px] text-[10px] font-extrabold uppercase tracking-[1.4px] max-[600px]:hidden">
+        <p className="flex shrink-0 items-center gap-2 border-r border-border px-[14px] text-[10px] font-extrabold uppercase tracking-[1.4px] max-[600px]:hidden">
           {liveCount > 0 ? (
             <>
               <span
                 aria-hidden="true"
-                className="h-[7px] w-[7px] animate-pulse rounded-full bg-brand-500"
+                className="h-[7px] w-[7px] animate-pulse rounded-full bg-editorial-action"
               />
               En direct
             </>
@@ -119,30 +119,30 @@ export function LiveScoresBar({ matches }: { matches: ScoresStripMatch[] }) {
           )}
         </p>
 
-        <ul className="flex min-w-0 flex-1 items-stretch overflow-x-auto">
+        <ScoresScroller>
           {ordered.map((match) => {
             const live = match.status === "LIVE";
             const finished = match.status === "FINISHED";
             const hasScore = match.homeScore !== null && match.awayScore !== null;
 
             return (
-              <li key={match.id} className="shrink-0 border-r border-white/10 last:border-r-0">
+              <li key={match.id} className="shrink-0 border-r border-border last:border-r-0">
                 <Link
                   href={`/match/${match.id}`}
-                  className="flex h-full items-center gap-[10px] px-[13px] py-[9px] text-[11px] transition-colors hover:bg-white/10"
+                  className="scores-match-link"
                 >
                   {match.competition ? (
-                    <span className="max-w-[120px] truncate text-[9px] font-bold uppercase tracking-[.7px] text-white/50">
+                    <span className="scores-competition">
                       {match.competition.name}
                     </span>
                   ) : null}
 
-                  <span className="flex items-center gap-[6px]">
+                  <span className="scores-teams">
                     <span className="font-semibold">
                       {match.homeTeam.shortName ?? match.homeTeam.name}
                     </span>
                     <span
-                      className={`tabular-nums ${live ? "font-extrabold text-brand-400" : "font-bold"}`}
+                      className={`tabular-nums ${live ? "font-extrabold text-editorial-link" : "font-bold"}`}
                     >
                       {hasScore ? `${match.homeScore} - ${match.awayScore}` : "—"}
                     </span>
@@ -152,8 +152,8 @@ export function LiveScoresBar({ matches }: { matches: ScoresStripMatch[] }) {
                   </span>
 
                   <span
-                    className={`text-[9px] font-extrabold uppercase tracking-[.7px] ${
-                      live ? "text-brand-400" : finished ? "text-white/60" : "text-white/45"
+                    className={`scores-status text-[9px] font-extrabold uppercase tracking-[.7px] ${
+                      live ? "text-editorial-link" : finished ? "text-muted-foreground" : "text-muted-foreground"
                     }`}
                   >
                     {statusLabel(match)}
@@ -162,7 +162,7 @@ export function LiveScoresBar({ matches }: { matches: ScoresStripMatch[] }) {
               </li>
             );
           })}
-        </ul>
+        </ScoresScroller>
       </div>
     </section>
   );

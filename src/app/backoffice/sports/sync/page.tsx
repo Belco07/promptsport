@@ -13,15 +13,15 @@ export default function SyncPage() {
     <div className="px-8 py-10">
       <Link
         href="/backoffice/sports"
-        className="mb-4 inline-block text-sm text-blue-700 underline hover:text-blue-900"
+        className="mb-4 inline-block text-sm text-editorial-link underline hover:text-editorial-link"
       >
         ← Retour aux sports
       </Link>
 
-      <h1 className="mb-2 text-2xl font-bold tracking-tight text-gray-900">
+      <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">
         Synchronisation Football-Data.org
       </h1>
-      <p className="mb-6 max-w-3xl text-sm text-gray-600">
+      <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
         Importe les compétitions, équipes et matchs (passés et à venir) depuis
         Football-Data.org. Les doublons sont évités grâce à l&apos;identifiant
         externe. Compétitions par défaut :{" "}
@@ -31,7 +31,7 @@ export default function SyncPage() {
       {!hasApiKey ? (
         <p
           role="alert"
-          className="mb-6 max-w-3xl rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          className="mb-6 max-w-3xl rounded-md border border-status-warning-border bg-status-warning px-3 py-2 text-sm text-status-warning-foreground"
         >
           <strong>FOOTBALL_DATA_API_KEY n&apos;est pas configurée.</strong> Créez une
           clé gratuite sur{" "}

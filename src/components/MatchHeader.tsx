@@ -1,0 +1,9 @@
+import Image from "next/image";
+import Link from "next/link";
+import { MATCH_STATUS_LABELS, MATCH_STATUS_TONES, type MatchCardData } from "@/components/MatchCard";
+import { Badge } from "@/components/ui/Badge";
+import { formatMatchDate } from "@/lib/formatDate";
+export function MatchHeader({match:m}:{match:MatchCardData & {venue:string|null;competition:{name:string;slug:string}}}){
+ const score=(m.status==="LIVE"||m.status==="FINISHED")&&m.homeScore!==null&&m.awayScore!==null?`${m.homeScore} – ${m.awayScore}`:"vs";
+ return <header className="border-y border-border bg-card px-3 py-8 text-center md:p-10"><Link href={`/competition/${m.competition.slug}`} className="text-xs font-bold uppercase tracking-widest text-editorial-link">{m.competition.name}</Link><h1 className="sr-only">{m.homeTeam.name} contre {m.awayTeam.name}</h1><div className="mt-5"><Badge tone={MATCH_STATUS_TONES[m.status]} variant="status" pulse={m.status==="LIVE"}>{MATCH_STATUS_LABELS[m.status]}</Badge></div><div className="my-7 grid grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-8">{[m.homeTeam,m.awayTeam].map((team,index)=><div key={index} className={index===0?"col-start-1 row-start-1":"col-start-3 row-start-1"}>{team.logoUrl?<Image src={team.logoUrl} alt="" width={96} height={96} sizes="96px" loading="lazy" className="mx-auto h-16 w-16 object-contain md:h-24 md:w-24"/>:<span className="text-4xl font-black text-muted-foreground">{team.name.slice(0,1)}</span>}<p className="mt-4 break-words text-sm font-bold text-foreground md:text-xl">{team.name}</p></div>)}<p className="col-start-2 row-start-1 whitespace-nowrap text-4xl font-black tabular-nums text-foreground md:text-7xl">{score}</p></div><time className="text-sm text-muted-foreground" dateTime={m.scheduledAt.toISOString()}>{formatMatchDate(m.scheduledAt)}</time><p className="mt-2 text-xs text-muted-foreground">{m.venue??"Lieu non communiqué"}</p></header>;
+}

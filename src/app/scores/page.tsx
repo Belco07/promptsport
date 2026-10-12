@@ -1,237 +1,47 @@
-import type { Metadata } from "next";
-import { Radio } from "lucide-react";
-
-import { MatchCard, type MatchCardData } from "@/components/MatchCard";
-import { AdSlot } from "@/components/AdSlot";
-import { AdSlotGate } from "@/components/AdSlotGate";
-import { Footer } from "@/components/Footer";
-import { Button } from "@/components/ui/Button";
-import { Card, CardBody } from "@/components/ui/Card";
-import { Select } from "@/components/ui/Select";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { buildPageMetadata, itemListJsonLd, jsonLdString } from "@/lib/seo";
+import { ScoreRow } from "@/components/ScoreRow";
+import { ScoresControls } from "@/components/ScoresControls";
+import { AdSlot } from "@/components/AdSlot";
+import { Footer } from "@/components/Footer";
+import { auth } from "@/lib/auth";
+import { CompetitionLogo } from "@/components/CompetitionLogo";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Scores en direct",
-  description:
-    "Résultats, matchs en direct et rencontres à venir : suivez les scores de toutes les compétitions.",
-  path: "/scores",
-});
-
-export const revalidate = 60;
-
-const matchSelect = {
-  id: true,
-  homeScore: true,
-  awayScore: true,
-  status: true,
-  scheduledAt: true,
-  homeTeam: { select: { name: true, shortName: true, logoUrl: true } },
-  awayTeam: { select: { name: true, shortName: true, logoUrl: true } },
-  competition: { select: { slug: true, name: true, sport: true } },
-} as const;
-
-function buildWhere({ sport, competition }: { sport?: string; competition?: string }) {
-  if (!sport && !competition) {
-    return {};
-  }
-  return {
-    competition: {
-      ...(competition ? { slug: competition } : {}),
-      ...(sport ? { sport } : {}),
-    },
+export const metadata=buildPageMetadata({title:"Scores en direct",description:"Résultats, matchs en direct et rencontres à venir de toutes les compétitions.",path:"/scores"});
+export default async function ScoresPage({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}) {
+  const params=await searchParams;
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Lagos",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const validDate=/^\d{4}-\d{2}-\d{2}$/.test(params.date??"") && Number.isFinite(Date.parse(`${params.date}T00:00:00Z`)) && new Date(`${params.date}T00:00:00Z`).toISOString().slice(0,10)===params.date;
+  const date=validDate?params.date!:today;
+  const start=new Date(`${date}T00:00:00+01:00`), end=new Date(start.getTime()+86400000);
+  const view=["live","upcoming","finished"].includes(params.view??"")?params.view:"day";
+  const where:Prisma.MatchWhereInput={
+    competition:{...(params.sport?{sport:params.sport}:{}),...(params.competition?{slug:params.competition}:{})},
+    ...(view==="day"?{scheduledAt:{gte:start,lt:end}}:{status:view==="live"?"LIVE":view==="finished"?"FINISHED":"SCHEDULED"}),
+    ...(params.q?.trim()?{OR:[{homeTeam:{name:{contains:params.q.trim().slice(0,200),mode:"insensitive"}}},{awayTeam:{name:{contains:params.q.trim().slice(0,200),mode:"insensitive"}}}]}:{}),
   };
-}
-
-/** Titre de section, avec compteur et pastille pour le direct. */
-function SectionHeading({
-  title,
-  count,
-  live = false,
-}: {
-  title: string;
-  count: number;
-  live?: boolean;
-}) {
-  return (
-    <h2 className="mb-4 flex items-center gap-2 text-xl font-bold tracking-tight text-primary-900">
-      {live ? (
-        <Radio aria-hidden="true" className="h-5 w-5 text-danger-600" />
-      ) : null}
-      {title}
-      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600">
-        {count}
-      </span>
-    </h2>
-  );
-}
-
-function Empty({ label }: { label: string }) {
-  return (
-    <p className="rounded-xl border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
-      {label}
-    </p>
-  );
-}
-
-export default async function ScoresPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ sport?: string; competition?: string }>;
-}) {
-  const { sport, competition } = await searchParams;
-  const filter = { sport, competition };
-
-  const [live, upcoming, finished, sports, competitions] = await Promise.all([
-    prisma.match.findMany({
-      where: { status: "LIVE", ...buildWhere(filter) },
-      orderBy: { scheduledAt: "asc" },
-      select: matchSelect,
-    }),
-    prisma.match.findMany({
-      where: { status: "SCHEDULED", ...buildWhere(filter) },
-      orderBy: { scheduledAt: "asc" },
-      take: 10,
-      select: matchSelect,
-    }),
-    prisma.match.findMany({
-      where: { status: "FINISHED", ...buildWhere(filter) },
-      orderBy: { scheduledAt: "desc" },
-      take: 10,
-      select: matchSelect,
-    }),
-    prisma.competition.findMany({
-      distinct: ["sport"],
-      select: { sport: true },
-      orderBy: { sport: "asc" },
-    }),
-    prisma.competition.findMany({
-      select: { slug: true, name: true },
-      orderBy: { name: "asc" },
-    }),
+  const [matches,competitions,session]=await Promise.all([
+    prisma.match.findMany({where,orderBy:{scheduledAt:view==="finished"?"desc":"asc"},...(view!=="day"?{take:100}:{}),include:{homeTeam:true,awayTeam:true,competition:true}}),
+    prisma.competition.findMany({orderBy:{name:"asc"},select:{slug:true,name:true,sport:true}}),auth(),
   ]);
-
-  const filtered = Boolean(sport || competition);
-
-  return (
-    <>
-      <main id="contenu" className="mx-auto w-full max-w-5xl px-4 py-10">
-        {/* Données structurées : liste des matchs à venir (WP8a). */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: jsonLdString(
-              itemListJsonLd({
-                name: "Matchs à venir",
-                path: "/scores",
-                items: upcoming.map((match) => ({
-                  name: `${match.homeTeam.name} - ${match.awayTeam.name}`,
-                  url: `/match/${match.id}`,
-                })),
-              }),
-            ),
-          }}
-        />
-
-        <header className="mb-6">
-          <h1 className="text-3xl font-extrabold tracking-tight text-primary-900 sm:text-4xl">
-            Scores
-          </h1>
-          <p className="mt-2 text-sm text-neutral-600">
-            Matchs en direct, rencontres à venir et derniers résultats de toutes les
-            compétitions suivies.
-          </p>
-        </header>
-
-        {/* Bandeau publicitaire réservé (voir AdSlot / AdSlotGate). */}
-        <AdSlotGate>
-          <AdSlot className="mb-8" />
-        </AdSlotGate>
-
-        {/* Filtres : formulaire GET, sans JavaScript côté client. */}
-        <Card className="mb-8">
-          <CardBody>
-            <form method="get" action="/scores" className="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <Select
-                name="sport"
-                label="Sport"
-                defaultValue={sport ?? ""}
-                className="bg-white"
-                options={sports.map((s) => ({ value: s.sport, label: s.sport }))}
-                placeholder="Tous les sports"
-              />
-              <Select
-                name="competition"
-                label="Compétition"
-                defaultValue={competition ?? ""}
-                className="bg-white"
-                options={competitions.map((c) => ({ value: c.slug, label: c.name }))}
-                placeholder="Toutes les compétitions"
-              />
-              <div className="flex items-center gap-2">
-                <Button type="submit" size="md">
-                  Filtrer
-                </Button>
-                {filtered ? (
-                  <a
-                    href="/scores"
-                    className="text-sm font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
-                  >
-                    Réinitialiser
-                  </a>
-                ) : null}
-              </div>
-            </form>
-          </CardBody>
-        </Card>
-
-        <section className="mb-10">
-          <SectionHeading title="En direct" count={live.length} live />
-          {live.length === 0 ? (
-            <Empty label="Aucun match en direct pour le moment." />
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {live.map((m, index) => (
-                <MatchCard key={m.id} match={m as unknown as MatchCardData} priority={index === 0} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mb-10">
-          <SectionHeading title="À venir" count={upcoming.length} />
-          {upcoming.length === 0 ? (
-            <Empty label="Aucun match à venir." />
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {upcoming.map((m, index) => (
-                <MatchCard
-                  key={m.id}
-                  match={m as unknown as MatchCardData}
-                  // Si aucun match n'est en direct, la première affiche de la page
-                  // est celle de cette section : c'est elle qui doit être prioritaire.
-                  priority={live.length === 0 && index === 0}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mb-10">
-          <SectionHeading title="Terminés récemment" count={finished.length} />
-          {finished.length === 0 ? (
-            <Empty label="Aucun match terminé." />
-          ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
-              {finished.map((m) => (
-                <MatchCard key={m.id} match={m as unknown as MatchCardData} />
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
-
-      <Footer />
-    </>
-  );
+  const premium=session?.user?.isPremium===true;
+  const groups=new Map<string,typeof matches>();for(const match of matches){const key=match.competitionId;groups.set(key,[...(groups.get(key)??[]),match]);}
+  function href(day:string){const p=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v&&k!=="view")p.set(k,v);p.set("date",day);return `/scores?${p}`;}
+  return <><main id="contenu" className={`mx-auto max-w-[1280px] px-4 py-8 text-foreground ${premium?"":"lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8"}`}>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{__html:jsonLdString(itemListJsonLd({name:"Matchs",path:"/scores",items:matches.map(m=>({name:`${m.homeTeam.name} - ${m.awayTeam.name}`,url:`/match/${m.id}`}))}))}}/>
+    <div className="min-w-0">
+      <h1 className="mb-7 text-3xl font-black uppercase leading-tight tracking-tight sm:text-5xl">Scores en direct,<br/>calendrier et résultats</h1>
+      <ScoresControls date={date} sports={[...new Set(competitions.map(c=>c.sport))]} competitions={competitions}/>
+      <nav aria-label="Dates des matchs" className="my-6 grid grid-cols-7 overflow-hidden rounded-md bg-muted">{Array.from({length:7},(_,i)=>{const d=new Date(`${date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+i-3);const key=d.toISOString().slice(0,10);return <Link key={key} href={href(key)} aria-current={key===date?"date":undefined} className={`border-r border-border py-3 text-center last:border-r-0 ${key===date?"bg-foreground text-background":"hover:bg-card"}`}><span className="block text-[10px] font-semibold sm:text-xs">{key===today?"Auj.":d.toLocaleDateString("fr-FR",{weekday:"short",timeZone:"UTC"})}</span><span className="my-1 block text-lg font-black">{d.getUTCDate()}</span><span className="block text-[10px]">{d.toLocaleDateString("fr-FR",{month:"short",timeZone:"UTC"})}</span></Link>;})}</nav>
+      <div className="mb-6 flex items-center justify-between gap-3 text-sm"><p role="status">{matches.length} match{matches.length!==1?"s":""}{view!=="day"&&matches.length===100?" (100 premiers)":""}</p><Link href="/mon-compte/favoris" className="font-semibold text-editorial-link">★ Mes favoris</Link></div>
+      {!matches.length&&<p className="rounded-md bg-muted p-6 text-center text-muted-foreground">Aucun match pour cette sélection. Choisissez une autre date ou modifiez les filtres.</p>}
+      <div className="space-y-7">{[...groups.values()].map(rows=><section key={rows[0].competitionId}>
+        <Link href={`/competition/${rows[0].competition.slug}`} className="mb-3 flex items-center gap-3"><CompetitionLogo slug={rows[0].competition.slug}/><span><h2 className="text-xl font-black">{rows[0].competition.name}</h2><span className="text-sm text-muted-foreground">{rows[0].competition.country??rows[0].competition.sport}</span></span></Link>
+        <div className="overflow-hidden rounded-md bg-muted">{rows.map((match,i)=>{const day=match.scheduledAt.toLocaleDateString("fr-FR",{day:"numeric",month:"long",timeZone:"Africa/Lagos"});const previous=i?rows[i-1].scheduledAt.toLocaleDateString("fr-FR",{day:"numeric",month:"long",timeZone:"Africa/Lagos"}):null;return <div key={match.id}>{day!==previous&&<p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{day}</p>}<div className="border-b border-border last:border-0"><ScoreRow match={match}/></div></div>;})}</div>
+      </section>)}</div>
+    </div>
+    {!premium&&<aside className="hidden lg:block"><div className="sticky top-28"><AdSlot format="skyscraper"/></div></aside>}
+  </main><Footer/></>;
 }
