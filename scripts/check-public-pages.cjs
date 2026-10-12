@@ -90,10 +90,12 @@ async function main() {
   // --- 2) Détail d'un article publié
   if (published.length > 0) {
     // Le contrôle du rendu Markdown a besoin d'un article qui en contient : on
-    // prend le premier publié qui comporte une mise en forme, sinon le premier.
+    // prend le premier publié avec du gras (`**`). Le motif `*` seul a été
+    // retiré : il correspond aussi aux puces de liste, ce qui sélectionnait un
+    // article sans aucune mise en forme.
     const withMarkup = db
       .prepare(
-        `SELECT slug, title FROM Article WHERE status = 'PUBLISHED' AND (content LIKE '%**%' OR content LIKE '%*%') ORDER BY publishedAt DESC LIMIT 1`,
+        `SELECT slug, title FROM Article WHERE status = 'PUBLISHED' AND content LIKE '%**%' ORDER BY publishedAt DESC LIMIT 1`,
       )
       .get();
     const article = withMarkup ?? published[0];

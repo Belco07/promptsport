@@ -42,7 +42,6 @@ const notificationPage = readSource("src/app/mon-compte/notifications/page.tsx")
 const notificationItem = readSource("src/components/NotificationItem.tsx");
 const notificationBadge = readSource("src/components/NotificationBadge.tsx");
 const userMenu = readSource("src/components/UserMenu.tsx");
-const accountPage = readSource("src/app/mon-compte/page.tsx");
 const articleActions = readSource("src/app/article/[slug]/actions.ts");
 const adminActions = readSource("src/app/backoffice/comments/actions.ts");
 const commentForm = readSource("src/components/CommentForm.tsx");
@@ -491,15 +490,18 @@ async function main() {
       notificationBadge.includes("if (!count || count <= 0)"),
   );
   check(
-    "UserMenu : badge et entrée Notifications",
-    userMenu.includes("NotificationBadge") && userMenu.includes('href="/mon-compte/notifications"'),
+    "UserMenu : badge de notifications sur la pastille de compte",
+    userMenu.includes("NotificationBadge"),
   );
   check(
-    "mon-compte : cinq dernières non lues et lien vers la liste",
-    /take: 5/.test(accountPage) &&
-      accountPage.includes('where: { userId: session.user.id, read: false }') &&
-      accountPage.includes("Aucune notification.") &&
-      accountPage.includes("Voir toutes les notifications"),
+    "menu du compte : entrée vers la liste des notifications",
+    readSource("src/components/WorkspaceFrame.tsx").includes('href: "/mon-compte/notifications"'),
+  );
+  check(
+    "notifications : liste paginée avec état vide",
+    notificationPage.includes("take: PAGE_SIZE") &&
+      notificationPage.includes("Aucune notification pour le moment.") &&
+      notificationPage.includes("Page {page} sur {totalPages}"),
   );
 
   check(
@@ -967,17 +969,18 @@ async function main() {
   );
   check("seconde page : indicateur « Page 2 sur 2 »", text(secondPage.body).includes("Page 2 sur 2"));
 
+  // « Détails du compte » ne garde que le profil : l'aperçu des notifications a
+  // été retiré de /mon-compte, tout vit sur /mon-compte/notifications.
   const account = await get("/mon-compte", { jar: authorJar });
-  const accountOrder = uniqueNotifOrder(account.body);
-  check("mon-compte : 200 et section Notifications", account.status === 200 && account.body.includes(">Notifications<"));
   check(
-    "mon-compte : les 5 dernières non lues, pas plus",
-    accountOrder.length === 5 && accountOrder.every((number) => number > 20),
-    `affichées : ${accountOrder.join(", ")}`,
+    "mon-compte : 200 et plus d'aperçu des notifications",
+    account.status === 200 &&
+      !account.body.includes("Vos dernières alertes non lues") &&
+      !account.body.includes("Aucune notification."),
   );
   check(
-    "mon-compte : lien vers la liste complète",
-    account.body.includes("Voir toutes les notifications"),
+    "mon-compte : plus de lien vers la liste des notifications",
+    !account.body.includes("Voir toutes les notifications"),
   );
 
   const emptyPage = await get("/mon-compte/notifications", { jar: emptyJar });
@@ -985,8 +988,6 @@ async function main() {
     "état vide de la liste",
     emptyPage.status === 200 && emptyPage.body.includes("Aucune notification pour le moment."),
   );
-  const emptyAccount = await get("/mon-compte", { jar: emptyJar });
-  check("état vide de l'aperçu", emptyAccount.body.includes("Aucune notification."));
 
   const anonymous = await get("/mon-compte/notifications");
   check(
