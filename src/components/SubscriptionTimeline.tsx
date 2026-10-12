@@ -19,14 +19,14 @@ export const SUBSCRIPTION_EVENT_LABELS: Record<string, string> = {
 };
 
 const DOT_COLORS: Record<string, string> = {
-  CREATED: "bg-blue-600",
-  ACTIVATED: "bg-green-600",
-  RENEWED: "bg-green-600",
-  CANCELED: "bg-gray-500",
-  REACTIVATED: "bg-blue-600",
-  PAST_DUE: "bg-orange-500",
-  EXPIRED: "bg-red-600",
-  REFUNDED: "bg-amber-500",
+  CREATED: "bg-blue-600 [.public-site_&]:bg-primary",
+  ACTIVATED: "bg-green-600 [.public-site_&]:bg-status-success-foreground",
+  RENEWED: "bg-green-600 [.public-site_&]:bg-status-success-foreground",
+  CANCELED: "bg-gray-500 [.public-site_&]:bg-muted-foreground",
+  REACTIVATED: "bg-blue-600 [.public-site_&]:bg-primary",
+  PAST_DUE: "bg-orange-500 [.public-site_&]:bg-status-warning-foreground",
+  EXPIRED: "bg-red-600 [.public-site_&]:bg-destructive",
+  REFUNDED: "bg-amber-500 [.public-site_&]:bg-status-warning-foreground",
 };
 
 export type TimelineEvent = {
@@ -57,28 +57,28 @@ export function SubscriptionTimeline({
   emptyLabel?: string;
 }) {
   if (events.length === 0) {
-    return <p className="text-sm text-gray-600">{emptyLabel}</p>;
+    return <p className="text-sm text-gray-600 [.public-site_&]:text-muted-foreground">{emptyLabel}</p>;
   }
 
   return (
-    <ol className="relative space-y-5 border-l border-gray-200 pl-6">
+    <ol className="relative space-y-5 border-l border-gray-200 [.public-site_&]:border-border pl-6">
       {events.map((event) => {
         const meta = summarizeMetadata(event.metadata);
         return (
           <li key={event.id} className="relative">
             <span
               aria-hidden="true"
-              className={`absolute -left-[1.85rem] top-1.5 h-3 w-3 rounded-full ring-4 ring-white ${
-                DOT_COLORS[event.type] ?? "bg-gray-400"
+              className={`absolute -left-[1.85rem] top-1.5 h-3 w-3 rounded-full ring-4 ring-white [.public-site_&]:ring-background ${
+                DOT_COLORS[event.type] ?? "bg-gray-400 [.public-site_&]:bg-muted-foreground"
               }`}
             />
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900 [.public-site_&]:text-foreground">
               {SUBSCRIPTION_EVENT_LABELS[event.type] ?? event.type}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 [.public-site_&]:text-muted-foreground">
               <time dateTime={event.createdAt.toISOString()}>{formatDate(event.createdAt)}</time>
             </p>
-            {meta ? <p className="mt-1 break-words text-xs text-gray-500">{meta}</p> : null}
+            {meta ? <p className="mt-1 break-words text-xs text-gray-500 [.public-site_&]:text-muted-foreground">{meta}</p> : null}
           </li>
         );
       })}

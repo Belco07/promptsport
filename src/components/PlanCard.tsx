@@ -62,41 +62,41 @@ export function PlanCard({
   }
 
   return (
-    <div className="flex flex-col rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-gray-900">{plan.name}</h2>
+    <div className="flex flex-col rounded-lg border border-border bg-card p-6 shadow-sm">
+      <h2 className="text-lg font-semibold text-foreground">{plan.name}</h2>
       {plan.description ? (
-        <p className="mt-2 flex-1 text-sm leading-6 text-gray-600">{plan.description}</p>
+        <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{plan.description}</p>
       ) : (
         <div className="flex-1" />
       )}
 
-      <p className="mt-4 text-2xl font-bold text-gray-900">{priceLabel}</p>
+      <p className="mt-4 text-2xl font-bold text-foreground">{priceLabel}</p>
 
       <div className="mt-5">
         {isOwnedPlan ? (
           <div className="space-y-3">
-            <p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+            <p className="rounded-md border border-status-success-border bg-status-success px-3 py-2 text-sm text-status-success-foreground">
               Vous êtes déjà abonné au plan {plan.name}.
             </p>
             <button
               type="button"
               disabled={isPending}
               onClick={() => go(createBillingPortalSession)}
-              className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:opacity-60"
+              className="w-full rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
             >
               {isPending ? "Ouverture…" : "Gérer mon abonnement"}
             </button>
           </div>
         ) : hasActiveSubscription ? (
           <div className="space-y-3">
-            <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+            <p className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
               Un abonnement est déjà actif sur votre compte.
             </p>
             <button
               type="button"
               disabled={isPending}
               onClick={() => go(createBillingPortalSession)}
-              className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-100 disabled:opacity-60"
+              className="w-full rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
             >
               {isPending ? "Ouverture…" : "Gérer mon abonnement"}
             </button>
@@ -106,14 +106,14 @@ export function PlanCard({
             type="button"
             disabled={isPending}
             onClick={() => go(() => createCheckoutSession(plan.id))}
-            className="w-full rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPending ? "Redirection…" : "S'abonner"}
           </button>
         ) : (
           <Link
             href="/login"
-            className="block w-full rounded-md bg-blue-700 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-blue-800"
+            className="block w-full rounded-md bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
           >
             S&apos;abonner
           </Link>
@@ -121,7 +121,7 @@ export function PlanCard({
       </div>
 
       {error ? (
-        <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="mt-3 rounded-md border border-status-error-border bg-status-error px-3 py-2 text-sm text-status-error-foreground">
           {error}
         </p>
       ) : null}

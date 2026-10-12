@@ -77,13 +77,13 @@ export default async function NotificationsPage({
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-10">
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-neutral-200 pb-5">
+      <main id="contenu" className="mx-auto w-full max-w-4xl px-4 py-10">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-5">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-primary-900 sm:text-3xl">
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
               Notifications
             </h1>
-            <p className="mt-1 text-sm text-neutral-600">
+            <p className="mt-1 text-sm text-muted-foreground">
               {total} notification{total > 1 ? "s" : ""}
               {unreadOnly ? " non lue" + (total > 1 ? "s" : "") : ""} · {unreadCount} non lue
               {unreadCount > 1 ? "s" : ""} au total.
@@ -105,8 +105,8 @@ export default async function NotificationsPage({
             aria-current={unreadOnly ? undefined : "page"}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
               unreadOnly
-                ? "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
-                : "border-primary-200 bg-primary-50 text-primary-800"
+                ? "border-border bg-card text-muted-foreground hover:border-border"
+                : "border-editorial-link bg-secondary text-editorial-link"
             }`}
           >
             Toutes
@@ -116,8 +116,8 @@ export default async function NotificationsPage({
             aria-current={unreadOnly ? "page" : undefined}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
               unreadOnly
-                ? "border-primary-200 bg-primary-50 text-primary-800"
-                : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                ? "border-editorial-link bg-secondary text-editorial-link"
+                : "border-border bg-card text-muted-foreground hover:border-border"
             }`}
           >
             Non lues{unreadCount > 0 ? ` (${unreadCount})` : ""}
@@ -126,7 +126,7 @@ export default async function NotificationsPage({
 
         {notifications.length === 0 ? (
           <Card>
-            <CardBody className="text-center text-sm text-neutral-500">
+            <CardBody className="text-center text-sm text-muted-foreground">
               Aucune notification pour le moment.
             </CardBody>
           </Card>
@@ -145,27 +145,27 @@ export default async function NotificationsPage({
         {totalPages > 1 ? (
           <nav aria-label="Pagination des notifications" className="mt-6 flex items-center justify-between text-sm">
             {page > 1 ? (
-              <Link href={pageHref(page - 1)} className="font-semibold text-primary-700 underline">
+              <Link href={pageHref(page - 1)} className="font-semibold text-editorial-link underline">
                 ← Page précédente
               </Link>
             ) : (
-              <span className="text-neutral-400">← Page précédente</span>
+              <span className="text-muted-foreground">← Page précédente</span>
             )}
-            <span className="text-neutral-600">
+            <span className="text-muted-foreground">
               Page {page} sur {totalPages}
             </span>
             {page < totalPages ? (
-              <Link href={pageHref(page + 1)} className="font-semibold text-primary-700 underline">
+              <Link href={pageHref(page + 1)} className="font-semibold text-editorial-link underline">
                 Page suivante →
               </Link>
             ) : (
-              <span className="text-neutral-400">Page suivante →</span>
+              <span className="text-muted-foreground">Page suivante →</span>
             )}
           </nav>
         ) : null}
 
         <p className="mt-8 text-sm">
-          <Link href="/mon-compte" className="font-semibold text-primary-700 underline">
+          <Link href="/mon-compte" className="font-semibold text-editorial-link underline">
             Retour à mon compte
           </Link>
         </p>

@@ -41,7 +41,7 @@ export function NotificationBadge() {
 
   return (
     <span
-      className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-danger-600 px-1.5 py-0.5 text-[10px] font-bold text-white"
+      className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground"
       title={label}
       aria-label={label}
     >
