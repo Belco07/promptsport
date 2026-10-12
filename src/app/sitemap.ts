@@ -30,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const windowStart = new Date(now.getTime() - MATCH_WINDOW_DAYS * 864e5);
   const windowEnd = new Date(now.getTime() + MATCH_WINDOW_DAYS * 864e5);
 
-  const [articles, competitions, matches] = await Promise.all([
+  const [articles, competitions, matches, themes] = await Promise.all([
     prisma.article.findMany({
       where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
@@ -45,9 +45,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       orderBy: { scheduledAt: "desc" },
       select: { id: true, status: true, scheduledAt: true, updatedAt: true },
     }),
+    // WP16c : thèmes éditoriaux actifs. Les thèmes désactivés répondent 404,
+    // les déclarer ici ferait remonter une erreur dans Search Console.
+    prisma.theme.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      select: { slug: true, updatedAt: true },
+    }),
   ]);
 
   const entries: MetadataRoute.Sitemap = [
+    {
+      url: `${SITE_URL}/archives`,
+      lastModified: articles[0]?.publishedAt ?? now,
+      changeFrequency: "daily",
+      priority: 0.6,
+    },
     {
       url: SITE_URL,
       lastModified: articles[0]?.publishedAt ?? now,
@@ -60,6 +73,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "hourly",
       priority: 0.7,
     },
+    // /recherche et ses paramètres sont exclus : résultats dynamiques noindex (WP17b).
     // /abonnement est volontairement ABSENT : la page est en `noindex`
     // (WP8a), et déclarer une URL noindex dans un sitemap fait remonter un
     // avertissement « Exclue par la balise noindex » dans Search Console.
@@ -89,6 +103,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: match.updatedAt,
       changeFrequency: match.status === "LIVE" ? "hourly" : "daily",
       priority: 0.6,
+    });
+  }
+
+  for (const theme of themes) {
+    entries.push({
+      url: `${SITE_URL}/theme/${theme.slug}`,
+      lastModified: theme.updatedAt,
+      changeFrequency: "daily",
+      priority: 0.7,
     });
   }
 

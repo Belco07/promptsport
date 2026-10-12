@@ -1,302 +1,167 @@
 import type { Metadata } from "next";
-import { ArrowRight, Radio, Trophy } from "lucide-react";
-import Image from "next/image";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
-
+import { Prisma } from "@/generated/prisma/client";
 import { ArticleCard, type ArticleCardData } from "@/components/ArticleCard";
+import { HeroArticle } from "@/components/HeroArticle";
+import { SecondaryArticle } from "@/components/SecondaryArticle";
+import { TodayMatchesBar } from "@/components/TodayMatchesBar";
+import { CompetitionsGrid } from "@/components/CompetitionsGrid";
+import { MostReadList } from "@/components/MostReadList";
+import { SectionBlock } from "@/components/SectionBlock";
+import { ThemeTabs, type ThemeTab } from "@/components/ThemeTabs";
 import { AdSlot } from "@/components/AdSlot";
 import { AdSlotGate } from "@/components/AdSlotGate";
 import { Footer } from "@/components/Footer";
-import { PremiumBadge } from "@/components/PremiumBadge";
-import { formatDate } from "@/lib/formatDate";
 import { prisma } from "@/lib/prisma";
-import {
-  HOME_TITLE,
-  SITE_DESCRIPTION,
-  buildPageMetadata,
-  jsonLdString,
-  organizationJsonLd,
-} from "@/lib/seo";
+import { getHomepageFeatured } from "@/lib/featured";
+import { HOME_TITLE, SITE_DESCRIPTION, buildPageMetadata, jsonLdString, organizationJsonLd } from "@/lib/seo";
 
-/**
- * Une éditoriale (WP9).
- *
- * À la une à gauche, fil d'actualité et encart abonnement à droite ; la grille
- * des dernières actualités ferme la page. Tout le style vient des jetons du
- * design system (`brand` pour le rouge éditorial, `ink` pour les noirs,
- * `heavy` et `strong` pour les graisses intermédiaires) : plus aucune classe
- * `news-*` n'est nécessaire.
- */
-
-export const metadata: Metadata = buildPageMetadata({
-  title: { absolute: HOME_TITLE },
-  description: SITE_DESCRIPTION,
-  path: "/",
-});
-
-// Les articles publiés doivent apparaître sans reconstruire le site.
+export const metadata: Metadata = buildPageMetadata({ title: { absolute: HOME_TITLE }, description: SITE_DESCRIPTION, path: "/" });
 export const revalidate = 60;
-
-/** Date courte du fil d'actualité (jour/mois). */
-const WIRE_DATE = new Intl.DateTimeFormat("fr-FR", {
-  day: "2-digit",
-  month: "2-digit",
-});
-
-async function getPublishedArticles(): Promise<ArticleCardData[]> {
-  return prisma.article.findMany({
-    where: { status: "PUBLISHED" },
-    orderBy: { publishedAt: "desc" },
-    // La une affiche l'article le plus récent puis une grille : on borne la
-    // liste pour que le poids de la page ne croisse pas avec les archives
-    // (au-delà, le fil info et les rubriques prennent le relais).
-    take: 12,
-    select: {
-      slug: true,
-      title: true,
-      excerpt: true,
-      coverImageUrl: true,
-      publishedAt: true,
-      isPremium: true,
-      category: { select: { name: true } },
-      author: { select: { name: true, slug: true } },
-    },
-  });
+type HomeArticle = ArticleCardData & { id: string; contentLength: number };
+const competitionSlugs = ["ligue-1", "premier-league", "liga", "serie-a", "bundesliga", "uefa-champions-league"];
+const columns = Prisma.sql`a.id, a.format, a.slug, a.title, a.excerpt, a."coverImageUrl", a."publishedAt", a."isPremium", char_length(a.content) AS "contentLength", json_build_object('name',c.name) AS category, json_build_object('name',u.name,'slug',u.slug) AS author`;
+const joins = Prisma.sql`FROM "Article" a JOIN "Category" c ON c.id=a."categoryId" JOIN "Author" u ON u.id=a."authorId"`;
+const published = Prisma.sql`a.status='PUBLISHED' AND a."publishedAt" <= NOW()`;
+function condition(section: string) {
+  // WP16d : « mercato » filtre désormais sur le thème éditorial (tous sports),
+  // et non plus sur une catégorie sportive.
+  if (section === "mercato") return Prisma.sql`EXISTS (SELECT 1 FROM "_ArticleToTheme" j JOIN "Theme" t ON t.id = j."B" WHERE j."A" = a.id AND t.slug = 'mercato')`;
+  if (section === "analyses") return Prisma.sql`a.format='ANALYSIS'`;
+  return Prisma.sql`a.format='NEWS'`;
 }
 
-export default async function Home() {
-  const articles = await getPublishedArticles();
-  const [lead, ...rest] = articles;
+/**
+ * Ligne du bloc d'onglets thématiques (WP16d) : le thème et, éventuellement,
+ * l'un de ses 4 articles les plus récents. Un thème sans article publié produit
+ * une ligne dont les colonnes d'article sont nulles — c'est ce qui permet
+ * d'afficher « Aucun article pour ce thème. » sans requête supplémentaire.
+ */
+type ThemeTabRow = {
+  themeId: string;
+  themeName: string;
+  themeSlug: string;
+  themeColor: string | null;
+  themeIcon: string | null;
+  rn: number;
+  id: string | null;
+  format?: ArticleCardData["format"];
+  slug: string | null;
+  title: string | null;
+  excerpt: string | null;
+  coverImageUrl: string | null;
+  publishedAt: Date | string | null;
+  isPremium: boolean | null;
+  category: { name: string } | null;
+  author: { name: string; slug: string | null } | null;
+};
 
-  return (
-    <>
-      <main id="contenu" className="mx-auto w-full max-w-6xl px-4 pt-[27px] max-[600px]:pt-5">
-        {/* Données structurées : le site et son éditeur (WP8a). */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLdString(organizationJsonLd()) }}
-        />
-
-        {/* Manchette : titre de une et accès direct aux scores. */}
-        <div className="mb-6 flex items-center justify-between gap-5 border-b-[3px] border-b-ink-800 pb-5 max-[600px]:mb-[18px] max-[600px]:gap-3">
-          <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-[1.7px] text-ink-600 max-[600px]:text-[8px]">
-              Le sport, au cœur du jeu
-            </p>
-            <h1 className="mt-[5px] text-[clamp(34px,5vw,48px)] font-black leading-[1.1] tracking-[-2px] text-ink-950">
-              À la une<span className="text-brand-500">.</span>
-            </h1>
-          </div>
-          <Link
-            href="/scores"
-            className="flex shrink-0 items-center gap-[9px] text-xs font-strong transition-colors hover:text-brand-600 max-[600px]:gap-[5px] max-[600px]:text-[10px]"
-          >
-            <Trophy aria-hidden="true" size={17} className="max-[600px]:hidden" />
-            Scores &amp; résultats
-            <ArrowRight aria-hidden="true" size={16} />
-          </Link>
-        </div>
-
-        {/* Bandeau publicitaire réservé, sous la manchette (voir AdSlot). */}
-        <AdSlotGate>
-          <AdSlot className="mb-[30px] max-[600px]:mb-5" />
-        </AdSlotGate>
-
-        {lead ? (
-          <div className="grid grid-cols-[minmax(0,1fr)_310px] gap-[30px] max-[900px]:grid-cols-1">
-            <div className="min-w-0">
-              <section aria-label="L'article à la une">
-                <Link
-                  href={`/article/${lead.slug}`}
-                  className="group block border-b border-b-ink-200 bg-white"
-                >
-                  <div className="relative aspect-video overflow-hidden bg-ink-800">
-                    {lead.coverImageUrl ? (
-                      <Image
-                        src={lead.coverImageUrl}
-                        alt=""
-                        fill
-                        priority
-                        fetchPriority="high"
-                        // Le créneau réel de la une fait ~780 px, mais la
-                        // variante 768 px pèse ~2 Ko de plus que la 640 px sur
-                        // la page la plus lourde du site : on déclare 640 px
-                        // (les écrans haute densité choisissent de toute façon
-                        // une variante supérieure).
-                        sizes="(max-width: 900px) 94vw, 640px"
-                        // Qualité 70 : ~15 % d'octets en moins en AVIF, écart
-                        // invisible sur une photographie d'illustration.
-                        quality={70}
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.025] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-                      />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center bg-gradient-to-br from-ink-950 to-ink-700 text-white">
-                        <Trophy aria-hidden="true" size={72} />
-                      </div>
-                    )}
-                    <span className="absolute bottom-0 left-0 bg-brand-500 px-[15px] py-[7px] text-[11px] font-extrabold uppercase tracking-[1px] text-white">
-                      À la une
-                    </span>
-                  </div>
-
-                  <div className="px-[22px] pb-[22px] pt-[23px] max-[600px]:px-[15px] max-[600px]:py-[19px]">
-                    <div className="flex items-center gap-[10px] text-[11px] font-extrabold uppercase tracking-[.6px] text-brand-600">
-                      {lead.category?.name ?? "Actualité"}
-                      {lead.isPremium ? <PremiumBadge /> : null}
-                    </div>
-                    <h2 className="mt-[9px] text-[clamp(26px,3vw,38px)] font-heavy leading-[1.1] tracking-[-1.3px] text-ink-950 [text-wrap:pretty] transition-colors group-hover:text-brand-700">
-                      {lead.title}
-                    </h2>
-                    {lead.excerpt ? (
-                      <p className="mt-[13px] text-sm leading-[1.7] text-ink-600">
-                        {lead.excerpt}
-                      </p>
-                    ) : null}
-                    <p className="mt-4 flex flex-wrap gap-2 text-[10px] text-ink-500">
-                      Par {lead.author?.name ?? "la rédaction"}
-                      <span aria-hidden="true">·</span>
-                      <time dateTime={lead.publishedAt?.toISOString()}>
-                        {formatDate(lead.publishedAt)}
-                      </time>
-                    </p>
-                  </div>
-                </Link>
-              </section>
-
-              {rest.length > 0 ? (
-                <section aria-labelledby="derniers-articles" className="mt-[34px]">
-                  <div className="mb-5 flex items-baseline justify-between gap-[15px] border-t-[3px] border-t-ink-800 pt-[14px]">
-                    <h2 id="derniers-articles" className="text-[23px] font-heavy">
-                      Dernières actualités
-                    </h2>
-                    <span className="text-[10px] text-ink-500 max-[600px]:hidden">
-                      Le regard de la rédaction
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-x-5 gap-y-7 sm:grid-cols-2">
-                    {rest.map((article) => (
-                      <ArticleCard key={article.slug} article={article} />
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-            </div>
-
-            <aside
-              aria-label="Fil d'actualité et abonnement"
-              className="max-[900px]:grid max-[900px]:grid-cols-2 max-[900px]:items-start max-[900px]:gap-[22px] max-[600px]:grid-cols-1"
-            >
-              <section
-                aria-labelledby="fil-info"
-                className="border border-ink-200 border-t-[3px] border-t-brand-500 bg-white"
-              >
-                <div className="flex items-center justify-between border-b border-b-ink-100 px-[17px] py-[17px]">
-                  <h2 id="fil-info" className="flex items-center gap-2 text-[19px] font-heavy">
-                    <Radio aria-hidden="true" size={18} className="text-brand-500" />
-                    Le fil info
-                  </h2>
-                  <span className="text-[8px] font-extrabold tracking-[.5px] text-brand-700">
-                    EN CONTINU
-                  </span>
-                </div>
-
-                <ol className="px-[17px]">
-                  {articles.slice(0, 8).map((article) => (
-                    <li
-                      key={article.slug}
-                      className="grid grid-cols-[37px_minmax(0,1fr)] gap-[10px] border-b border-b-ink-100 py-4 last:border-b-0"
-                    >
-                      <time
-                        dateTime={article.publishedAt?.toISOString()}
-                        className="pt-[3px] text-[10px] font-extrabold tabular-nums text-brand-600"
-                      >
-                        {article.publishedAt ? WIRE_DATE.format(article.publishedAt) : "—"}
-                      </time>
-                      <Link href={`/article/${article.slug}`} className="group">
-                        <span className="mb-1 block text-[9px] font-bold uppercase text-ink-400">
-                          {article.category?.name ?? "Actualité"}
-                        </span>
-                        <h3 className="text-[13px] leading-[1.4] tracking-[-.2px] [text-wrap:pretty] transition-colors group-hover:text-brand-600">
-                          {article.title}
-                        </h3>
-                      </Link>
-                    </li>
-                  ))}
-                </ol>
-
-                {rest.length > 0 ? (
-                  <a
-                    href="#derniers-articles"
-                    className="flex items-center justify-center gap-[10px] p-4 text-[11px] font-extrabold transition-colors hover:text-brand-600"
-                  >
-                    Toute l&apos;actualité
-                    <ArrowRight aria-hidden="true" size={15} />
-                  </a>
-                ) : null}
-              </section>
-
-              <section className="mt-[23px] border-t-[3px] border-t-brand-500 bg-ink-900 px-[23px] py-[25px] text-white max-[900px]:mt-0">
-                <span className="text-[10px] font-extrabold uppercase tracking-[1.7px] text-brand-300">
-                  L&apos;espace abonnés
-                </span>
-                <h2 className="mt-[15px] text-[27px] leading-[1.1] tracking-[-.8px]">
-                  Vivez le sport.
-                  <br />
-                  Comprenez le jeu.
-                </h2>
-                <p className="mt-[14px] text-xs leading-[1.7] text-ink-300">
-                  Analyses, décryptages et articles premium : allez plus loin avec notre
-                  rédaction.
-                </p>
-                <Link
-                  href="/abonnement"
-                  className="mt-[22px] flex items-center justify-between gap-2 bg-brand-500 px-[15px] py-3 text-xs font-strong transition-colors hover:bg-brand-700"
-                >
-                  Découvrir les offres
-                  <ArrowRight aria-hidden="true" size={16} />
-                </Link>
-              </section>
-
-              {/* Encart latéral 300 × 250, sous le fil info et l'encart abonnement. */}
-              <AdSlotGate>
-                <AdSlot format="rectangle" className="mt-[22px] max-[900px]:mt-0" />
-              </AdSlotGate>
-            </aside>
-          </div>
-        ) : (
-          <p className="border border-dashed border-neutral-300 bg-white p-10 text-center text-neutral-600">
-            Aucun article publié pour le moment.
-          </p>
-        )}
-
-        {/* Encart newsletter (WP11c) : discret, sous la une, et affiché même
-            quand aucun article n'est publié. */}
-        <section
-          aria-labelledby="encart-newsletter"
-          className="mt-[30px] flex flex-wrap items-center justify-between gap-[18px] border border-ink-200 bg-white px-[23px] py-[20px]"
-        >
-          <div className="min-w-0">
-            <h2
-              id="encart-newsletter"
-              className="text-[17px] font-extrabold tracking-[-.3px] text-ink-950"
-            >
-              Recevez l&apos;essentiel de l&apos;actualité sportive
-            </h2>
-            <p className="mt-[6px] text-xs leading-[1.7] text-neutral-600">
-              Un e-mail quand l&apos;actualité le mérite, pas tous les jours. Désabonnement en un
-              clic.
-            </p>
-          </div>
-          <Link
-            href="/newsletter"
-            className="flex shrink-0 items-center gap-[9px] border border-ink-950 px-[15px] py-3 text-xs font-strong transition-colors hover:bg-ink-950 hover:text-white"
-          >
-            S&apos;inscrire à la newsletter
-            <ArrowRight aria-hidden="true" size={15} />
-          </Link>
-        </section>
-      </main>
-      <Footer />
-    </>
+/** Regroupe les lignes du bloc d'onglets par thème, dans l'ordre reçu. */
+function groupThemeTabs(rows: ThemeTabRow[]): ThemeTab[] {
+  const tabs = new Map<string, ThemeTab>();
+  for (const row of rows) {
+    let tab = tabs.get(row.themeId);
+    if (!tab) {
+      tab = {
+        id: row.themeId,
+        name: row.themeName,
+        slug: row.themeSlug,
+        color: row.themeColor,
+        icon: row.themeIcon,
+        articles: [],
+      };
+      tabs.set(row.themeId, tab);
+    }
+    if (!row.slug) continue;
+    tab.articles.push({
+      format: row.format,
+      slug: row.slug,
+      title: row.title ?? "",
+      excerpt: row.excerpt,
+      coverImageUrl: row.coverImageUrl,
+      publishedAt: row.publishedAt ? new Date(row.publishedAt) : null,
+      isPremium: Boolean(row.isPremium),
+      category: row.category,
+      author: row.author,
+    });
+  }
+  // Les thèmes qui ont des articles passent devant (le plus fourni d'abord) :
+  // l'onglet ouvert par défaut montre ainsi toujours du contenu quand il y en a.
+  return [...tabs.values()].sort(
+    (a, b) => b.articles.length - a.articles.length || a.name.localeCompare(b.name, "fr"),
   );
+}
+const getEditorial = unstable_cache(async () => {
+  const [featured, wire, mercato, analyses, competitions, ranked, themeTabs] = await Promise.all([
+    getHomepageFeatured(),
+    prisma.$queryRaw<HomeArticle[]>(Prisma.sql`SELECT ${columns} ${joins} WHERE ${published} AND a.format IN ('FLASH','NEWS') ORDER BY (a.format='FLASH') DESC, a."publishedAt" DESC, a.id DESC LIMIT 8`),
+    // WP16d : le bloc « Mercato » suit le thème éditorial, tous sports confondus.
+    prisma.$queryRaw<HomeArticle[]>(Prisma.sql`SELECT ${columns} ${joins} WHERE ${published} AND ${condition("mercato")} ORDER BY a."publishedAt" DESC, a.id DESC LIMIT 5`),
+    prisma.$queryRaw<HomeArticle[]>(Prisma.sql`SELECT ${columns} ${joins} WHERE ${published} AND ${condition("analyses")} ORDER BY a."publishedAt" DESC, a.id DESC LIMIT 4`),
+    prisma.competition.findMany({ where: { slug: { in: competitionSlugs } }, select: { slug: true, name: true } }),
+    prisma.analyticsPageView.groupBy({ by: ["articleId"], where: { articleId: { not: null }, createdAt: { gte: new Date(Date.now()-7*86400000) }, article: { status: "PUBLISHED", publishedAt: { lte: new Date() } } }, _count: { articleId: true }, orderBy: [{ _count: { articleId: "desc" } }, { articleId: "asc" }], take: 5 }),
+    // Onglets thématiques : une seule requête pour tous les thèmes actifs et
+    // leurs 4 articles les plus récents (LEFT JOIN : un thème vide reste listé).
+    // ROW_NUMBER renvoie bigint : le cast integer rend rn sérialisable par unstable_cache.
+    prisma.$queryRaw<ThemeTabRow[]>(Prisma.sql`WITH ranked AS (SELECT ${columns}, t.id AS "themeId", t.name AS "themeName", t.slug AS "themeSlug", t.color AS "themeColor", t.icon AS "themeIcon", (ROW_NUMBER() OVER (PARTITION BY t.id ORDER BY a."publishedAt" DESC NULLS LAST, a.id DESC))::integer AS rn FROM "Theme" t LEFT JOIN "_ArticleToTheme" j ON j."B" = t.id LEFT JOIN "Article" a ON a.id = j."A" AND ${published} LEFT JOIN "Category" c ON c.id = a."categoryId" LEFT JOIN "Author" u ON u.id = a."authorId" WHERE t.active = true) SELECT * FROM ranked WHERE rn <= 4 ORDER BY "themeName" ASC, rn ASC`),
+  ]);
+  // One batched lookup: groupBy cannot include the article relation (no N+1).
+  const popular = ranked.length ? await prisma.article.findMany({ where: { id: { in: ranked.flatMap(row => row.articleId ? [row.articleId] : []) } }, select: { id: true, slug: true, title: true, excerpt: true, coverImageUrl: true, publishedAt: true, isPremium: true, category: { select: { name: true } }, author: { select: { name: true, slug: true } } } }) : [];
+  return { featured: featured.articles, urgent: featured.urgent, wire, mercato, analyses, competitions: competitions.sort((a,b) => competitionSlugs.indexOf(a.slug)-competitionSlugs.indexOf(b.slug)), popular: ranked.flatMap(row => popular.filter(article => article.id===row.articleId)), themeTabs };
+}, ["home-editorial-featured-slots"], { revalidate: 60 });
+const getLatest = unstable_cache(async (page: number, section: string) => prisma.$queryRaw<HomeArticle[]>(Prisma.sql`SELECT ${columns} ${joins} WHERE ${published} AND ${condition(section)} ORDER BY a."publishedAt" DESC, a.id DESC LIMIT 13 OFFSET ${(page-1)*12}`), ["home-latest-wp15a"], { revalidate: 60 });
+function ArticleGrid({ articles }: { articles: ArticleCardData[] }) {
+  return articles.length ? <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">{articles.map(article => <ArticleCard key={article.slug} article={article} headingLevel={3} />)}</div> : <p className="py-6 text-sm text-muted-foreground">Les prochaines publications apparaîtront ici.</p>;
+}
+const wireDate = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Africa/Lagos" });
+const wireTime = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
+export default async function Home({ searchParams }: { searchParams: Promise<{ page?: string; rubrique?: string }> }) {
+  const params = await searchParams;
+  const page = /^\d{1,4}$/.test(params.page ?? "") ? Math.max(1, Number(params.page)) : 1;
+  const section = ["mercato", "analyses"].includes(params.rubrique ?? "") ? params.rubrique! : "";
+  const [cached, cachedLatest] = await Promise.all([getEditorial(), getLatest(page, section)]);
+  // The persistent cache serializes Dates as strings; restore them before rendering.
+  const restoreDates = <T extends ArticleCardData,>(articles: T[]): T[] => articles.map(article => ({ ...article, publishedAt: article.publishedAt ? new Date(article.publishedAt) : null }));
+  const editorial = { ...cached, featured: restoreDates(cached.featured), wire: restoreDates(cached.wire), mercato: restoreDates(cached.mercato), analyses: restoreDates(cached.analyses), popular: restoreDates(cached.popular) };
+  // WP16d : les onglets thématiques sont groupés ici, une seule requête en amont.
+  const themeTabs = groupThemeTabs(cached.themeTabs);
+  const latest = restoreDates(cachedLatest);
+  const [lead, ...secondary] = editorial.featured;
+  const pageHref = (value: number) => `/?page=${value}${section ? `&rubrique=${section}` : ""}#derniers-articles`;
+  return <><main id="contenu" className="mx-auto max-w-[1280px] space-y-9 px-4 pb-10 pt-4">
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organizationJsonLd()) }} />
+    <TodayMatchesBar />
+    <div className="grid gap-x-8 gap-y-9 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <section aria-label="À la une" data-home-hero className="order-2 min-w-0 md:order-1 lg:col-start-1">
+        <p className="mb-4 text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Le sport. Sans détour.</p>
+        {lead ? <div className="grid gap-5 md:grid-cols-[2fr_1fr]"><HeroArticle article={lead} /><div className="space-y-5">{secondary.map(article => <SecondaryArticle key={article.slug} article={article} />)}</div></div> : <h1 className="text-3xl font-black text-foreground">L’actualité sportive arrive bientôt.</h1>}
+      </section>
+      <aside aria-labelledby="fil-info" data-home-wire className="order-1 min-w-0 md:order-2 lg:col-start-2 lg:row-span-3 lg:row-start-1">
+        <div className="border-t-2 border-border bg-card p-4 lg:sticky lg:top-40">
+          <h2 id="fil-info" className="mb-4 text-xl font-black uppercase text-foreground">Le fil info</h2>
+          <ol aria-label="Actualités chronologiques" tabIndex={0} className="max-h-72 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:max-h-[65vh]">{editorial.wire.map(article => <li key={article.slug} className="flex gap-3 border-t border-border py-4"><time dateTime={article.publishedAt?.toISOString()} className="shrink-0 text-xs font-bold text-muted-foreground">{article.publishedAt && <>{wireTime.format(article.publishedAt)}<span className="mt-1 block text-[10px] font-normal">{wireDate.format(article.publishedAt)}</span></>}</time><Link href={`/article/${article.slug}`} className="text-foreground hover:underline"><span className="text-[10px] font-bold uppercase text-muted-foreground">{article.format === "FLASH" ? "FLASH" : "ACTU"} · {article.category?.name}</span><h3 className="mt-1 text-sm font-bold leading-snug">{article.title}</h3></Link></li>)}</ol>
+          <a href="#derniers-articles" className="mt-4 block text-xs font-bold text-foreground hover:underline">Toutes les dernières infos →</a>
+        </div>
+      </aside>
+      <div className="order-3 min-w-0 lg:col-start-1">
+        <SectionBlock id="themes" title="Thèmes" description="Mercato, tactique, interviews : les sujets qui traversent tous les sports.">
+          <ThemeTabs themes={themeTabs} />
+          <p className="mt-6">
+            <Link href="/themes" className="text-sm font-bold text-foreground hover:underline">Tous les thèmes →</Link>
+          </p>
+        </SectionBlock>
+      </div>
+      <div className="order-4 min-w-0 lg:col-start-1"><SectionBlock id="mercato" title="Mercato" href="/theme/mercato" linkLabel="Voir tout le Mercato"><ArticleGrid articles={editorial.mercato} /></SectionBlock></div>
+      <div className="order-5 min-w-0 lg:col-start-1"><SectionBlock id="analyses" title="Analyses" href="/theme/tactique" linkLabel="Voir toutes les analyses"><ArticleGrid articles={editorial.analyses} /></SectionBlock></div>
+    </div>
+    <AdSlotGate><AdSlot /></AdSlotGate>
+    <SectionBlock id="competitions" title="Compétitions" href="/scores"><CompetitionsGrid competitions={editorial.competitions} /></SectionBlock>
+    <div className="grid gap-8 lg:grid-cols-[2fr_1fr]"><SectionBlock id="plus-lus" title="Les plus lus" description="Les articles les plus consultés ces 7 derniers jours"><MostReadList articles={editorial.popular} /></SectionBlock><aside className="space-y-6"><section className="border border-border bg-card p-6 text-foreground"><p className="text-xs font-bold uppercase">PromptSport +</p><h2 className="my-3 text-3xl font-black">La passion va plus loin.</h2><p className="mb-5 text-sm text-muted-foreground">Analyses, décryptages et articles premium. Vivez le sport avec un temps d’avance.</p><Link href="/abonnement" className="font-bold underline underline-offset-4">Découvrir les offres →</Link></section><AdSlotGate><AdSlot format="rectangle" /></AdSlotGate></aside></div>
+    <SectionBlock id="derniers-articles" title={section ? `Derniers articles · ${section}` : "Derniers articles"}>
+      <div data-latest-page={page}><ArticleGrid articles={latest.slice(0,12)} /></div>
+      <nav aria-label="Pagination des articles" className="mt-7 flex flex-wrap items-center justify-center gap-5 text-sm text-foreground">{page>1 && <Link href={pageHref(page-1)} rel="prev" className="border border-border px-5 py-3 font-bold">← Précédents</Link>}<span className="text-muted-foreground">Page {page}</span>{latest.length>12 && <Link href={pageHref(page+1)} rel="next" className="border border-border bg-card px-5 py-3 font-bold">Voir plus →</Link>}{section && <Link href="/#derniers-articles" className="underline">Toutes les rubriques</Link>}</nav>
+    </SectionBlock>
+    <section aria-labelledby="encart-newsletter" className="flex flex-col justify-between gap-6 border-y-2 border-border bg-card py-7 text-foreground md:flex-row md:items-center"><div><p className="text-xs font-bold uppercase text-muted-foreground">Le meilleur du sport, dans votre boîte mail</p><h2 id="encart-newsletter" className="my-2 text-2xl font-black">Ne restez pas sur la touche.</h2><p className="text-sm text-muted-foreground">Recevez l’essentiel de l’actualité sportive. Désabonnement en un clic.</p></div><Link href="/newsletter" className="shrink-0 border border-border px-5 py-3 text-sm font-bold">S’inscrire à la newsletter →</Link></section>
+  </main><Footer /></>;
 }

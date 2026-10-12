@@ -1,4 +1,98 @@
 @import "tailwindcss";
+@import "@mdxeditor/editor/style.css";
+
+.format-badge { display: inline-flex; align-items: center; padding: 3px 7px; border-radius: 4px; font-size: 10px; line-height: 1.4; font-weight: 800; letter-spacing: .05em; }
+.format-badge--flash { color: #a52b0b; background: #ffedd5; }
+.format-badge--news { color: #1848a0; background: #dbeafe; }
+.format-badge--analysis { color: #7033a1; background: #f3e8ff; }
+.dark .format-badge--flash { color: #fdba74; background: #482415; }
+.dark .format-badge--news { color: #93c5fd; background: #192e4d; }
+.dark .format-badge--analysis { color: #d8b4fe; background: #362047; }
+
+.rich-text-editor { border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--card)); color: hsl(var(--foreground)); }
+.rich-text-editor .mdxeditor { font-family: inherit; color: inherit; --baseBase: hsl(var(--card)); --baseBg: hsl(var(--background)); --baseBgHover: hsl(var(--muted)); --baseBgActive: hsl(var(--muted)); --baseBorder: hsl(var(--border)); --baseBorderHover: hsl(var(--muted-foreground)); --baseText: hsl(var(--muted-foreground)); --baseTextContrast: hsl(var(--foreground)); }
+.rich-text-editor .mdxeditor-toolbar { flex-wrap: wrap; background: hsl(var(--muted)); border-bottom: 1px solid hsl(var(--border)); border-radius: 6px 6px 0 0; }
+.rich-text-editor .mdxeditor-toolbar button { min-height: 28px; padding: 4px; border-radius: 4px; color: hsl(var(--foreground)); }
+.rich-text-editor-content { min-height: 320px; padding: 20px; line-height: 1.75; outline: none; overflow-wrap: anywhere; }
+.rich-text-editor-content p { margin: 0 0 1em; }
+.rich-text-editor-content h1 { font-size: 2em; font-weight: 800; }
+.rich-text-editor-content h2 { font-size: 1.5em; font-weight: 750; }
+.rich-text-editor-content h3 { font-size: 1.25em; font-weight: 700; }
+.rich-text-editor-content ul { list-style: disc; padding-left: 1.5em; }
+.rich-text-editor-content ol { list-style: decimal; padding-left: 1.5em; }
+.rich-text-editor-content blockquote { border-left: 3px solid hsl(var(--accent)); padding-left: 1em; color: hsl(var(--muted-foreground)); }
+.rich-text-editor-content a { color: var(--ed-link); text-decoration: underline; }
+.rich-text-editor-content code { background: hsl(var(--muted)); padding: 2px 4px; }
+.dark .rich-text-editor { color-scheme: dark; }
+
+/* Embeds sociaux (WP15c), insertion d'image (WP15b) et citations (WP15d) :
+   boutons de toolbar, boîtes de dialogue et blocs insérés. La toolbar devient
+   `overflow: visible` pour que les menus ne soient pas rognés. Les dialogues
+   partagent les mêmes règles : ils ne diffèrent que par leur contenu. */
+.rich-text-editor .mdxeditor-toolbar { overflow: visible; }
+.social-embed-button, .image-upload-button, .quote-button { position: relative; display: inline-flex; }
+.social-embed-button-trigger, .image-upload-button-trigger, .quote-button-trigger { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; min-height: 28px; padding: 4px; border-radius: 4px; color: hsl(var(--foreground)); }
+.social-embed-button-trigger:hover, .image-upload-button-trigger:hover, .quote-button-trigger:hover { background: hsl(var(--muted-foreground) / .15); }
+.social-embed-dialog, .image-upload-dialog, .quote-dialog { position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; display: grid; gap: 12px; width: 320px; padding: 14px; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); color: hsl(var(--foreground)); box-shadow: 0 14px 34px rgb(0 0 0 / .22); text-align: left; }
+.social-embed-dialog-field, .image-upload-dialog-field, .quote-dialog-field { display: grid; gap: 4px; font-size: 12px; font-weight: 650; }
+.social-embed-dialog-field :is(input, select), .image-upload-dialog-field :is(input, select), .quote-dialog-field :is(input, select) { height: 36px; padding: 0 8px; border: 1px solid hsl(var(--border)); border-radius: 4px; background: hsl(var(--background)); color: inherit; font-size: 13px; }
+.quote-dialog-field textarea { min-height: 84px; padding: 8px; border: 1px solid hsl(var(--border)); border-radius: 4px; background: hsl(var(--background)); color: inherit; font-size: 13px; line-height: 1.5; resize: vertical; }
+.social-embed-dialog-error, .image-upload-dialog-error, .quote-dialog-error { color: #b91c1c; font-size: 12px; }
+.dark .social-embed-dialog-error, .dark .image-upload-dialog-error, .dark .quote-dialog-error { color: #fca5a5; }
+.social-embed-dialog-actions, .image-upload-dialog-actions, .quote-dialog-actions { display: flex; gap: 8px; }
+.social-embed-dialog-actions button, .image-upload-dialog-actions button, .quote-dialog-actions button { min-height: 34px; padding: 0 14px; border-radius: 4px; font-size: 12px; font-weight: 750; cursor: pointer; }
+.social-embed-dialog-submit, .image-upload-dialog-submit, .quote-dialog-submit { background: hsl(var(--foreground)); color: hsl(var(--background)); }
+.social-embed-dialog-cancel, .image-upload-dialog-cancel, .quote-dialog-cancel { border: 1px solid hsl(var(--border)); background: transparent; color: inherit; }
+.image-upload-dialog-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.image-upload-dialog-field input[type="file"] { height: auto; padding: 6px; font-size: 12px; }
+.image-upload-dialog-field input[type="file"]::file-selector-button { margin-right: 8px; padding: 4px 10px; border: 1px solid hsl(var(--border)); border-radius: 4px; background: hsl(var(--muted)); color: inherit; font: inherit; cursor: pointer; }
+.image-upload-dialog-file { font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+.image-upload-dialog-hint { color: hsl(var(--muted-foreground)); font-size: 11px; }
+
+/* Citation dans l'éditeur : bloc visible, supprimable, non modifiable sur place. */
+.quote-directive { display: grid; gap: 8px; margin: 12px 0; padding: 12px; border: 1px dashed hsl(var(--border)); border-radius: 6px; background: hsl(var(--muted)); }
+.quote-directive-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.quote-directive-badge { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+.quote-directive-remove { padding: 3px 10px; border: 1px solid hsl(var(--border)); border-radius: 4px; background: hsl(var(--card)); color: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.quote-directive-text { border-left: 3px solid var(--ed-link, hsl(var(--accent))); padding-left: 12px; color: hsl(var(--foreground)); font-size: 14px; font-style: italic; }
+.quote-directive-author { color: hsl(var(--muted-foreground)); font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+
+/* Citation enrichie (WP15d) : la même présentation dans l'article public et
+   dans l'aperçu de l'éditeur. Le sélecteur est assez spécifique pour passer
+   devant le style de blocquote de la peau éditoriale. */
+.quote-enriched { margin: 28px 0; }
+.article-body .quote-enriched > blockquote.quote-enriched-text { margin: 0; padding-left: 18px; border-left: 4px solid var(--ed-link, hsl(var(--accent))); color: hsl(var(--foreground)); font-size: 1.05em; font-style: italic; line-height: 1.6; }
+.quote-enriched-text > p { margin: 0; }
+.quote-enriched-author { margin-top: 10px; padding-left: 18px; color: hsl(var(--muted-foreground)); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+
+/* Aperçu live (WP15d) : onglets Éditer / Aperçu au-dessus de l'éditeur. */
+.editor-tabs { display: flex; gap: 4px; padding: 6px 6px 0; background: hsl(var(--muted)); border-bottom: 1px solid hsl(var(--border)); border-radius: 6px 6px 0 0; }
+.editor-tab { padding: 6px 14px; border: 1px solid transparent; border-bottom: none; border-radius: 4px 4px 0 0; color: hsl(var(--muted-foreground)); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; }
+.editor-tab:hover { color: hsl(var(--foreground)); }
+.editor-tab--active { border-color: hsl(var(--border)); background: hsl(var(--card)); color: hsl(var(--foreground)); }
+.editor-preview { padding: 20px; border: 0; background: hsl(var(--card)); color: hsl(var(--foreground)); min-height: 320px; }
+.editor-preview-status { margin-bottom: 14px; color: hsl(var(--muted-foreground)); font-size: 11px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
+.editor-tabs + div > .rich-text-editor .mdxeditor-toolbar, .rich-text-editor .editor-tabs + div .mdxeditor-toolbar { border-radius: 0; }
+.social-embed-directive { display: grid; gap: 8px; margin: 12px 0; padding: 12px; border: 1px dashed hsl(var(--border)); border-radius: 6px; background: hsl(var(--muted)); font-size: 12px; }
+.social-embed-directive-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.social-embed-directive-platform { font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+.social-embed-directive-remove, .social-embed-directive-save { padding: 3px 10px; border: 1px solid hsl(var(--border)); border-radius: 4px; background: hsl(var(--card)); color: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.social-embed-directive-body { display: flex; gap: 8px; }
+.social-embed-directive-body input { flex: 1; min-width: 0; height: 32px; padding: 0 8px; border: 1px solid hsl(var(--border)); border-radius: 4px; background: hsl(var(--card)); color: inherit; font-size: 12px; }
+.social-embed-directive-url { color: hsl(var(--muted-foreground)); word-break: break-all; }
+.social-embed-directive-error { color: #b91c1c; }
+.dark .social-embed-directive-error { color: #fca5a5; }
+
+/* Thèmes éditoriaux (WP16b) : badges du sélecteur du studio, de la liste des
+   articles et des métadonnées publiques. La couleur vient de la base
+   (`themeBadgeStyle`), le style ne gère que la forme. */
+.theme-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid transparent; border-radius: 4px; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 1.4; }
+.theme-badge--on { border-color: hsl(var(--foreground) / .35); }
+.theme-badge--off { cursor: pointer; }
+.theme-badge--off:hover { opacity: .75 !important; }
+.theme-badge--link:hover { text-decoration: underline; text-underline-offset: 3px; }
+button.theme-badge { cursor: pointer; }
+button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); outline-offset: 2px; }
 
 /* Palette et polices : la configuration vit dans tailwind.config.js (WP9).
    Tailwind v4 lit un fichier JS uniquement s'il est déclaré ici — le chemin est
@@ -201,3 +295,29 @@
   }
 }
 
+
+/* WP13b: reader-facing tokens; CMS styles retain their original palette. */
+.public-site {
+  --background: 0 0% 100%; --foreground: 0 0% 7%; --card: 0 0% 100%;
+  --muted: 60 11% 95%; --muted-foreground: 0 0% 39%; --border: 60 8% 86%;
+  --primary: 222 47% 11%; --destructive: 0 72% 44%;
+  --status-danger: #b91c1c;
+  --status-premium: #fef3c7; --status-premium-foreground: #78350f; --status-premium-border: #d6ae45;
+  --status-warning: #fff7ed; --status-warning-foreground: #9a3412; --status-warning-border: #fed7aa;
+  --status-success: #ecfdf5; --status-success-foreground: #065f46; --status-success-border: #a7f3d0;
+  --status-error: #fef2f2; --status-error-foreground: #991b1b; --status-error-border: #fecaca;
+}
+.dark .public-site {
+  --background: 120 3% 7%; --foreground: 60 24% 96%; --card: 120 3% 7%;
+  --muted: 90 7% 11%; --muted-foreground: 82 7% 69%; --border: 83 8% 20%;
+  --primary: 222 55% 35%;
+  --status-danger: #fca5a5;
+  --status-premium: #352811; --status-premium-foreground: #fcd875; --status-premium-border: #78602b;
+  --status-warning: #362213; --status-warning-foreground: #fdba74; --status-warning-border: #78502b;
+  --status-success: #102e24; --status-success-foreground: #6ee7b7; --status-success-border: #285541;
+  --status-error: #381c20; --status-error-foreground: #fca5a5; --status-error-border: #743740;
+}
+
+/* WP13c: missing public action and decoration tokens. */
+.public-site { --primary-hover: 222 58% 25%; --editorial-action: #c8172c; --decorative-start: #f97316; --decorative-end: #ea580c; }
+.dark .public-site { --primary-hover: 222 55% 42%; }

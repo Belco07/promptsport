@@ -22,15 +22,15 @@ export type BadgeTone =
   | "premium";
 
 const TONES: Record<BadgeTone, string> = {
-  neutral: "border-neutral-200 bg-neutral-100 text-neutral-700",
-  primary: "border-primary-200 bg-primary-50 text-primary-800",
-  accent: "border-accent-200 bg-accent-50 text-accent-800",
-  success: "border-success-200 bg-success-50 text-success-800",
-  danger: "border-danger-200 bg-danger-50 text-danger-800",
+  neutral: "border-neutral-200 [.public-site_&]:border-border bg-neutral-100 [.public-site_&]:bg-muted text-neutral-700 [.public-site_&]:text-foreground",
+  primary: "border-primary-200 [.public-site_&]:border-border bg-primary-50 [.public-site_&]:bg-muted text-primary-800 [.public-site_&]:text-editorial-link",
+  accent: "border-accent-200 [.public-site_&]:border-status-warning-border bg-accent-50 [.public-site_&]:bg-status-warning text-accent-800 [.public-site_&]:text-status-warning-foreground",
+  success: "border-success-200 [.public-site_&]:border-status-success-border bg-success-50 [.public-site_&]:bg-status-success text-success-800 [.public-site_&]:text-status-success-foreground",
+  danger: "border-danger-200 [.public-site_&]:border-status-error-border bg-danger-50 [.public-site_&]:bg-status-error text-danger-800 [.public-site_&]:text-status-error-foreground",
   /* Direct : rouge, avec la pastille animée propre au « live ». */
-  live: "border-danger-200 bg-danger-600 text-white",
+  live: "border-danger-200 [.public-site_&]:border-status-error-border bg-danger-600 [.public-site_&]:bg-destructive text-white",
   /* Premium : doré, distinct des rubriques (bleues) et des statuts. */
-  premium: "border-amber-300 bg-amber-100 text-amber-900",
+  premium: "border-amber-300 [.public-site_&]:border-status-premium-border bg-amber-100 [.public-site_&]:bg-status-premium text-amber-900 [.public-site_&]:text-status-premium-foreground",
 };
 
 /** Teinte par défaut de chaque variante. */

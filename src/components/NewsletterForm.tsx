@@ -64,12 +64,12 @@ export function NewsletterForm({
       />
 
       <fieldset>
-        <legend className="text-sm font-semibold text-neutral-800">Vos listes</legend>
-        <p className="mt-1 text-xs text-neutral-500">
+        <legend className="text-sm font-semibold text-foreground">Vos listes</legend>
+        <p className="mt-1 text-xs text-muted-foreground">
           Aucune liste n&apos;est cochée par défaut : vous choisissez ce que vous recevez.
         </p>
         {lists.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
+          <p className="mt-3 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
             Aucune liste de diffusion n&apos;est ouverte pour le moment.
           </p>
         ) : (
@@ -82,12 +82,12 @@ export function NewsletterForm({
                   type="checkbox"
                   value={list.id}
                   defaultChecked={defaultListIds.includes(list.id)}
-                  className="mt-0.5 h-4 w-4 rounded border-neutral-300"
+                  className="mt-0.5 h-4 w-4 rounded border-border"
                 />
-                <label htmlFor={`liste-${list.id}`} className="text-sm text-neutral-800">
+                <label htmlFor={`liste-${list.id}`} className="text-sm text-foreground">
                   <span className="font-medium">{list.name}</span>
                   {list.description ? (
-                    <span className="block text-xs text-neutral-500">{list.description}</span>
+                    <span className="block text-xs text-muted-foreground">{list.description}</span>
                   ) : null}
                 </label>
               </li>
@@ -96,27 +96,27 @@ export function NewsletterForm({
         )}
       </fieldset>
 
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-        <label htmlFor="consentement" className="flex items-start gap-2.5 text-sm text-neutral-800">
+      <div className="rounded-lg border border-border bg-muted p-4">
+        <label htmlFor="consentement" className="flex items-start gap-2.5 text-sm text-foreground">
           <input
             id="consentement"
             name="consentement"
             type="checkbox"
             required
-            className="mt-0.5 h-4 w-4 rounded border-neutral-300"
+            className="mt-0.5 h-4 w-4 rounded border-border"
           />
           <span>
             J&apos;accepte de recevoir des e-mails et j&apos;ai lu la{" "}
             <Link
               href="/confidentialite"
-              className="font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
+              className="font-semibold text-editorial-link underline transition-colors hover:text-editorial-link"
             >
               politique de confidentialité
             </Link>
             .
           </span>
         </label>
-        <p className="mt-2 pl-6 text-xs text-neutral-500">
+        <p className="mt-2 pl-6 text-xs text-muted-foreground">
           Cette case n&apos;est pas cochée par défaut. Vous devrez confirmer votre adresse par
           e-mail (double opt-in), et chaque message contient un lien de désabonnement.
         </p>
@@ -127,8 +127,8 @@ export function NewsletterForm({
           role={state.code === "ok" || state.code === "already" ? "status" : "alert"}
           className={`rounded-lg border px-4 py-3 text-sm font-medium ${
             state.code === "ok" || state.code === "already"
-              ? "border-success-200 bg-success-50 text-success-800"
-              : "border-danger-200 bg-danger-50 text-danger-700"
+              ? "border-status-success-border bg-status-success text-status-success-foreground"
+              : "border-status-error-border bg-status-error text-status-error-foreground"
           }`}
         >
           {state.message}

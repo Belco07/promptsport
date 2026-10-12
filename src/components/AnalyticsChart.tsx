@@ -16,7 +16,7 @@ const PADDING_Y = 12;
 
 export function AnalyticsChart({ points }: { points: TrafficChartPoint[] }) {
   if (points.length === 0) {
-    return <p className="text-sm text-gray-600">Aucune donnée de trafic pour le moment.</p>;
+    return <p className="text-sm text-muted-foreground">Aucune donnée de trafic pour le moment.</p>;
   }
 
   const max = Math.max(1, ...points.map((point) => point.visitors));
@@ -49,7 +49,7 @@ export function AnalyticsChart({ points }: { points: TrafficChartPoint[] }) {
             x2={WIDTH - PADDING_X}
             y1={y(max * ratio)}
             y2={y(max * ratio)}
-            stroke="#e5e7eb"
+            stroke="hsl(var(--border))"
             strokeWidth="1"
           />
         ))}
@@ -58,18 +58,18 @@ export function AnalyticsChart({ points }: { points: TrafficChartPoint[] }) {
         <polyline
           points={line}
           fill="none"
-          stroke="#1d4ed8"
+          stroke="var(--ed-link)"
           strokeWidth="2"
           strokeLinejoin="round"
           strokeLinecap="round"
         />
 
         {coordinates.map((point) => (
-          <circle key={point.label} cx={point.x} cy={point.y} r="2" fill="#1d4ed8" />
+          <circle key={point.label} cx={point.x} cy={point.y} r="2" fill="var(--ed-link)" />
         ))}
       </svg>
 
-      <figcaption className="mt-2 flex items-center justify-between text-xs text-gray-500">
+      <figcaption className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
         <span>{points[0].label}</span>
         <span>maximum : {max} visiteur{max > 1 ? "s" : ""}/jour</span>
         <span>{points[points.length - 1].label}</span>

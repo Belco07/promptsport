@@ -1,13 +1,14 @@
 "use client";
 
 import { ChevronDown, Menu, X } from "lucide-react";
+import { NavSearch } from "@/components/NavSearch";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { UserMenu } from "@/components/UserMenu";
+import { MonSportNavLink, UserMenu } from "@/components/UserMenu";
 import { useMounted } from "@/lib/use-mounted";
 
 /**
@@ -42,6 +43,7 @@ const NAV_LINKS = [
 export function PublicNav({
   competitions = [],
   scoresBar = null,
+  urgentBar = null,
 }: {
   competitions?: NavCompetition[];
   /**
@@ -51,6 +53,12 @@ export function PublicNav({
    * la barre sur /login, /studio et /backoffice).
    */
   scoresBar?: React.ReactNode;
+  /**
+   * Bandeau urgent (fine barre au-dessus de l'en-tête), rendu par le layout :
+   * même raison de passage en `ReactNode`, et même masquage sur les pages
+   * techniques.
+   */
+  urgentBar?: React.ReactNode;
 }) {
   const pathname = usePathname();
   // L'onglet actif n'est marqué qu'après montage : le HTML du serveur et le
@@ -60,6 +68,7 @@ export function PublicNav({
   const mounted = useMounted();
   const [burgerOpen, setBurgerOpen] = useState(false);
   const [competitionsOpen, setCompetitionsOpen] = useState(false);
+  const burgerButtonRef = useRef<HTMLButtonElement>(null);
   const competitionsRef = useRef<HTMLDivElement>(null);
 
   // Referme les panneaux à chaque changement de page.
@@ -70,14 +79,18 @@ export function PublicNav({
 
   // Menu déroulant : fermeture au clic extérieur et sur Échap.
   useEffect(() => {
-    if (!competitionsOpen) return;
+    if (!competitionsOpen && !burgerOpen) return;
     function handlePointerDown(event: MouseEvent) {
       if (competitionsRef.current && !competitionsRef.current.contains(event.target as Node)) {
         setCompetitionsOpen(false);
       }
     }
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setCompetitionsOpen(false);
+      if (event.key === "Escape") {
+        setCompetitionsOpen(false);
+        setBurgerOpen(false);
+        if (burgerOpen) burgerButtonRef.current?.focus();
+      }
     }
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -85,14 +98,13 @@ export function PublicNav({
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [competitionsOpen]);
+  }, [competitionsOpen, burgerOpen]);
 
   const isAdminOrLogin =
     pathname === "/login" ||
-    pathname === "/studio" ||
-    pathname.startsWith("/studio/") ||
-    pathname === "/backoffice" ||
-    pathname.startsWith("/backoffice/");
+    pathname === "/inscription" ||
+    pathname === "/bienvenue" ||
+    /^\/(studio|backoffice)(\/|$)/.test(pathname);
 
   if (isAdminOrLogin) {
     return null;
@@ -105,7 +117,7 @@ export function PublicNav({
   /** Rubrique du menu : l'onglet actif est rouge, sans fond arrondi. */
   const linkClass = (href: string) =>
     [
-      "px-3 py-2 text-sm font-strong transition-colors",
+      "editorial-nav-link px-3 py-2 text-sm font-strong transition-colors",
       isActive(href)
         ? "bg-brand-50 text-brand-600"
         : "text-neutral-700 hover:bg-neutral-100 hover:text-brand-600",
@@ -113,18 +125,21 @@ export function PublicNav({
 
   return (
     <>
+      {/* Fine barre urgente, tout en haut (au-dessus de l'en-tête). */}
+      {urgentBar}
+
       {/* Bandeau de scores, tout en haut des pages publiques (masqué avec la
           barre sur /login, /studio et /backoffice). */}
       {scoresBar}
 
-      <header className="sticky top-0 z-30 border-b border-neutral-200 border-t-4 border-t-brand-500 bg-white/95 backdrop-blur">
+      <header className="editorial-header sticky top-0 z-30 border-b border-neutral-200 border-t-4 border-t-brand-500 bg-white/95 backdrop-blur">
       <nav
         aria-label="Navigation principale"
-        className="mx-auto flex h-[82px] max-w-6xl items-center justify-between gap-4 px-4 max-[600px]:h-[66px]"
+        className="relative mx-auto flex h-[55px] max-w-[1280px] items-center justify-between gap-4 px-4 max-[600px]:h-[44px]"
       >
         <Link
           href="/"
-          className="flex shrink-0 items-center"
+          className="editorial-logo flex shrink-0 items-center"
           aria-label="PromptSport — retour à l'accueil"
         >
           {/* Logo de la marque (fichier source 4361 px décliné en 900 px dans
@@ -135,12 +150,21 @@ export function PublicNav({
             width={900}
             height={198}
             priority
-            className="h-10 w-auto max-[600px]:h-8"
+            className="editorial-logo-day h-10 w-auto max-[600px]:h-8"
+          />
+          <Image
+            src="/promptsport-logo-night.png"
+            alt="PromptSport — L'actualité qui vibre, la passion qui déborde"
+            width={4739}
+            height={1044}
+            priority
+            className="editorial-logo-night h-10 w-auto max-[600px]:h-8"
           />
         </Link>
 
         {/* Rubriques : affichées à partir de 768 px. */}
         <div className="hidden items-center gap-1 md:flex">
+          <MonSportNavLink className={linkClass("/mon-sport")} />
           <Link href="/" className={linkClass("/")} aria-current={isActive("/") ? "page" : undefined}>
             Accueil
           </Link>
@@ -159,7 +183,7 @@ export function PublicNav({
               aria-expanded={competitionsOpen}
               aria-controls="menu-competitions"
               onClick={() => setCompetitionsOpen((open) => !open)}
-              className="inline-flex items-center gap-1 px-3 py-2 text-sm font-strong text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-brand-600"
+              className="editorial-nav-link inline-flex items-center gap-1 px-3 py-2 text-sm font-strong text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-brand-600"
             >
               Compétitions
               <ChevronDown
@@ -202,18 +226,20 @@ export function PublicNav({
         </div>
 
         <div className="flex items-center gap-2">
+          <NavSearch />
           {/* Sélecteur de thème (WP13a), à côté du compte. */}
           <ThemeToggle />
 
           {/* Compte : sur mobile, il est replié dans le panneau burger. */}
           <div className="hidden md:block">
-            <UserMenu />
+            <UserMenu showSportLink={false} />
           </div>
 
           <button
             type="button"
             className="inline-flex items-center justify-center border border-neutral-300 p-2 text-neutral-700 transition-colors hover:bg-neutral-100 md:hidden"
             aria-expanded={burgerOpen}
+            ref={burgerButtonRef}
             aria-controls="menu-mobile"
             aria-label={burgerOpen ? "Fermer le menu" : "Ouvrir le menu"}
             onClick={() => setBurgerOpen((open) => !open)}
@@ -229,11 +255,11 @@ export function PublicNav({
 
       {/* Bandeau « À suivre » : accès direct aux compétitions suivies. */}
       {competitions.length > 0 ? (
-        <nav aria-label="Accès rapide aux compétitions" className="border-t border-ink-100 bg-white">
-          <div className="mx-auto flex max-w-6xl items-center gap-[27px] overflow-x-auto whitespace-nowrap px-4 py-3 text-xs font-bold [scrollbar-width:thin] max-[600px]:gap-[22px] max-[600px]:py-2.5">
+        <nav aria-label="Accès rapide aux compétitions" className="editorial-competition-nav border-t border-ink-100 bg-white">
+          <div className="mx-auto flex max-w-[1280px] items-center gap-[27px] overflow-x-auto whitespace-nowrap px-4 py-3 text-xs font-bold [scrollbar-width:thin] max-[600px]:gap-[22px] max-[600px]:py-2.5">
             <span className="text-[10px] uppercase tracking-[1px] text-brand-600">À suivre</span>
             {competitions.map((competition) => {
-              const active = pathname === `/competition/${competition.slug}`;
+              const active = mounted && pathname === `/competition/${competition.slug}`;
               return (
                 <Link
                   key={competition.slug}

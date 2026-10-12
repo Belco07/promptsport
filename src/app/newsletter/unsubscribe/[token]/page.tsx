@@ -61,8 +61,8 @@ export default async function NewsletterUnsubscribePage({
                 aria-hidden="true"
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
                   justConfirmed || alreadyUnsubscribed
-                    ? "bg-neutral-100 text-neutral-700"
-                    : "bg-accent-50 text-accent-700"
+                    ? "bg-muted text-foreground"
+                    : "bg-status-warning text-status-warning-foreground"
                 }`}
               >
                 {justConfirmed || alreadyUnsubscribed ? (
@@ -72,7 +72,7 @@ export default async function NewsletterUnsubscribePage({
                 )}
               </span>
               <div className="min-w-0">
-                <h1 className="text-2xl font-extrabold tracking-tight text-primary-900">
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
                   {justConfirmed
                     ? "Vous êtes désabonné."
                     : alreadyUnsubscribed
@@ -81,17 +81,17 @@ export default async function NewsletterUnsubscribePage({
                 </h1>
 
                 {justConfirmed ? (
-                  <p className="mt-2 text-sm text-neutral-700">
+                  <p className="mt-2 text-sm text-foreground">
                     L&apos;adresse <strong>{subscriber.email}</strong> ne recevra plus la newsletter.
                     Aucune autre démarche n&apos;est nécessaire.
                   </p>
                 ) : alreadyUnsubscribed ? (
-                  <p className="mt-2 text-sm text-neutral-700">
+                  <p className="mt-2 text-sm text-foreground">
                     L&apos;adresse <strong>{subscriber.email}</strong> est déjà désabonnée : il n&apos;y
                     a rien de plus à faire.
                   </p>
                 ) : (
-                  <p className="mt-2 text-sm text-neutral-700">
+                  <p className="mt-2 text-sm text-foreground">
                     L&apos;adresse <strong>{subscriber.email}</strong> ne recevra plus aucun e-mail de
                     notre part. Si vous souhaitez seulement changer de listes, préférez la gestion de
                     vos préférences.
@@ -110,21 +110,21 @@ export default async function NewsletterUnsubscribePage({
 
                   <Link
                     href={`/newsletter/preferences/${token}`}
-                    className="text-sm font-semibold text-primary-700 underline transition-colors hover:text-primary-900"
+                    className="text-sm font-semibold text-editorial-link underline transition-colors hover:text-editorial-link"
                   >
                     Gérer mes préférences
                   </Link>
 
                   <Link
                     href="/"
-                    className="text-sm font-semibold text-neutral-600 underline transition-colors hover:text-neutral-900"
+                    className="text-sm font-semibold text-muted-foreground underline transition-colors hover:text-foreground"
                   >
                     Retour à l&apos;accueil
                   </Link>
                 </div>
 
                 {!alreadyUnsubscribed ? (
-                  <p className="mt-4 text-xs text-neutral-500">
+                  <p className="mt-4 text-xs text-muted-foreground">
                     Ce lien reste valable : vous pouvez revenir plus tard si vous changez d&apos;avis.
                   </p>
                 ) : null}
