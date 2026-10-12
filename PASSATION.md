@@ -25,12 +25,16 @@
 ## 2. Ce qui est terminé et validé
 
 - **WP1 → WP12a** : migration SQLite → PostgreSQL, suites de tests vertes, `npm run build` propre.
-- **WP12b** : configuration de déploiement Vercel + Neon.
+- **WP12b** : configuration de déploiement Vercel + Prisma Postgres.
 - **Identité** : logo « PromptSport » (jour/nuit), emplacements publicitaires, bandeau de scores en direct.
 - **WP13a** : fondations du thème clair/sombre/système (`next-themes`, palette sémantique, `ThemeToggle`).
 - **WP13b → WP13e** : thème appliqué aux composants et pages, refonte éditoriale de l'accueil,
   pages intérieures (compétition, match), comptes lecteurs + OAuth, CSS éditorial (`src/app/editorial.css`).
-- **Rail de partage d'article** (dernier chantier, non commité) : voir §4.
+- **Rail de partage d'article** (dernier chantier de WP13, non commité) : voir §4.
+- **WP14 → WP20** (non commité) : espace abonné, upload d'images et embeds dans l'éditeur, citations
+  enrichies + aperçu live, thèmes éditoriaux (modèle, sélecteur studio, pages publiques, accueil),
+  intégration AllSportsApi et retouches hors brief (pastille de compte, bandeau urgent, largeurs).
+  Le détail, lot par lot, est dans §3.
 
 Rapports détaillés présents à la racine : `RAPPORT-COMPTES-LECTEURS.md`, `RAPPORT-WP13b.md`,
 `RAPPORT-WP13c.md`, `RAPPORT-WP13d.md`, `RAPPORT-WP13e.md`.
@@ -159,6 +163,16 @@ utilisateur) : **un commit par lot**, dans cet ordre :
     `DATABASE_URL="postgresql://promptsport:promptsport@localhost:5432/promptsport_allsports?schema=public" npx tsx scripts/sync-football.ts FL1 PL SA`.
     La base principale est intacte (6 compétitions / 111 équipes / 1 889 matchs).
 17. `Rapports` — les `RAPPORT-*.md`.
+18. `Hors brief — seed des thèmes pour la production` — les migrations créent la table `Theme` mais pas
+    son contenu : `prisma/default-themes.cjs` (source unique des 9 thèmes, désormais partagée avec
+    `prisma/seed.cjs`), `prisma/seed-themes.cjs` (n'écrit **que** dans `Theme`, idempotent par `slug`,
+    `--dry-run`/`--quiet`, refuse de démarrer sans `DATABASE_URL`, n'affiche que l'hôte et la base),
+    script npm `db:seed:themes`, et documentation dans `README.md` (§4 bis) et
+    `scripts/deploy-checklist.md` (étape migrations). Vérifié sur `promptsport_allsports`
+    (9 créations puis 9 mises à jour : `9 thème(s) en base, 8 actif(s)`) **et** sur la base principale
+    (9 mises à jour, 4 auteurs et le mot de passe d'`admin@example.com` inchangés). Raison d'être :
+    `npm run db:seed` crée un compte `admin@example.com` avec mot de passe connu — inutilisable en
+    production.
 
 Ne pas oublier `PASSATION.md` (ce fichier) : à committer ou à supprimer, au choix.
 
@@ -209,12 +223,24 @@ CSS `bg-[#d7ff00]` bien générée.
 
 ## 6. Déploiement (quand le push sera fait)
 
-1. Appliquer la migration sur Neon :
-   `DATABASE_URL="<url-non-poolée>" npm run db:deploy`
-   (migration en attente : `prisma/migrations/20261006100000_reader_oauth`).
-2. Variables d'environnement **manquantes** pour l'OAuth : `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`,
+1. Dans la console Prisma (<https://console.prisma.io>) → base → **Connect to your database** :
+   relever les deux chaînes TCP, `DATABASE_URL` = *pooled* (`pooled.db.prisma.io`) pour
+   l'application et `DIRECT_URL` = *directe* (`db.prisma.io`) pour les migrations et les scripts
+   (toutes deux en `?sslmode=require`). Sur Vercel : les deux variables, en Production **et** Preview.
+2. **Préflight** avant toute écriture : `node scripts/check-prisma-postgres.cjs`
+   (chaîne utilisée, serveur, TLS, migrations en attente, extension `pg_trgm` — essai annulé).
+3. Appliquer les migrations : `npm run db:deploy`
+   (**7 migrations en attente**, de `20261006100000_reader_oauth` au WP20 — toutes additives).
+   `prisma.config.ts` prend `DIRECT_URL` en priorité : aucune substitution manuelle.
+4. **Remplir les thèmes** (les migrations créent la table, pas son contenu) :
+   `npm run db:seed:themes` → `9 thème(s) en base, 8 actif(s)`.
+   `prisma/seed-themes.cjs` n'écrit que dans `Theme` (jamais de compte, jamais de mot de passe)
+   et est idempotent ; `prisma/default-themes.cjs` est la source unique, partagée avec `db:seed`.
+   Sans cette étape, `/themes` est vide en production et le sélecteur du studio n'affiche rien.
+5. Variables d'environnement **manquantes** pour l'OAuth : `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`,
    `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET`. Sans elles, seuls e-mail/mot de passe fonctionnent.
-3. Vérifier après déploiement que Vercel sert bien le nouveau `HEAD`.
+6. Vérifier après déploiement que Vercel sert bien le nouveau `HEAD`.
+7. `scripts/deploy-checklist.md` déroule le tout pas à pas (dépannage P1001/P1010/P3018 inclus).
 
 ---
 
@@ -275,4 +301,6 @@ Comptes de test (base locale) : `admin@example.com` / `admin123` (ADMIN),
 
 1. Ouvrir une session neuve sur `C:\Users\Belco\promptsport` (celle-ci est saturée).
 2. Faire valider puis exécuter les commits du §3 (lot par lot), et pousser sur `origin/main`.
-3. Enchaîner sur le déploiement du §6 (migration Neon + variables OAuth).
+3. Enchaîner sur le déploiement du §6 : sur Prisma Postgres, préflight
+   (`node scripts/check-prisma-postgres.cjs`), puis `db:deploy` (7 migrations) **puis**
+   `db:seed:themes`, et renseigner les variables OAuth.

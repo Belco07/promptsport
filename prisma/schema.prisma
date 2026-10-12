@@ -18,8 +18,8 @@ datasource db {
   //
   // `url = env("DATABASE_URL")` n'est pas répété ici : depuis la v7, la CLI lit
   // l'URL dans prisma.config.ts, et une seconde déclaration doit rester
-  // cohérente avec `DIRECT_URL` (connexion sans pooling chez Neon). Une seule
-  // source de vérité, donc : le fichier de configuration.
+  // cohérente avec `DIRECT_URL` (connexion directe de Prisma Postgres, hors
+  // pooler). Une seule source de vérité, donc : le fichier de configuration.
 }
 
 model Author {

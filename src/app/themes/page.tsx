@@ -20,7 +20,7 @@ export const revalidate = 60;
 export const metadata: Metadata = buildPageMetadata({
   title: "Tous les thèmes",
   description:
-    "Mercato, Tactique, Interviews, Compétitions, Transferts : tous les thèmes éditoriaux de PromptSport, tous sports confondus.",
+    "Mercato, Tactique, Interviews, Compétitions, Blessures, Polémiques, Power Ranking, Opinion : tous les thèmes éditoriaux de PromptSport, tous sports confondus.",
   path: "/themes",
 });
 

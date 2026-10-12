@@ -96,17 +96,27 @@ async function main() {
   /* ------------------------------------------------------------ 2) seed */
   section("Seed");
   const seed = readSource("prisma/seed.cjs");
+  // WP20 : les thèmes vivent dans la source partagée `prisma/default-themes.cjs`,
+  // consommée par `prisma/seed.cjs` (dev) et `prisma/seed-themes.cjs` (production).
+  const defaultThemes = readSource("prisma/default-themes.cjs");
   check(
     "les quatre nouveaux thèmes sont déclarés",
-    NEW_THEMES.every((theme) => seed.includes(`slug: "${theme.slug}"`) && seed.includes(`icon: "${theme.icon}"`)),
+    NEW_THEMES.every(
+      (theme) => defaultThemes.includes(`slug: "${theme.slug}"`) && defaultThemes.includes(`icon: "${theme.icon}"`),
+    ),
   );
   check(
     "couleurs des nouveaux thèmes",
-    NEW_THEMES.every((theme) => seed.includes(`color: "${theme.color}"`)),
+    NEW_THEMES.every((theme) => defaultThemes.includes(`color: "${theme.color}"`)),
   );
   check(
     "« transferts » désactivé dans le seed",
-    /slug: "transferts"[\s\S]{0,200}active: false/.test(seed),
+    /slug: "transferts"[\s\S]{0,200}active: false/.test(defaultThemes),
+  );
+  check(
+    "le seed partage cette source (dev + production)",
+    seed.includes('require("./default-themes.cjs")') &&
+      readSource("prisma/seed-themes.cjs").includes('require("./default-themes.cjs")'),
   );
   check(
     "le seed met à jour `active` sur un thème existant",

@@ -12,6 +12,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:seed": "node prisma/seed.cjs",
+    "db:seed:themes": "node prisma/seed-themes.cjs",
     "db:studio": "prisma studio",
     "db:migrate-sqlite-to-postgres": "npx tsx scripts/migrate-sqlite-to-postgres.ts",
     "newsletter:send": "npx tsx scripts/send-campaign.ts",

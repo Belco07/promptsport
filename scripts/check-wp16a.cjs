@@ -156,10 +156,15 @@ async function main() {
   /* -------------------------------------------------------------- 3) seed */
   section("Thèmes par défaut");
   const seed = readSource("prisma/seed.cjs");
+  const defaultThemes = readSource("prisma/default-themes.cjs");
   check(
-    "les 9 thèmes sont déclarés dans le seed",
-    DEFAULT_THEME_SLUGS.every((slug) => seed.includes(`slug: "${slug}"`)),
+    "les 9 thèmes sont déclarés dans la source partagée",
+    DEFAULT_THEME_SLUGS.every((slug) => defaultThemes.includes(`slug: "${slug}"`)),
     DEFAULT_THEME_SLUGS.join(", "),
+  );
+  check(
+    "le seed consomme la source partagée (default-themes.cjs)",
+    seed.includes('require("./default-themes.cjs")'),
   );
   check("seed idempotent (mise à jour par slug)", seed.includes("UPDATE Theme SET"));
 

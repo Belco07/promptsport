@@ -269,9 +269,9 @@ better-sqlite3 et s'appuyaient sur son dialecte. Elles passent désormais par
 PORT=3002 node scripts/check-wp11a.cjs
 ```
 
-## Déploiement (WP12b — Vercel + Neon)
+## Déploiement (WP12b — Vercel + Prisma Postgres)
 
-Le site se déploie sur **Vercel**, avec la base **Neon** (PostgreSQL serverless).
+Le site se déploie sur **Vercel**, avec la base **Prisma Postgres** (PostgreSQL managé).
 La configuration versionnée vit dans `vercel.json` ; la marche à suivre complète
 (avec cases à cocher) est dans [`scripts/deploy-checklist.md`](scripts/deploy-checklist.md).
 
@@ -314,8 +314,8 @@ Settings → Environment Variables, en cochant **Production** et **Preview**.
 
 | Variable | Valeur |
 | --- | --- |
-| `DATABASE_URL` | chaîne **pooled** de Neon (l'hôte contient `-pooler`), avec `?sslmode=require` |
-| `DIRECT_URL` | chaîne **unpooled** de Neon (sans `-pooler`), pour les migrations |
+| `DATABASE_URL` | chaîne **pooled** de Prisma Postgres (`pooled.db.prisma.io`), avec `?sslmode=require` |
+| `DIRECT_URL` | chaîne **directe** de Prisma Postgres (`db.prisma.io`), pour les migrations, le seed des thèmes et Prisma Studio |
 | `AUTH_SECRET` | secret de signature des JWT (`openssl rand -base64 32`) |
 | `NEXT_PUBLIC_SITE_URL` | `https://<projet>.vercel.app` (sans barre oblique finale) |
 | `CRON_SECRET` | secret du cron (`openssl rand -base64 32`) |
@@ -330,19 +330,75 @@ sont inutiles ici : `trustHost: true` déduit l'URL de la requête.
 
 ### 4. Migrations en production
 
-`prisma migrate deploy` utilise la chaîne **directe** (les migrations ne passent
-pas par un pooler en mode transaction) :
+`prisma migrate deploy` doit passer par la chaîne **directe** : un pooler en mode
+transaction ne conserve pas l'état de session (verrous, `SET`, requêtes
+préparées), ce qui produit des échecs de migration difficiles à lire.
+
+`prisma.config.ts` applique donc une règle unique : la CLI prend **`DIRECT_URL`
+si elle est renseignée**, sinon `DATABASE_URL` (poste local, CI, ou Vercel où
+seule `DATABASE_URL` existe). Aucune substitution manuelle n'est nécessaire :
 
 ```bash
-# PowerShell
-$env:DATABASE_URL=$env:DIRECT_URL; npm run db:deploy
-# bash
-DATABASE_URL="$DIRECT_URL" npm run db:deploy
+npm run db:deploy
 ```
+
+Avant de déployer, lancer le préflight (§4 ter) : il vérifie en quelques
+secondes la chaîne de connexion, le serveur, les migrations en attente et
+l'extension `pg_trgm`.
 
 `postinstall: prisma generate` régénère le client Prisma à chaque installation :
 c'est indispensable sur Vercel, où `src/generated/` n'est pas versionné.
 Ne jamais utiliser `prisma migrate dev` en production.
+
+### 4 bis. Thèmes éditoriaux en production
+
+Les migrations créent la table `Theme` mais **pas son contenu** : une base
+fraîchement migrée n'a aucun thème, donc `/themes` est vide et le sélecteur du
+studio n'affiche rien. Le seed complet (`npm run db:seed`) ne convient pas : il
+crée aussi un compte `admin@example.com` avec un mot de passe connu. Un seed
+ciblé existe donc pour la production :
+
+```bash
+npm run db:seed:themes
+```
+
+- il n'écrit **que** dans `Theme` : aucun auteur, aucun mot de passe, aucune
+  donnée existante supprimée ;
+- il est **idempotent** (clé = `slug`) : relançable sans doublon, et il met à
+  jour nom, description, couleur, icône et `active` — c'est ce qui propage la
+  désactivation de « Transferts » (WP20) sur une base déjà remplie ;
+- les 9 thèmes par défaut sont décrits dans `prisma/default-themes.cjs`, source
+  unique partagée avec `prisma/seed.cjs` ;
+- il vise `DIRECT_URL` en priorité (même règle que `prisma.config.ts`, donc
+  `db:deploy` et `db:seed:themes` ne peuvent pas diverger de base) ; la chaîne
+  directe est de toute façon préférable, le script exécutant `SET TIME ZONE 'UTC'`,
+  un ordre de session que le pooler ne garantit pas. Les suites `check-*.cjs`,
+  elles, restent sur `DATABASE_URL` : elles écrivent des données de test ;
+- `npm run db:seed:themes -- --dry-run` affiche les créations/mises à jour sans
+  rien écrire, et `--quiet` ne garde que le bilan.
+
+Résultat attendu : `9 thème(s) en base, 8 actif(s)` (« Transferts » inactif).
+
+### 4 ter. Préflight Prisma Postgres
+
+À lancer **avant** `db:deploy` : une migration qui échoue en production laisse
+une entrée « failed » dans `_prisma_migrations`, à rattraper à la main
+(`prisma migrate resolve`). Le contrôle tient en une commande :
+
+```bash
+node scripts/check-prisma-postgres.cjs
+```
+
+Il vise `DIRECT_URL` (sinon `DATABASE_URL`, sinon une URL passée en argument) et
+vérifie : schéma de l'URL (une URL `prisma+postgres://` est refusée), connexion
+au serveur, TLS, base/utilisateur/schéma, migrations appliquées **et en attente**
+(comparées au dossier `prisma/migrations`), présence des thèmes, et disponibilité
+de `pg_trgm` — requise par la migration `20261008160000_article_search`.
+
+L'essai de création de `pg_trgm` est exécuté dans une transaction **annulée**
+(`BEGIN … ROLLBACK`) : la base n'est jamais modifiée (`--no-extension` pour
+l'éviter complètement). Sortie : `OK | …`, `ECHEC | …`, `ATTENTION | …` puis
+`RESULTAT: n/N`, et un code de sortie 1 dès qu'un contrôle échoue.
 
 ### 5. Tâches planifiées
 

@@ -1,8 +1,8 @@
-# Checklist de déploiement — WP12b (Vercel + Neon)
+# Checklist de déploiement — WP12b (Vercel + Prisma Postgres)
 
 Checklist manuelle à dérouler dans l'ordre. Ce qui est **fait par DSH** figure
 dans le dépôt (vercel.json, .env.example, .gitignore, package.json, README) ;
-tout ce qui demande un compte GitHub/Vercel/Neon reste à faire à la main.
+tout ce qui demande un compte GitHub/Vercel/Prisma reste à faire à la main.
 
 > État au moment de la rédaction : `git`, `gh` et `vercel` ne sont pas
 > disponibles dans l'environnement d'exécution de DSH (aucun CLI Vercel ni GitHub
@@ -18,7 +18,7 @@ tout ce qui demande un compte GitHub/Vercel/Neon reste à faire à la main.
 | --- | --- |
 | `vercel.json` | `framework`, `installCommand`, `buildCommand` (`prisma generate && next build`), cron quotidien `/api/cron/newsletter` |
 | `.gitignore` | `.env` (et variantes) exclus, `!.env.example` ré-inclus, `.next/`, `node_modules/`, `prisma/*.db`, `src/generated/`, `/backups/`, `*.log` |
-| `.env.example` | modèle documenté de toutes les variables (pooled/unpooled, secrets, noms réellement lus par le code) |
+| `.env.example` | modèle documenté de toutes les variables (chaînes pooled/direct, secrets, noms réellement lus par le code) |
 | `package.json` | `postinstall: prisma generate`, `db:deploy: prisma migrate deploy` |
 | `README.md` | section « Déploiement (WP12b) » |
 
@@ -55,37 +55,59 @@ ne trouve rien — c'est le résultat attendu), et la commande 3 ne doit lister 
 `.env.example`. Note : `git grep` utilise des expressions régulières POSIX (pas de
 `\b`, ni de lookahead).
 
-## 2. Base Neon
+## 2. Base Prisma Postgres
 
-- [ ] Vérifier le projet Neon et relever les deux chaînes (bouton **Connect**) :
-  - **pooled** (l'hôte contient `-pooler`) → `DATABASE_URL`
-  - **unpooled** (sans `-pooler`) → `DIRECT_URL`
-- [ ] Ajouter `?sslmode=require` à chacune si absent
-- [ ] Appliquer le schéma sur Neon (migrations, jamais `migrate dev`) :
+- [ ] Dans la console Prisma (<https://console.prisma.io>), sélectionner la base
+      puis **Connect to your database** → **Generate new connection string**, et
+      relever les **deux** chaînes TCP :
+  - **pooled** (hôte `pooled.db.prisma.io`) → `DATABASE_URL` (application)
+  - **direct** (hôte `db.prisma.io`) → `DIRECT_URL` (migrations, scripts)
+- [ ] Les deux contiennent déjà `?sslmode=require` (obligatoire) : ne pas
+      modifier l'hôte ni les identifiants à la main, régénérer au besoin
+- [ ] **Préflight** avant toute écriture (lecture seule, quelques secondes) :
 
 ```powershell
-# PowerShell
-$env:DATABASE_URL="<chaîne unpooled>"; npm run db:deploy
+node scripts/check-prisma-postgres.cjs
 ```
 
-```bash
-# bash
-DATABASE_URL="<chaîne unpooled>" npm run db:deploy
+  → contrôle la chaîne utilisée (`DIRECT_URL` en priorité), le serveur, le TLS,
+  les migrations en attente et l'extension `pg_trgm` ; `RESULTAT: n/n`, code 1
+  dès qu'un contrôle échoue.
+
+- [ ] Appliquer le schéma (migrations, **jamais** `migrate dev`). `prisma.config.ts`
+      prend `DIRECT_URL` automatiquement, aucune substitution n'est nécessaire :
+
+```powershell
+npm run db:deploy
 ```
 
-- [ ] Vérifier : `No pending migrations` puis, dans la console Neon,
+- [ ] Vérifier : `No pending migrations` puis, dans la console Prisma (SQL) ou
+      avec `npx prisma studio` :
       `select count(*) from information_schema.tables where table_schema='public';` → 24
+- [ ] Créer les thèmes éditoriaux (les migrations ne remplissent pas `Theme`) :
+
+```powershell
+npm run db:seed:themes
+```
+
+→ attendu : `9 thème(s) en base, 8 actif(s)`. Script idempotent, qui ne touche
+qu'à `Theme` (aucun compte, aucun article) ; `--dry-run` pour simuler.
+Le seed complet `npm run db:seed` inclut déjà les thèmes : inutile de lancer les
+deux.
 
 ### Deux options pour le contenu
 
 - **A. Repartir d'une base vide** (le plus propre) :
-  - [ ] Créer le compte admin : `$env:DATABASE_URL="<unpooled>"; npm run db:seed`
-    (crée `admin@example.com` / `admin123` — **à changer ensuite**)
+  - [ ] Créer le compte admin :
+    `$env:DATABASE_URL=$env:DIRECT_URL; npm run db:seed`
+    (crée `admin@example.com` / `admin123` — **à changer ensuite**, et crée aussi
+    les 9 thèmes éditoriaux). Ce script passe par la passerelle `pg-sync`, qui lit
+    `DATABASE_URL` : d'où la substitution, contrairement à `db:deploy`.
   - [ ] Créer les catégories et les articles depuis `/studio` après le déploiement.
 - **B. Recopier le contenu local** (articles, matchs, comptes) :
 
 ```powershell
-$env:DATABASE_URL="<chaîne unpooled>"; $env:SQLITE_DATABASE_URL="file:./prisma/dev.db"
+$env:DATABASE_URL=$env:DIRECT_URL; $env:SQLITE_DATABASE_URL="file:./prisma/dev.db"
 npx tsx scripts/migrate-sqlite-to-postgres.ts
 ```
 
@@ -105,8 +127,8 @@ npx tsx scripts/migrate-sqlite-to-postgres.ts
 
 À déclarer dans **Settings → Environment Variables** :
 
-- [ ] `DATABASE_URL` — chaîne pooled (avec `-pooler`)
-- [ ] `DIRECT_URL` — chaîne unpooled
+- [ ] `DATABASE_URL` — chaîne **pooled** (`pooled.db.prisma.io`), application
+- [ ] `DIRECT_URL` — chaîne **directe** (`db.prisma.io`), migrations et scripts
 - [ ] `AUTH_SECRET` — `openssl rand -base64 32`
 - [ ] `NEXT_PUBLIC_SITE_URL` — `https://<projet>.vercel.app` (sans `/` final)
 - [ ] `CRON_SECRET` — `openssl rand -base64 32`
@@ -149,13 +171,13 @@ jobs:
       - run: npm ci
       - run: npm run sync:football
         env:
-          # Chaîne unpooled : un job CI ne bénéficie pas du pooler
-          DATABASE_URL: ${{ secrets.NEON_DIRECT_URL }}
+          # Chaîne directe : un job CI n'exécute pas de `SET` de session à travers le pooler
+          DATABASE_URL: ${{ secrets.PRISMA_DIRECT_URL }}
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
 ```
 
 - [ ] Déclarer les deux secrets du dépôt (**Settings → Secrets and variables →
-      Actions**) : `NEON_DIRECT_URL`, `FOOTBALL_DATA_API_KEY`.
+      Actions**) : `PRISMA_DIRECT_URL`, `FOOTBALL_DATA_API_KEY`.
 - [ ] Lancer une fois le workflow à la main (`workflow_dispatch`) pour valider.
 
 *Variante sans GitHub Actions* : un service externe (cron-job.org) ne peut
@@ -183,10 +205,12 @@ depuis le backoffice (`/backoffice/sports/sync`).
 | --- | --- | --- |
 | `npm install` s'arrête sur `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL` | `postinstall: prisma generate` s'exécute avant que `.env` existe | copier `.env.example` en `.env` **avant** `npm install` (ou lancer `npm run db:generate` ensuite). Sans objet sur Vercel, où les variables sont déjà définies |
 | Build : `@/generated/prisma/client` introuvable | `postinstall` non exécuté ou échec de `prisma generate` | vérifier la Build Command (`prisma generate && next build`) et les logs d'installation |
-| 500 sur toutes les pages | `DATABASE_URL` absente ou fausse | revérifier l'URL pooled (`-pooler`) et `?sslmode=require` |
-| `P1001: Can't reach database server` | compute Neon en veille | ajouter `&connect_timeout=15` à l'URL |
-| Erreur de préparation de requête / connexions épuisées | URL unpooled utilisée par l'application | remettre la chaîne **pooled** dans `DATABASE_URL` |
-| `migrate deploy` échoue | migration lancée avec la chaîne pooled | utiliser `DATABASE_URL=$DIRECT_URL` (étape 2) |
+| 500 sur toutes les pages | `DATABASE_URL` absente ou fausse | revérifier l'URL pooled (`pooled.db.prisma.io`) et `?sslmode=require` |
+| `P1001: Can't reach database server` | hôte/port erronés, TLS absent, ou trafic sortant 5432 bloqué (VPN, pare-feu) | vérifier `?sslmode=require` et l'hôte (`db.prisma.io` / `pooled.db.prisma.io`), puis `node scripts/check-prisma-postgres.cjs` |
+| `P1000` / `P1010` (accès refusé) | identifiants invalides ou chaîne recopiée de travers | **régénérer** la chaîne dans la console Prisma (ne pas éditer l'hôte ni le mot de passe à la main) |
+| Erreur de préparation de requête / connexions épuisées | chaîne directe utilisée par l'application | remettre la chaîne **pooled** dans `DATABASE_URL` |
+| `migrate deploy` échoue (verrous, requêtes préparées) | migration lancée avec la chaîne pooled | renseigner `DIRECT_URL` (chaîne directe) : `prisma.config.ts` la prend en priorité |
+| `P3018` — migration échouée (souvent `pg_trgm is not available`) | extension non disponible sur l’instance | faire activer `pg_trgm` par l’hébergeur ; examiner la migration échouée avant toute résolution. Ne pas retirer uniquement l’index : la migration et la recherche nécessitent aussi l’extension |
 | Liens canoniques ou e-mails pointant vers `localhost` | `NEXT_PUBLIC_SITE_URL` absente au build | la définir puis **redéployer** (variable lue à la compilation) |
 | Connexion impossible après login | cookie `Secure`/domaine ou `AUTH_SECRET` changé | vérifier `AUTH_SECRET` identique entre les déploiements |
 | Cron en 401 | `CRON_SECRET` absent côté Vercel | ajouter la variable puis redéployer |

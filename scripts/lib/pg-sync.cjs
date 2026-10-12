@@ -24,6 +24,12 @@
  * Le chemin de fichier passé au constructeur est ignoré : la passerelle est
  * toujours branchée sur `DATABASE_URL` (PostgreSQL).
  *
+ * Garde-fou Prisma Postgres : une URL `prisma+postgres://` (Accelerate, ou le
+ * serveur local de `prisma dev`) est **refusée** au lieu d'être ignorée. Le
+ * pilote `pg` ne sait pas lire ce protocole : sans ce refus, `resolveConnectionString`
+ * retomberait sur le `.env` local et un script lancé contre la production
+ * écrirait en réalité dans la base de développement.
+ *
  * Exécution : node scripts/check-xxx.cjs (le serveur Next doit tourner).
  */
 const fs = require("node:fs");
@@ -50,20 +56,49 @@ const KEYWORDS = new Set([
   "UNIQUE", "UPDATE", "USING", "VALUES", "WHEN", "WHERE", "WITH",
 ]);
 
+/**
+ * Refuse une URL `prisma+postgres://`, que le pilote TCP `pg` ne comprend pas.
+ *
+ * Prisma Postgres expose **deux** chaînes utilisables ici, toutes deux en
+ * `postgres://` : la directe (`db.prisma.io`) et la pooled
+ * (`pooled.db.prisma.io`). L'URL `prisma+postgres://` (Accelerate hébergé, ou
+ * le serveur local de `prisma dev`) ne parle pas le protocole PostgreSQL sur
+ * TCP : c'est le rôle de `@prisma/adapter-ppg` côté application.
+ *
+ * Le refus est volontairement explicite : sans lui, l'URL serait ignorée et la
+ * passerelle retomberait sur le `DATABASE_URL` du `.env` local — une écriture
+ * silencieuse dans la mauvaise base.
+ */
+function refusePrismaPostgres(value, source) {
+  if (typeof value === "string" && /^prisma\+postgres:\/\//i.test(value.trim())) {
+    throw new Error(
+      `${source} contient une URL « prisma+postgres:// », que le pilote PostgreSQL TCP (pg) ne sait pas lire. ` +
+        "Utilisez la chaîne TCP de Prisma Postgres — « postgres://…@db.prisma.io:5432/postgres?sslmode=require » " +
+        "pour une connexion directe, ou l'hôte « pooled.db.prisma.io » pour l'application. " +
+        "Aucun repli silencieux vers .env n'est effectué.",
+    );
+  }
+}
+
 /** Chaîne de connexion PostgreSQL, sans dépendre de l'environnement du shell. */
 function resolveConnectionString(explicit) {
   if (typeof explicit === "string" && /^postgres(ql)?:\/\//.test(explicit)) {
     return explicit;
   }
+  refusePrismaPostgres(explicit, "L'URL passée au constructeur");
   const fromEnv = process.env.DATABASE_URL;
   if (fromEnv && /^postgres(ql)?:\/\//.test(fromEnv)) {
     return fromEnv;
   }
+  refusePrismaPostgres(fromEnv, "La variable d'environnement DATABASE_URL");
   const envPath = path.resolve(__dirname, "..", "..", ".env");
   if (fs.existsSync(envPath)) {
     const match = /^\s*DATABASE_URL\s*=\s*"?([^"\r\n]+)"?/m.exec(fs.readFileSync(envPath, "utf8"));
-    if (match && /^postgres(ql)?:\/\//.test(match[1])) {
-      return match[1];
+    if (match) {
+      refusePrismaPostgres(match[1], `Le fichier ${envPath}`);
+      if (/^postgres(ql)?:\/\//.test(match[1])) {
+        return match[1];
+      }
     }
   }
   throw new Error(
