@@ -1,5 +1,143 @@
 # promptsport
 
+## WP19a-bis — AllSportsApi (RapidAPI) : fournisseur actif
+
+API-Football est **en pause** : son offre gratuite ne couvre que les saisons
+2022-2024, pas la saison en cours. Le fournisseur retenu après validation est
+**AllSportsApi**, consommé via RapidAPI.
+
+```bash
+node scripts/test-allsports.cjs                      # Phase 1 : valide 3 endpoints
+npx tsx scripts/sync-football.ts --dry-run           # Phase 2 : prépare sans écrire
+```
+
+Validation du 09/10/2026 (15/15) : 272 catégories, 13 ligues françaises,
+**Ligue 1 = tournoi 34**, saison **26/27** (id 96127), 18 équipes, 60 matchs
+analysés avec scores, **260 matchs en direct** détectés (`/api/matches/live`),
+quota 100/jour suivi par l'en-tête `x-ratelimit-requests-remaining`.
+
+| Point | Valeur |
+| --- | --- |
+| Hôte | `allsportsapi2.p.rapidapi.com` (en-têtes `x-rapidapi-key` / `x-rapidapi-host`) |
+| Clé | `ALLSPORTS_API_KEY` dans `.env` (plan Basic gratuit) |
+| Débit | 5 requêtes/seconde, 100 requêtes/24 h (registre local partagé) |
+| Service | `src/lib/allsports-sync.ts` (`syncCompetition`, `syncAllCompetitions`) |
+| Repli | `src/lib/api-football-sync.ts` conservé, non utilisé par le script |
+| Identifiants | FL1=34, PL=17, PD=8 (LaLiga), SA=23, BL1=35, CL=7 |
+
+Les hôtes `allsportsapi.com` et `apiv2.allsportsapi.com` **rejettent** cette clé
+(« Wrong login credentials ») : l'accès se fait obligatoirement par RapidAPI. Les
+équipes n'exposent pas d'URL de logo exploitable côté navigateur (les images
+passent par `/api/team/{id}/image`, derrière l'authentification) : `logoUrl`
+reste `null` et l'interface affiche son visuel de repli.
+
+### Bascule des données existantes — à confirmer
+
+Les compétitions, équipes et matchs actuels viennent de football-data.org
+(identifiants 2001-2021). `assertMigrated()` dans `allsports-sync.ts` **refuse**
+d'écrire par-dessus : la bascule doit être confirmée explicitement, avec
+sauvegarde préalable. En attendant, `--dry-run` permet de tout vérifier sans
+toucher à la base.
+
+## WP19a — API-Football (API-Sports direct)
+
+La synchronisation sportive utilisait API-Football v3 via
+`https://v3.football.api-sports.io` avec l'en-tête `x-apisports-key`. L'ancien module `football-sync.ts`
+est une passerelle dépréciée vers `api-football-sync.ts` : même les actions du
+backoffice utilisent le nouveau fournisseur, sans changer leurs signatures.
+Les textes historiques du backoffice restent inchangés (hors périmètre WP19a).
+Ce service reste disponible comme repli (voir le lot précédent ci-dessus).
+
+
+### Compte et configuration
+
+1. Créer un compte sur [API-Football](https://dashboard.api-football.com/) et confirmer l'adresse e-mail.
+2. Vérifier le plan et son quota dans le tableau de bord ou via `/status`.
+   Le plan gratuit est activé à l'inscription confirmée ; les saisons accessibles sont limitées.
+   Une clé RapidAPI n'est pas interchangeable avec une clé API-Sports directe.
+3. Copier la clé depuis **Account → My Access** dans `.env` : `API_FOOTBALL_KEY="votre-cle"`.
+   Ne jamais publier ce fichier ni la clé dans les journaux.
+
+Le [plan gratuit annoncé par API-Football](https://www.api-football.com/pricing)
+offre 100 requêtes/jour mais limite les saisons disponibles. La saison courante
+est choisie depuis `/leagues` ; si elle est inaccessible, la synchronisation
+échoue explicitement, sans importer silencieusement une saison ancienne.
+Pour une base de développement historique, définir volontairement
+`API_FOOTBALL_SEASON=2024` (exemple, à vérifier avec votre abonnement).
+Cette option ne rend pas accessibles les saisons exclues du plan.
+
+### Migration initiale — destructive, à approuver
+
+```bash
+npx tsx scripts/migrate-sports-data.ts                 # simulation, sans API ni écriture
+npx tsx scripts/migrate-sports-data.ts --confirm-reset # seulement après accord
+```
+
+Le second appel télécharge et valide les six jeux de données **avant** toute
+suppression. Une erreur de clé, de quota ou de saison interrompt la migration.
+Ensuite, il verrouille les tables sportives, écrit une sauvegarde JSON complète
+dans `backups/sports-before-api-football-*.json` (dossier ignoré par Git), puis
+remplace Match, Team et Competition dans une seule transaction PostgreSQL.
+Une erreur d'import annule toute la transaction. Les autres tables ne sont pas
+modifiées. Les anciens identifiants internes de matchs/équipes disparaissent :
+les anciens liens `/match/<id>` et les favoris dépendant d'identifiants supprimés
+peuvent devenir obsolètes. Conserver la sauvegarde pour une restauration contrôlée.
+Redémarrer le serveur après migration afin de renouveler les caches sportifs.
+
+### Synchronisation et mapping
+
+```bash
+npx tsx scripts/sync-football.ts        # les six compétitions
+npx tsx scripts/sync-football.ts FL1 PL # codes historiques compatibles
+npx tsx scripts/sync-football.ts 61 39  # IDs API-Football équivalents
+```
+
+| Code | Ligue | ID API-Football |
+|---|---|---|
+| FL1 | Ligue 1 | 61 |
+| PL | Premier League | 39 |
+| PD | La Liga | 140 |
+| SA | Serie A | 135 |
+| BL1 | Bundesliga | 78 |
+| CL | Champions League | 2 |
+
+`fetchCompetitions()`, `fetchTeams(leagueId, season)` et
+`fetchMatches(leagueId, season, from, to)` utilisent `/leagues`, `/teams` et
+`/fixtures`. `syncCompetition(code)` et `syncAllCompetitions()` enregistrent
+les noms, pays, saisons, logos, horaires, scores et stades dans le schéma existant.
+Les `externalId` sont les IDs numériques API-Football convertis en chaînes.
+Chaque compétition est importée atomiquement ; les autres continuent après une
+erreur. Le CLI retourne un code non nul même en cas d'échec partiel.
+
+Statuts : NS/TBD → programmé ; 1H/HT/2H/ET/BT/P/LIVE → direct ;
+FT/AET/PEN/AWD/WO → terminé ; PST/SUSP/INT → reporté ; CANC/ABD → annulé.
+Un statut inconnu annule l'import plutôt que d'inventer son état.
+Les matchs importés couvrent toute la saison sélectionnée, passée et à venir.
+Le classement existant est calculé localement, pas depuis `/standings` : les
+sanctions et règles particulières de certaines compétitions ne sont pas importées.
+Les compositions/statistiques/événements détaillés ne sont pas stockés dans WP19a.
+
+### Quotas et exploitation
+
+- Aucun ajout de bibliothèque ; `fetch` natif, délai maximal de 30 secondes.
+- Au moins 7 secondes entre réservations de requêtes. Un registre par empreinte
+  SHA-256 de clé dans le répertoire temporaire du système partage cette limite
+  entre les processus locaux, avec un plafond conservateur de 100 appels/24 h.
+  Les erreurs comptent également. Aucune clé n'est écrite dans ce registre.
+- Le cache mémoire mutualise les appels simultanés : 5 minutes pour ligues/équipes,
+  30 secondes pour les matchs. Une synchronisation fraîche des six ligues coûte
+  normalement 13 requêtes (1 catalogue, 6 équipes, 6 calendriers).
+- Le registre est local à une machine. Plusieurs hôtes/serverless et les appels
+  réalisés dans le tableau de bord API-Sports partagent le quota distant, mais pas ce registre local :
+  n'exécuter qu'un seul ordonnanceur. Le quota fournisseur reste l'autorité.
+- Les erreurs HTTP et les erreurs incluses dans une réponse HTTP 200 sont prises
+  en compte. Pas de boucle de retry automatique consommant le quota.
+- Ne pas lancer l'ancien et le nouveau fournisseur en parallèle. Les données
+  héritées sont détectées avant import pour éviter les collisions d'identifiants.
+- L'endpoint cron sportif reste hors périmètre et sera traité dans WP19b.
+
+Référence : [documentation API-Football v3](https://www.api-football.com/documentation-v3).
+
 Site d'actualité sportive (Next.js 15, App Router) : pages publiques, studio
 rédactionnel, backoffice d'administration, abonnements Stripe et analytique
 maison respectueuse de la vie privée.
@@ -659,3 +797,10 @@ npm run analytics:aggregate 2026-09-26 # un jour précis
 La collecte (`POST /api/analytics/track`) est sans cookie tiers, sans adresse IP
 et sans identifiant personnel : seul un identifiant visiteur anonyme (UUID en
 cookie HttpOnly) est conservé, et l'agrégat quotidien est gardé sans limite.
+# Migration AllSportsApi de la base principale
+
+Les six compétitions utilisent désormais les identifiants AllSportsApi. Le bilan, les limites et les sauvegardes sont décrits dans [RAPPORT-MIGRATION-ALLSPORTS.md](./RAPPORT-MIGRATION-ALLSPORTS.md).
+
+Pour actualiser les données : `npx tsx scripts/sync-football.ts FL1 PL PD SA BL1 CL`. Le `DATABASE_URL` fourni dans l'environnement a priorité sur `.env`. La clé reste dans `ALLSPORTS_API_KEY` et ne doit pas être commitée.
+
+Le script `scripts/migrate-allsports-data.ts` inspecte la base sans écrire par défaut. L'option `--confirm-migration` est réservée à la bascule initiale depuis football-data.org, avec contrôle du quota, préparation des six ligues et sauvegarde PostgreSQL vérifiée avant transaction. Il refuse une base déjà migrée.
