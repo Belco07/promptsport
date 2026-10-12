@@ -144,7 +144,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary,
+        primary: { DEFAULT: "hsl(var(--primary) / <alpha-value>)", foreground: "#fff", ...primary },
+        destructive: { DEFAULT: "hsl(var(--destructive) / <alpha-value>)", foreground: "#fff" },
+        secondary: { DEFAULT: "hsl(var(--muted) / <alpha-value>)", foreground: "hsl(var(--foreground) / <alpha-value>)" },
+        "primary-hover": "hsl(var(--primary-hover) / <alpha-value>)",
+        overlay: "rgb(0 0 0 / .6)",
+        "editorial-action": "var(--editorial-action)",
+        "decorative-start": "var(--decorative-start)",
+        "decorative-end": "var(--decorative-end)",
+        "editorial-link": "var(--ed-link)",
+        "status-danger": "var(--status-danger)",
+        "status-premium": { DEFAULT: "var(--status-premium)", foreground: "var(--status-premium-foreground)", border: "var(--status-premium-border)" },
+        "status-warning": { DEFAULT: "var(--status-warning)", foreground: "var(--status-warning-foreground)", border: "var(--status-warning-border)" },
+        "status-success": { DEFAULT: "var(--status-success)", foreground: "var(--status-success-foreground)", border: "var(--status-success-border)" },
+        "status-error": { DEFAULT: "var(--status-error)", foreground: "var(--status-error-foreground)", border: "var(--status-error-border)" },
         /**
          * `accent` garde son échelle existante (statuts, messages d'attention) et
          * reçoit en plus une valeur par défaut sémantique : `bg-accent` suit le
