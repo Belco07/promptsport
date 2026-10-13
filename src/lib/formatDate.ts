@@ -43,3 +43,15 @@ export function formatMatchDate(value: Date | string | null | undefined): string
   }
   return `${matchDateFormatter.format(date)} à ${matchTimeFormatter.format(date)}`;
 }
+
+export function formatRelativeDate(value: Date | string | null | undefined, now = new Date()): string {
+  const date = toDate(value);
+  if (!date) return "aucune mise à jour enregistrée";
+  const minutes = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 60000));
+  if (!minutes) return "à l’instant";
+  if (minutes < 60) return `il y a ${minutes} minute${minutes > 1 ? "s" : ""}`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `il y a ${hours} heure${hours > 1 ? "s" : ""}`;
+  const days = Math.floor(hours / 24);
+  return `il y a ${days} jour${days > 1 ? "s" : ""}`;
+}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LiveScoreRefresher } from "@/components/LiveScoreRefresher";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { buildPageMetadata, itemListJsonLd, jsonLdString } from "@/lib/seo";
@@ -8,6 +9,8 @@ import { AdSlot } from "@/components/AdSlot";
 import { Footer } from "@/components/Footer";
 import { auth } from "@/lib/auth";
 import { CompetitionLogo } from "@/components/CompetitionLogo";
+import { getLastSportsUpdate } from "@/lib/live-sync";
+import { formatRelativeDate } from "@/lib/formatDate";
 
 export const metadata=buildPageMetadata({title:"Scores en direct",description:"Résultats, matchs en direct et rencontres à venir de toutes les compétitions.",path:"/scores"});
 export default async function ScoresPage({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}) {
@@ -22,9 +25,9 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
     ...(view==="day"?{scheduledAt:{gte:start,lt:end}}:{status:view==="live"?"LIVE":view==="finished"?"FINISHED":"SCHEDULED"}),
     ...(params.q?.trim()?{OR:[{homeTeam:{name:{contains:params.q.trim().slice(0,200),mode:"insensitive"}}},{awayTeam:{name:{contains:params.q.trim().slice(0,200),mode:"insensitive"}}}]}:{}),
   };
-  const [matches,competitions,session]=await Promise.all([
+  const [matches,competitions,session,lastUpdate]=await Promise.all([
     prisma.match.findMany({where,orderBy:{scheduledAt:view==="finished"?"desc":"asc"},...(view!=="day"?{take:100}:{}),include:{homeTeam:true,awayTeam:true,competition:true}}),
-    prisma.competition.findMany({orderBy:{name:"asc"},select:{slug:true,name:true,sport:true}}),auth(),
+    prisma.competition.findMany({orderBy:{name:"asc"},select:{slug:true,name:true,sport:true}}),auth(),getLastSportsUpdate(),
   ]);
   const premium=session?.user?.isPremium===true;
   const groups=new Map<string,typeof matches>();for(const match of matches){const key=match.competitionId;groups.set(key,[...(groups.get(key)??[]),match]);}
@@ -33,6 +36,8 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
     <script type="application/ld+json" dangerouslySetInnerHTML={{__html:jsonLdString(itemListJsonLd({name:"Matchs",path:"/scores",items:matches.map(m=>({name:`${m.homeTeam.name} - ${m.awayTeam.name}`,url:`/match/${m.id}`}))}))}}/>
     <div className="min-w-0">
       <h1 className="mb-7 text-3xl font-black uppercase leading-tight tracking-tight sm:text-5xl">Scores en direct,<br/>calendrier et résultats</h1>
+      <p className="mb-4 text-sm text-muted-foreground">Dernière mise à jour serveur : {lastUpdate?.finishedAt ? <time dateTime={lastUpdate.finishedAt.toISOString()}>{formatRelativeDate(lastUpdate.finishedAt)}</time> : "aucune synchronisation enregistrée"}</p>
+      <LiveScoreRefresher hasLiveMatches={matches.some(match=>match.status==="LIVE")} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null}/>
       <ScoresControls date={date} sports={[...new Set(competitions.map(c=>c.sport))]} competitions={competitions}/>
       <nav aria-label="Dates des matchs" className="my-6 grid grid-cols-7 overflow-hidden rounded-md bg-muted">{Array.from({length:7},(_,i)=>{const d=new Date(`${date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+i-3);const key=d.toISOString().slice(0,10);return <Link key={key} href={href(key)} aria-current={key===date?"date":undefined} className={`border-r border-border py-3 text-center last:border-r-0 ${key===date?"bg-foreground text-background":"hover:bg-card"}`}><span className="block text-[10px] font-semibold sm:text-xs">{key===today?"Auj.":d.toLocaleDateString("fr-FR",{weekday:"short",timeZone:"UTC"})}</span><span className="my-1 block text-lg font-black">{d.getUTCDate()}</span><span className="block text-[10px]">{d.toLocaleDateString("fr-FR",{month:"short",timeZone:"UTC"})}</span></Link>;})}</nav>
       <div className="mb-6 flex items-center justify-between gap-3 text-sm"><p role="status">{matches.length} match{matches.length!==1?"s":""}{view!=="day"&&matches.length===100?" (100 premiers)":""}</p><Link href="/mon-compte/favoris" className="font-semibold text-editorial-link">★ Mes favoris</Link></div>

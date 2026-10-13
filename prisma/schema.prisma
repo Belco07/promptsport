@@ -810,3 +810,21 @@ enum SendStatus {
   BOUNCED
   FAILED
 }
+
+model SyncLog {
+  id            String     @id @default(cuid())
+  type          String
+  startedAt     DateTime   @default(now())
+  finishedAt    DateTime?
+  matchesSynced Int        @default(0)
+  errors        Json       @default("[]")
+  status        SyncStatus @default(FAILED)
+
+  @@index([type, startedAt])
+}
+
+enum SyncStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+}

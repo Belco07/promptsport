@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LiveBadge } from "@/components/LiveBadge";
 import { ScoresScroller } from "@/components/ScoresScroller";
 
 /**
@@ -156,7 +157,7 @@ export function LiveScoresBar({ matches }: { matches: ScoresStripMatch[] }) {
                       live ? "text-editorial-link" : finished ? "text-muted-foreground" : "text-muted-foreground"
                     }`}
                   >
-                    {statusLabel(match)}
+                    {live ? <LiveBadge/> : statusLabel(match)}
                   </span>
                 </Link>
               </li>

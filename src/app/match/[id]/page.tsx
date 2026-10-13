@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { LiveScoreRefresher } from "@/components/LiveScoreRefresher";
+import { LiveBadge } from "@/components/LiveBadge";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MatchHeader } from "@/components/MatchHeader";
@@ -10,8 +12,9 @@ import { AdSlot } from "@/components/AdSlot";
 import { AdSlotGate } from "@/components/AdSlotGate";
 import { prisma } from "@/lib/prisma";
 import { formatMatchDate } from "@/lib/formatDate";
+import { getLastSportsUpdate } from "@/lib/live-sync";
 import { buildPageMetadata, jsonLdString, sportsEventJsonLd } from "@/lib/seo";
-export const revalidate=60;
+export const dynamic="force-dynamic";
 type Props={params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>};
 async function getMatch(id: string) {
   return prisma.match.findUnique({
@@ -49,6 +52,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function MatchPage({params,searchParams}:Props){
  const {id}=await params;const query=await searchParams;const match=await getMatch(id);if(!match)notFound();
+ const lastUpdate=match.status==="LIVE"?await getLastSportsUpdate("live"):null;
  const hasScore=match.homeScore!=null&&match.awayScore!=null;
  const active:keyof typeof matchTabs=query.tab==="compositions"||query.tab==="statistiques"||query.tab==="commentaires"?query.tab:"resume";
  return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
@@ -74,6 +78,7 @@ export default async function MatchPage({params,searchParams}:Props){
 
 
  <Link href="/scores" className="mb-6 inline-block text-sm font-bold text-editorial-link">← Tous les scores</Link>
+ {match.status==="LIVE"&&<><div className="mb-3"><LiveBadge/></div><LiveScoreRefresher hasLiveMatches={true} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null}/></>}
  <MatchHeader match={match}/><MatchTabs id={id} active={active}/>
  <section aria-labelledby="match-panel" className="min-h-40"><h2 id="match-panel" className="mb-5 text-2xl font-black uppercase text-foreground">{matchTabs[active]}</h2>
  {active==="resume"?<EventTimeline/>:<p className="border border-border bg-card p-6 text-muted-foreground">{active==="compositions"?"Les compositions seront disponibles avant le match.":active==="statistiques"?"Les statistiques détaillées seront disponibles prochainement.":"Les commentaires de ce match seront disponibles prochainement."}</p>}
