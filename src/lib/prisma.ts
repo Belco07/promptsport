@@ -19,7 +19,9 @@ import { PrismaClient } from "@/generated/prisma/client";
  * supplémentaire).
  */
 function resolveDatabaseUrl(): string {
-  const fromEnv = process.env.DATABASE_URL;
+  // The application can override a DATABASE_URL managed by an integration.
+  // Migration commands keep their separate DIRECT_URL configuration.
+  const fromEnv = process.env.APP_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim();
   if (fromEnv) {
     return fromEnv;
   }
@@ -36,10 +38,10 @@ function resolveDatabaseUrl(): string {
     }
   }
 
-  const loaded = process.env.DATABASE_URL;
+  const loaded = process.env.APP_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim();
   if (!loaded) {
     throw new Error(
-      "DATABASE_URL est introuvable. Créez un fichier .env à partir de .env.example (URL PostgreSQL).",
+      "APP_DATABASE_URL et DATABASE_URL sont introuvables. Créez un fichier .env à partir de .env.example (URL PostgreSQL).",
     );
   }
   return loaded;
