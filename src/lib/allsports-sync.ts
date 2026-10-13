@@ -175,6 +175,11 @@ async function reserveSharedRequest(key: string, endpoint: string, automatic = f
     await db.$executeRaw`SELECT pg_advisory_xact_lock(190021)`;
     const where = { type: "request", startedAt: { gt: new Date(Date.now() - DAY) }, errors: { path: ["keyHash"], equals: keyHash } };
     const used = await db.syncLog.count({ where });
+    // Details share the global budget, with a smaller ceiling to protect scores.
+    if (/\/api\/match\/\d+\/(incidents|statistics|lineups)$/.test(endpoint)) {
+      const details = await db.syncLog.count({ where: { ...where, OR: ["incidents", "statistics", "lineups"].map(part => ({ errors: { path: ["endpoint"], string_ends_with: `/${part}` } })) } });
+      if (details >= 30) throw new Error("AllSportsApi : budget détails de 30 appels sur 24 heures atteint.");
+    }
     if (used >= (automatic ? 80 : 100)) throw new Error(automatic
       ? "AllSportsApi : budget automatique de 80 requêtes atteint ; 20 appels réservés aux interventions manuelles."
       : "AllSportsApi : budget partagé de 100 requêtes sur 24 heures atteint.");
@@ -250,6 +255,9 @@ async function request<T>(endpoint: string, ttlMs = 300000, options: SyncRequest
         await sleep(500 * attempt);
         continue;
       }
+
+      // The provider documents 204 when a detail layer is unavailable.
+      if (response.status === 204 && /\/(incidents|statistics|lineups)$/.test(endpoint)) return { unavailable: true } as T;
 
       // Une réponse 200 au corps vide est déjà arrivée : on la traite comme une
       // erreur passagère plutôt que de laisser `json()` lever « Unexpected end of JSON input ».
@@ -567,4 +575,119 @@ export async function syncAllCompetitions(codes: readonly string[] = DEFAULT_COM
     results,
     errors,
   };
+}
+
+export type MatchDetailPart = "events" | "stats" | "lineups";
+type DetailMatch = { id: string; externalId: string | null; homeTeamId: string; awayTeamId: string; status: string };
+type Person = { name?: string };
+type Incident = { incidentType?: string; incidentClass?: string; isHome?: boolean; time?: number; addedTime?: number; player?: Person; assist1?: Person; playerIn?: Person; playerOut?: Person };
+type StatItem = { key?: string; name?: string; home?: string | number; away?: string | number; homeValue?: number; awayValue?: number };
+type LineupPlayer = { player?: Person & { position?: string }; position?: string; shirtNumber?: number; substitute?: boolean };
+type ApiLineup = { formation?: string; coach?: Person; players?: LineupPlayer[] };
+const detailEndpoints = { events: "incidents", stats: "statistics", lineups: "lineups" } as const;
+
+/** Pure adapters: invalid responses never erase previously stored details. */
+export function mapMatchEvents(incidents: Incident[], match: DetailMatch) {
+  return incidents.flatMap(incident => {
+    const type = incident.incidentType === "goal" ? "GOAL" : incident.incidentType === "substitution" ? "SUBSTITUTION" : incident.incidentType === "card" ? (incident.incidentClass === "yellow" ? "YELLOW_CARD" : ["red", "yellowRed"].includes(incident.incidentClass ?? "") ? "RED_CARD" : null) : null;
+    if (!type) return [];
+    // Shoot-out attempts are not match goals; team/clock must be explicit.
+    if (typeof incident.isHome !== "boolean" || !Number.isInteger(incident.time) || incident.time! < 0) throw new Error("Événement AllSports incomplet.");
+    const playerName = (type === "SUBSTITUTION" ? incident.playerIn?.name : incident.player?.name)?.trim();
+    if (!playerName) throw new Error("Joueur AllSports absent.");
+    return [{ matchId: match.id, teamId: incident.isHome ? match.homeTeamId : match.awayTeamId, type: type as "GOAL" | "YELLOW_CARD" | "RED_CARD" | "SUBSTITUTION", playerName, assistName: (type === "SUBSTITUTION" ? incident.playerOut?.name : incident.assist1?.name) ?? null, minute: incident.time!, extraMinute: Number.isInteger(incident.addedTime) && incident.addedTime! > 0 ? incident.addedTime! : null }];
+  });
+}
+
+export function mapMatchStatistics(statistics: { period?: string; groups?: { statisticsItems?: StatItem[] }[] }[], match: DetailMatch) {
+  const all = statistics.find(period => period.period === "ALL");
+  if (!all) return [];
+  const items = all.groups?.flatMap(group => group.statisticsItems ?? []) ?? [];
+  const keys = { possession: "ballPossession", shots: "totalShotsOnGoal", shotsOnTarget: "shotsOnTarget", corners: "cornerKicks", fouls: "fouls", yellowCards: "yellowCards", redCards: "redCards" } as const;
+  return (["home", "away"] as const).map(side => {
+    const values = Object.fromEntries(Object.entries(keys).map(([field, key]) => {
+      const item = items.find(item => item.key === key);
+      const raw = item?.[`${side}Value`] ?? item?.[side];
+      const value = typeof raw === "number" ? raw : typeof raw === "string" && /^\d+(\.\d+)?%?$/.test(raw) ? Number(raw.replace("%", "")) : null;
+      if (value !== null && (!Number.isFinite(value) || value < 0 || (field === "possession" ? value > 100 : !Number.isInteger(value)))) throw new Error("Statistique AllSports invalide.");
+      return [field, value];
+    })) as { possession: number | null; shots: number | null; shotsOnTarget: number | null; corners: number | null; fouls: number | null; yellowCards: number | null; redCards: number | null };
+    return { matchId: match.id, teamId: side === "home" ? match.homeTeamId : match.awayTeamId, ...values };
+  }).filter(row => Object.keys(keys).some(key => row[key as keyof typeof keys] !== null));
+}
+
+export function mapMatchLineups(data: { home?: ApiLineup; away?: ApiLineup }, match: DetailMatch) {
+  return (["home", "away"] as const).flatMap(side => {
+    const lineup = data[side];
+    if (!lineup?.players?.length) return [];
+    const players = lineup.players.map(player => {
+      if (!player.player?.name?.trim() || typeof player.substitute !== "boolean") throw new Error("Composition AllSports invalide.");
+      return { name: player.player.name, number: Number.isInteger(player.shirtNumber) ? player.shirtNumber! : null, position: player.position ?? player.player.position ?? null, substitute: player.substitute };
+    });
+    return [{ matchId: match.id, teamId: side === "home" ? match.homeTeamId : match.awayTeamId, formation: lineup.formation ?? null, coach: lineup.coach?.name ?? null, starters: players.filter(player => !player.substitute), substitutes: players.filter(player => player.substitute) }];
+  });
+}
+
+/** Never called by public pages. Durable claims also prevent concurrent cron calls. */
+export async function syncMatchDetails(match: DetailMatch, include: readonly MatchDetailPart[], deadline = Date.now() + 55000) {
+  const result = { synced: 0, errors: [] as string[] };
+  if (!match.externalId || !/^\d+$/.test(match.externalId) || !["LIVE", "FINISHED"].includes(match.status)) return result;
+  for (const part of [...new Set(include)]) {
+    if (match.status === "LIVE" && part !== "events") continue;
+    if (Date.now() + 5000 >= deadline) break;
+    const type = `details:${match.id}:${part}`;
+    const claim = await prisma.$transaction(async db => {
+      await db.$executeRaw`SELECT pg_advisory_xact_lock(190023)`;
+      const recent = await db.syncLog.findFirst({ where: { type }, orderBy: { startedAt: "desc" } });
+      if (recent && ((!recent.finishedAt && recent.startedAt.getTime() > Date.now() - 65000) || (recent.finishedAt && recent.startedAt.getTime() > Date.now() - 3600000 && recent.status === "FAILED") || (recent.status === "SUCCESS" && (match.status === "FINISHED" && (recent.errors as { final?: boolean }).final || recent.startedAt.getTime() > Date.now() - 300000)))) return null;
+      return db.syncLog.create({ data: { type, status: "FAILED" } });
+    });
+    if (!claim) continue;
+    try {
+      const data = await request<Record<string, unknown>>(`/api/match/${match.externalId}/${detailEndpoints[part]}`, 300000, { deadline, attempts: 1 });
+      let available = false;
+      await prisma.$transaction(async db => {
+        if (!data.unavailable) {
+          if (part === "events") {
+            if (!Array.isArray(data.incidents)) throw new Error("Réponse événements AllSports invalide.");
+            const rows = mapMatchEvents(data.incidents, match);
+            await db.matchEvent.deleteMany({ where: { matchId: match.id } });
+            if (rows.length) await db.matchEvent.createMany({ data: rows });
+            available = true; // A scoreless, cardless match is a valid empty timeline.
+          } else if (part === "stats") {
+            if (!Array.isArray(data.statistics)) throw new Error("Réponse statistiques AllSports invalide.");
+            const rows = mapMatchStatistics(data.statistics, match);
+            for (const row of rows) await db.matchStatistics.upsert({ where: { matchId_teamId: { matchId: row.matchId, teamId: row.teamId } }, create: row, update: row });
+            available = rows.length === 2;
+          } else {
+            if (!data.home && !data.away) throw new Error("Réponse compositions AllSports invalide.");
+            const rows = mapMatchLineups(data as { home?: ApiLineup; away?: ApiLineup }, match);
+            for (const row of rows) await db.matchLineup.upsert({ where: { matchId_teamId: { matchId: row.matchId, teamId: row.teamId } }, create: row, update: row });
+            available = rows.length === 2;
+          }
+        }
+        await db.syncLog.update({ where: { id: claim.id }, data: { finishedAt: new Date(), status: available ? "SUCCESS" : "FAILED", matchesSynced: available ? 1 : 0, errors: { final: match.status === "FINISHED", available } } });
+      });
+      if (available) result.synced++;
+    } catch (error) {
+      result.errors.push(`${match.id}/${part} : ${error instanceof Error ? error.message : "Erreur inconnue"}`);
+      await prisma.syncLog.update({ where: { id: claim.id }, data: { finishedAt: new Date(), status: "FAILED" } });
+      if (/budget|quota|réserve|limite de temps/i.test(result.errors.at(-1)!)) break;
+    }
+  }
+  return result;
+}
+
+export async function syncEligibleMatchDetails(include: readonly MatchDetailPart[], deadline: number) {
+  const midnight = new Date(); midnight.setUTCHours(0, 0, 0, 0); midnight.setUTCDate(midnight.getUTCDate() - 1);
+  const end = new Date(midnight); end.setUTCDate(end.getUTCDate() + 2);
+  const matches = await prisma.match.findMany({ where: { competition: { externalId: { in: Object.values(LEAGUES).map(league => String(league.id)) } }, externalId: { not: null }, OR: [{ status: "LIVE" }, { status: "FINISHED", scheduledAt: { gte: midnight, lt: end } }] }, select: { id: true, externalId: true, homeTeamId: true, awayTeamId: true, status: true }, orderBy: { scheduledAt: "asc" } });
+  const result = { synced: 0, errors: [] as string[] };
+  for (const match of matches) {
+    if (Date.now() + 5000 >= deadline) break;
+    const detail = await syncMatchDetails(match, include, deadline);
+    result.synced += detail.synced; result.errors.push(...detail.errors);
+    if (detail.errors.some(error => /budget|quota|réserve/i.test(error))) break;
+  }
+  return result;
 }
