@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-type Props = { hasLiveMatches: boolean; lastSync?: string | null };
+type Props = { hasLiveMatches: boolean; lastSync?: string | null; showControls?: boolean; pauseWhenIdle?: boolean; watchForKickoff?: boolean };
 const interval = 30000;
 const inactivity = 300000;
 
-export function LiveScoreRefresher({ hasLiveMatches, lastSync = null }: Props) {
+export function LiveScoreRefresher({ hasLiveMatches, lastSync = null, showControls = false, pauseWhenIdle = true, watchForKickoff = false }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [seconds, setSeconds] = useState(0);
@@ -30,16 +30,17 @@ export function LiveScoreRefresher({ hasLiveMatches, lastSync = null }: Props) {
   }, [pending]);
 
   useEffect(() => {
-    if (!hasLiveMatches) return;
+    if (!hasLiveMatches && !watchForKickoff) return;
+    const delay = hasLiveMatches ? interval : 60000;
     let disposed = false;
     const controller = new AbortController();
     updated.current = Date.now();
     activity.current = Date.now();
-    refreshDue.current = Date.now() + interval;
+    refreshDue.current = Date.now() + delay;
     const perform = async () => {
       if (busy.current || document.hidden || disposed) return;
       busy.current = true;
-      refreshDue.current = Date.now() + interval;
+      refreshDue.current = Date.now() + delay;
       try {
         const response = await fetch("/api/sync-status", { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]) });
         if (!response.ok) throw new Error("Statut indisponible");
@@ -63,7 +64,7 @@ export function LiveScoreRefresher({ hasLiveMatches, lastSync = null }: Props) {
     const resume = () => { activity.current = Date.now(); };
     const tick = () => {
       if (document.hidden) { setPaused(true); return; }
-      const idle = Date.now() - activity.current >= inactivity;
+      const idle = pauseWhenIdle && Date.now() - activity.current >= inactivity;
       setPaused(idle);
       if (idle) return;
       setSeconds(Math.floor((Date.now() - updated.current) / 1000));
@@ -85,9 +86,10 @@ export function LiveScoreRefresher({ hasLiveMatches, lastSync = null }: Props) {
       events.forEach(event => window.removeEventListener(event, resume));
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [hasLiveMatches, router]);
+  }, [hasLiveMatches, router, pauseWhenIdle, watchForKickoff]);
 
-  if (!hasLiveMatches) return null;
+  // Refresh effects remain active; the reader-facing pages render no controls.
+  if (!hasLiveMatches || !showControls) return null;
   const age = serverSync ? Math.max(0, Math.floor((Date.now() - Date.parse(serverSync)) / 60000)) : null;
   return <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
     <div><p aria-live="polite" aria-atomic="true">{paused ? "Actualisation en pause" : pending ? "Actualisation…" : `Actualisé il y a ${seconds} seconde${seconds === 1 ? "" : "s"}`}</p><p className="mt-1">Dernière mise à jour serveur : <span suppressHydrationWarning>{age !== null ? `il y a ${age} min` : "aucune synchronisation enregistrée"}</span>{failed ? " · statut temporairement indisponible" : ""}</p></div>

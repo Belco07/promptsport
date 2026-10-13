@@ -6,6 +6,7 @@ import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import type { Prisma } from "@/generated/prisma/client";
+import type { StandingRow } from "@/lib/standings";
 
 /**
  * Synchronisation AllSportsApi (WP19a-bis, Phase 2).
@@ -78,7 +79,31 @@ export type ApiEvent = {
   awayScore?: { current?: number | null } | null;
   tournament?: { name?: string | null } | null;
   season?: { id?: number; year?: string | null } | null;
+  lastPeriod?: string;
+  time?: { currentPeriodStartTimestamp?: number; max?: number };
 };
+
+export type MatchClock = { minute: string | null; observedAt: string; running: boolean; periodEnd: number | null };
+export function eventClock(event: ApiEvent, now = Date.now()): MatchClock {
+  const observedAt = new Date(now).toISOString();
+  const description = event.status.description?.toLowerCase() ?? "";
+  if (event.status.code === 31 || /halftime|half time|break|awaiting/.test(description)) return { minute: "MT", observedAt, running: false, periodEnd: null };
+  if (/penalt/.test(description)) return { minute: "TAB", observedAt, running: false, periodEnd: null };
+  const start = event.time?.currentPeriodStartTimestamp;
+  const period = event.lastPeriod ?? (event.status.code === 6 || /1st half/.test(description) ? "period1" : event.status.code === 7 || /2nd half/.test(description) ? "period2" : "");
+  const bases:Record<string,number>={period1:0,period2:45,period3:90,period4:105};
+  if (event.status.type !== "inprogress" || !Number.isSafeInteger(start) || !period || bases[period] === undefined) return {minute:null,observedAt,running:false,periodEnd:null};
+  const elapsed=Math.max(0,Math.floor((now/1000-start!)/60));
+  const duration=event.time?.max ? Math.floor(event.time.max/60) : bases[period]>=90?15:45;
+  const end=bases[period]+duration;
+  return {minute:elapsed>duration?`${end}+${elapsed-duration}′`:`${bases[period]+elapsed}′`,observedAt,running:true,periodEnd:end};
+}
+
+export async function withStoredMatchClocks<T extends {id:string;minute?:string|null;minuteObservedAt?:string|null}>(matches:T[]) {
+  if (!matches.length) return [] as (T & {minute:string|null;minuteObservedAt:string|null;minutePeriodEnd:number|null})[];
+  const logs=await prisma.syncLog.findMany({where:{type:{in:matches.map(match=>`clock:${match.id}`)},status:"SUCCESS"},orderBy:{finishedAt:"desc"},distinct:["type"],select:{type:true,errors:true}});
+  return matches.map(match=>{const clock=logs.find(log=>log.type===`clock:${match.id}`)?.errors as unknown as MatchClock|undefined;return {...match,minute:clock?.minute??match.minute??null,minuteObservedAt:clock?.observedAt??match.minuteObservedAt??null,minutePeriodEnd:clock?.periodEnd??null};});
+}
 export type PreparedCompetition = {
   code: keyof typeof LEAGUES;
   season: ApiSeason;
@@ -580,7 +605,7 @@ export async function syncAllCompetitions(codes: readonly string[] = DEFAULT_COM
 export type MatchDetailPart = "events" | "stats" | "lineups";
 type DetailMatch = { id: string; externalId: string | null; homeTeamId: string; awayTeamId: string; status: string };
 type Person = { name?: string };
-type Incident = { incidentType?: string; incidentClass?: string; isHome?: boolean; time?: number; addedTime?: number; player?: Person; assist1?: Person; playerIn?: Person; playerOut?: Person };
+type Incident = { incidentType?: string; incidentClass?: string; isHome?: boolean; time?: number; benchTime?: number; addedTime?: number; player?: Person; playerName?: string; manager?: Person; assist1?: Person; playerIn?: Person; playerOut?: Person; rescinded?: boolean };
 type StatItem = { key?: string; name?: string; home?: string | number; away?: string | number; homeValue?: number; awayValue?: number };
 type LineupPlayer = { player?: Person & { position?: string }; position?: string; shirtNumber?: number; substitute?: boolean };
 type ApiLineup = { formation?: string; coach?: Person; players?: LineupPlayer[] };
@@ -589,13 +614,15 @@ const detailEndpoints = { events: "incidents", stats: "statistics", lineups: "li
 /** Pure adapters: invalid responses never erase previously stored details. */
 export function mapMatchEvents(incidents: Incident[], match: DetailMatch) {
   return incidents.flatMap(incident => {
-    const type = incident.incidentType === "goal" ? "GOAL" : incident.incidentType === "substitution" ? "SUBSTITUTION" : incident.incidentType === "card" ? (incident.incidentClass === "yellow" ? "YELLOW_CARD" : ["red", "yellowRed"].includes(incident.incidentClass ?? "") ? "RED_CARD" : null) : null;
+    if (incident.rescinded) return [];
+    const type = incident.incidentType === "goal" ? "GOAL" : ["penalty","inGamePenalty"].includes(incident.incidentType ?? "") && ["missed","miss"].includes(incident.incidentClass ?? "") ? "MISSED_PENALTY" : incident.incidentType === "substitution" ? "SUBSTITUTION" : incident.incidentType === "card" ? (incident.incidentClass === "yellow" ? "YELLOW_CARD" : ["red", "yellowRed"].includes(incident.incidentClass ?? "") ? "RED_CARD" : null) : null;
     if (!type) return [];
     // Shoot-out attempts are not match goals; team/clock must be explicit.
-    if (typeof incident.isHome !== "boolean" || !Number.isInteger(incident.time) || incident.time! < 0) throw new Error("Événement AllSports incomplet.");
-    const playerName = (type === "SUBSTITUTION" ? incident.playerIn?.name : incident.player?.name)?.trim();
+    const minute = incident.time !== undefined && incident.time < 0 ? incident.benchTime : incident.time;
+    if (typeof incident.isHome !== "boolean" || !Number.isInteger(minute) || minute! < 0) throw new Error("Événement AllSports incomplet.");
+    const playerName = (type === "SUBSTITUTION" ? incident.playerIn?.name : incident.player?.name ?? (incident.manager?.name ? `${incident.manager.name} (entraîneur)` : incident.playerName))?.trim();
     if (!playerName) throw new Error("Joueur AllSports absent.");
-    return [{ matchId: match.id, teamId: incident.isHome ? match.homeTeamId : match.awayTeamId, type: type as "GOAL" | "YELLOW_CARD" | "RED_CARD" | "SUBSTITUTION", playerName, assistName: (type === "SUBSTITUTION" ? incident.playerOut?.name : incident.assist1?.name) ?? null, minute: incident.time!, extraMinute: Number.isInteger(incident.addedTime) && incident.addedTime! > 0 ? incident.addedTime! : null }];
+    return [{ matchId: match.id, teamId: incident.isHome ? match.homeTeamId : match.awayTeamId, type: type as "GOAL" | "MISSED_PENALTY" | "YELLOW_CARD" | "RED_CARD" | "SUBSTITUTION", playerName, assistName: (type === "SUBSTITUTION" ? incident.playerOut?.name : incident.assist1?.name) ?? null, minute: minute!, extraMinute: Number.isInteger(incident.addedTime) && incident.addedTime! > 0 ? incident.addedTime! : null }];
   });
 }
 
@@ -633,7 +660,6 @@ export async function syncMatchDetails(match: DetailMatch, include: readonly Mat
   const result = { synced: 0, errors: [] as string[] };
   if (!match.externalId || !/^\d+$/.test(match.externalId) || !["LIVE", "FINISHED"].includes(match.status)) return result;
   for (const part of [...new Set(include)]) {
-    if (match.status === "LIVE" && part !== "events") continue;
     if (Date.now() + 5000 >= deadline) break;
     const type = `details:${match.id}:${part}`;
     const claim = await prisma.$transaction(async db => {
@@ -690,4 +716,39 @@ export async function syncEligibleMatchDetails(include: readonly MatchDetailPart
     if (detail.errors.some(error => /budget|quota|réserve/i.test(error))) break;
   }
   return result;
+}
+
+type ProviderStanding = { team: { id: number; name: string }; position: number; matches: number; wins: number; draws: number; losses: number; scoresFor: number; scoresAgainst: number; points: number };
+type StoredStandings = { seasonId: number; seasonLabel: string; rows: StandingRow[] };
+
+export function mapLeaguePhaseStandings(payload: { standings?: { type?: string; name?: string; rows?: ProviderStanding[] }[] }): StandingRow[] {
+  const table = payload.standings?.find(table => table.type === "total" && table.rows?.length === 36 && !/qualification|playoff/i.test(table.name ?? ""));
+  if (!table?.rows) throw new Error("Classement de la phase de ligue absent ; aucun classement des qualifications ne sera utilisé.");
+  const sorted = [...table.rows].sort((a,b)=>a.position-b.position);
+  return sorted.map((row,index) => {
+    if (row.position !== index + 1 || !Number.isSafeInteger(row.team?.id) || !row.team.name || ![row.matches,row.wins,row.draws,row.losses,row.scoresFor,row.scoresAgainst,row.points].every(value=>Number.isSafeInteger(value)&&value>=0) || row.matches !== row.wins+row.draws+row.losses) throw new Error("Classement fournisseur invalide.");
+    return { teamId: String(row.team.id), teamName: row.team.name, played: row.matches, won: row.wins, drawn: row.draws, lost: row.losses, goalsFor: row.scoresFor, goalsAgainst: row.scoresAgainst, goalDifference: row.scoresFor-row.scoresAgainst, points: row.points };
+  });
+}
+
+/** Only the sync job fetches standings; public pages read this durable snapshot. */
+export async function syncChampionsLeagueStandings(seasonId: number, seasonLabel: string, deadline = Date.now()+55000) {
+  const recent = await prisma.syncLog.findFirst({where:{type:"standings:7",status:"SUCCESS",finishedAt:{gt:new Date(Date.now()-DAY)},errors:{path:["seasonLabel"],equals:seasonLabel}},orderBy:{finishedAt:"desc"}});
+  if (recent) return { synced: false };
+  const payload = await request<{standings?: {type?:string;name?:string;rows?:ProviderStanding[]}[]}>(`/api/tournament/7/season/${seasonId}/standings/total`,DAY,{deadline,attempts:1});
+  const rows = mapLeaguePhaseStandings(payload);
+  await prisma.syncLog.create({data:{type:"standings:7",status:"SUCCESS",finishedAt:new Date(),errors:{seasonId,seasonLabel,rows}}});
+  return { synced:true };
+}
+
+export async function getStoredChampionsLeagueStandings(seasonLabel: string | null) {
+  if (!seasonLabel) return null;
+  const log = await prisma.syncLog.findFirst({where:{type:"standings:7",status:"SUCCESS",errors:{path:["seasonLabel"],equals:seasonLabel}},orderBy:{finishedAt:"desc"}});
+  if (!log) return null;
+  const snapshot = log.errors as unknown as StoredStandings;
+  if (!Array.isArray(snapshot.rows) || snapshot.rows.length !== 36) return null;
+  const teams = await prisma.team.findMany({where:{externalId:{in:snapshot.rows.map(row=>row.teamId)}},select:{id:true,externalId:true,logoUrl:true}});
+  const logos: Record<string,string|null> = {};
+  const rows = snapshot.rows.map(row=>{const team=teams.find(team=>team.externalId===row.teamId);const id=team?.id??`allsports:${row.teamId}`;logos[id]=team?.logoUrl??`https://img.sofascore.com/api/v1/team/${row.teamId}/image`;return {...row,teamId:id};});
+  return {rows,logos,updatedAt:log.finishedAt};
 }

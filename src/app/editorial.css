@@ -175,11 +175,11 @@
    publiques. Fond et texte viennent des jetons de statut (WP13), donc lisibles
    dans les deux thèmes ; le point animé reprend la couleur d'alerte. */
 .urgent-bar { overflow: hidden; background: var(--ed-bg); color: var(--ed-ink); border-bottom: 1px solid var(--ed-line); }
-.urgent-bar a { color: #e11928; font-weight: 700; text-decoration: none; }
+.urgent-bar a { color: var(--status-danger); font-weight: 700; text-decoration: none; }
 .urgent-bar a:hover { text-decoration: none; }
 .dark .urgent-bar a { color: #ff4d58; }
 .urgent-label { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 9px; flex-shrink: 0; min-height: 36px; padding: 0 14px 0 35px; color: #fff; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.1px; }
-.urgent-label::before { content: ""; position: absolute; inset: 0; left: calc(-1 * max(16px, (100vw - 1280px) / 2 + 16px)); z-index: -1; background: repeating-linear-gradient(135deg, transparent 0 7px, rgb(255 255 255 / 12%) 7px 9px), linear-gradient(90deg, #ff3544, #ed1026); mask-image: linear-gradient(to right, rgb(0 0 0 / 15%), #000 70%); }
+.urgent-label::before { content: ""; position: absolute; inset: 0; left: calc(-1 * max(16px, (100vw - 1280px) / 2 + 16px)); z-index: -1; background: repeating-linear-gradient(135deg, transparent 0 7px, rgb(255 255 255 / 12%) 7px 9px), linear-gradient(90deg, var(--status-danger), var(--status-danger)); mask-image: linear-gradient(to right, rgb(0 0 0 / 15%), #000 70%); }
 .urgent-label .urgent-pulse, .urgent-label .urgent-pulse::after { background: #fff; }
 .urgent-label .urgent-pulse { width: 11px; height: 11px; box-shadow: 0 0 7px rgb(255 255 255 / 70%); }
 .urgent-label .urgent-pulse::after { inset: -4px; animation-name: urgent-label-pulse; }

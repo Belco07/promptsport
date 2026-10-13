@@ -16,6 +16,32 @@
 
 const ENDPOINT = "https://www.fotmob.com/api/data/matches";
 
+export function normalizeFootballTeamName(name: string): string {
+  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(club|de|fc|rc|sk|cf|cp)\b/g, "").replace(/prague/g, "praha").replace(/[^a-z0-9]/g, "");
+  return ({ manutd: "manchesterunited", psg: "parissaintgermain", atleti: "atleticomadrid" } as Record<string,string>)[normalized] ?? normalized;
+}
+export function sameFootballTeam(left: {name:string;shortName:string|null}, right:{name:string;shortName:string|null}) {
+  const names = [left.name,left.shortName].filter((name):name is string=>Boolean(name)).map(normalizeFootballTeamName);
+  return [right.name,right.shortName].some(name=>name&&names.includes(normalizeFootballTeamName(name)));
+}
+
+/** Read-only local preview: the rail, scores and fixture use the same snapshot. */
+export async function withLocalFootballLive<T extends { status:string;homeScore:number|null;awayScore:number|null;scheduledAt:Date;homeTeam:{name:string;shortName:string|null};awayTeam:{name:string;shortName:string|null};competition:{slug:string}|null;minute?:string|null;minuteObservedAt?:string|null }>(matches:T[]) {
+  const fallback=matches.map(match=>({...match,minute:match.minute??null,minuteObservedAt:match.minuteObservedAt??null}));
+  if (!isFotmobLiveEnabled() || !matches.length) return fallback;
+  const day=new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Lagos",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const snapshots=await getFotmobStartedMatches(day);
+  if (!snapshots) return fallback;
+  return fallback.map(match=>{
+    const matchDay=new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Lagos",year:"numeric",month:"2-digit",day:"2-digit"}).format(match.scheduledAt);
+    if (matchDay!==day) return match;
+    const candidates=snapshots.filter(snapshot=>snapshot.competition.slug===match.competition?.slug&&sameFootballTeam(snapshot.homeTeam,match.homeTeam)&&sameFootballTeam(snapshot.awayTeam,match.awayTeam));
+    if (candidates.length!==1) return match;
+    const snapshot=candidates[0];
+    return {...match,status:snapshot.status,homeScore:snapshot.homeScore,awayScore:snapshot.awayScore,minute:snapshot.minute,minuteObservedAt:new Date().toISOString()};
+  });
+}
+
 /** Compétitions suivies : identifiant FotMob → libellé et slug de la page compétition. */
 const LEAGUES: Record<number, { name: string; slug: string }> = {
   53: { name: "Ligue 1", slug: "ligue-1" },

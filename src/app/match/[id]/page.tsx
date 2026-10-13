@@ -16,22 +16,25 @@ import { AdSlotGate } from "@/components/AdSlotGate";
 import { prisma } from "@/lib/prisma";
 import { formatMatchDate } from "@/lib/formatDate";
 import { getLastSportsUpdate } from "@/lib/live-sync";
+import { withLocalFootballLive } from "@/lib/fotmob-live";
+import { withStoredMatchClocks } from "@/lib/allsports-sync";
 import { buildPageMetadata, jsonLdString, sportsEventJsonLd } from "@/lib/seo";
 export const dynamic="force-dynamic";
 type Props={params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>};
 const activeTab = (tab?: string): keyof typeof matchTabs => tab === "compositions" || tab === "statistiques" || tab === "commentaires" ? tab : "resume";
 const getMatch = cache(async (id: string, tab: keyof typeof matchTabs) => {
-  return prisma.match.findUnique({
+  const match = await prisma.match.findUnique({
     where: { id },
     include: {
       homeTeam: { select: { name: true, shortName: true, logoUrl: true } },
       awayTeam: { select: { name: true, shortName: true, logoUrl: true } },
       competition: { select: { name: true, slug: true } },
-      events: tab === "resume" ? { orderBy: [{ minute: "asc" }, { extraMinute: "asc" }, { createdAt: "asc" }] } : false,
+      events: { orderBy: [{ minute: "asc" }, { extraMinute: "asc" }, { createdAt: "asc" }] },
       statistics: tab === "statistiques",
       lineups: tab === "compositions",
     },
   });
+  return match ? (await withLocalFootballLive(await withStoredMatchClocks([match])))[0] : null;
 });
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
@@ -87,7 +90,7 @@ export default async function MatchPage({params,searchParams}:Props){
  {match.status==="LIVE"&&<><div className="mb-3"><LiveBadge/></div><LiveScoreRefresher hasLiveMatches={true} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null}/></>}
  <MatchHeader match={match}/><MatchTabs id={id} active={active}/>
  <section aria-labelledby="match-panel" className="min-h-40"><h2 id="match-panel" className="mb-5 text-2xl font-black uppercase text-foreground">{matchTabs[active]}</h2>
- {active==="resume"?<MatchTimeline events={match.events} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="statistiques"?<MatchStats statistics={match.statistics} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="compositions"?<MatchLineup lineups={match.lineups} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:<p className="border border-border bg-card p-6 text-muted-foreground">Les commentaires de ce match seront disponibles prochainement.</p>}
+ {active==="resume"||active==="commentaires"?<MatchTimeline commentary={active==="commentaires"} events={match.events} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="statistiques"?<MatchStats statistics={match.statistics} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:<MatchLineup lineups={match.lineups} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>}
  </section><RelatedArticles teams={[match.homeTeam.name,match.homeTeam.shortName??match.homeTeam.name,match.awayTeam.name,match.awayTeam.shortName??match.awayTeam.name]}/><AdSlotGate><AdSlot className="mt-10"/></AdSlotGate>
  </main><Footer/></>;
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { formatMatchDate } from "@/lib/formatDate";
+import { ScoreRow } from "@/components/ScoreRow";
 
 export type MatchStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
 
@@ -27,6 +28,9 @@ export const MATCH_STATUS_TONES: Record<MatchStatus, BadgeTone> = {
 };
 
 export type MatchCardData = {
+  minute?: string | null;
+  minuteObservedAt?: string | null;
+  minutePeriodEnd?: number | null;
   id: string;
   homeTeam: { name: string; shortName: string | null; logoUrl: string | null };
   awayTeam: { name: string; shortName: string | null; logoUrl: string | null };
@@ -103,7 +107,7 @@ export function MatchCard({
   const showScore = isLive || match.status === "FINISHED";
   const scoreLabel = showScore ? (hasScore ? `${match.homeScore} - ${match.awayScore}` : "–") : "vs";
 
-  if (compact) return <article className="border border-border bg-card"><Link href={`/match/${match.id}`} className="block p-4"><div className="mb-3 flex items-center justify-between gap-2 text-xs text-muted-foreground"><span className="truncate">{match.competition?.name}</span>{isLive ? <LiveBadge/> : <Badge variant="status" tone={MATCH_STATUS_TONES[match.status]}>{MATCH_STATUS_LABELS[match.status]}</Badge>}</div><div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2">{[match.homeTeam,match.awayTeam].map((team,index)=><div key={index} className="contents"><div className="flex min-w-0 items-center gap-3"><TeamLogo name={team.name} logoUrl={team.logoUrl}/><span className="truncate text-sm font-bold text-foreground">{team.shortName??team.name}</span></div><span className="text-2xl font-black tabular-nums text-foreground">{showScore?(index===0?match.homeScore:match.awayScore)??"–":"–"}</span></div>)}</div><time dateTime={match.scheduledAt.toISOString()} className="mt-3 block border-t border-border pt-3 text-xs text-muted-foreground">{formatMatchDate(match.scheduledAt)}</time></Link></article>;
+  if (compact) return <article className="col-span-full overflow-hidden rounded-lg border border-border bg-card"><p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{match.competition?.name} · <time dateTime={match.scheduledAt.toISOString()}>{formatMatchDate(match.scheduledAt)}</time></p><ScoreRow match={match}/></article>;
   return (
     <Card as="article" interactive>
       <Link href={`/match/${match.id}`} className="block rounded-xl p-4">

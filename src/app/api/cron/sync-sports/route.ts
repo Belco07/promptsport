@@ -1,7 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { synchronizeSports, type SyncPriority } from "@/lib/live-sync";
-import { syncEligibleMatchDetails, type MatchDetailPart } from "@/lib/allsports-sync";
+import { syncEligibleMatchDetails, syncChampionsLeagueStandings, type MatchDetailPart } from "@/lib/allsports-sync";
+import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
@@ -23,6 +24,18 @@ async function handle(request: Request) {
   const deadline = Date.now() + 55000;
   try {
     const result = await synchronizeSports(priority as SyncPriority);
+    // One standings snapshot per day; never fetch it from a public page.
+    if (priority === "finished" && Date.now()+10000 < deadline) {
+      const seed = await prisma.syncLog.findFirst({where:{type:"standings:7",status:"SUCCESS"},orderBy:{finishedAt:"desc"}});
+      if (seed) {
+        const metadata = seed.errors as {seasonId?:number;seasonLabel?:string};
+        const competition = await prisma.competition.findUnique({where:{externalId:"7"},select:{season:true}});
+        if (Number.isSafeInteger(metadata.seasonId) && metadata.seasonLabel===competition?.season) {
+          try { const standings=await syncChampionsLeagueStandings(metadata.seasonId!,metadata.seasonLabel!,deadline); if(standings.synced)revalidatePath("/competition/uefa-champions-league"); }
+          catch(error) { result.errors.push(error instanceof Error?error.message:"Classement indisponible."); }
+        }
+      }
+    }
     const details = include.length && Date.now() + 5000 < deadline ? await syncEligibleMatchDetails(include as MatchDetailPart[], deadline) : { synced: 0, errors: [] };
     if (details.synced) revalidatePath("/match/[id]", "page");
     return NextResponse.json({ ok: !result.errors.length && !details.errors.length, ...result, details }, { status: result.errors.length && !result.synced ? 502 : 200, headers: { "Cache-Control": "no-store" } });

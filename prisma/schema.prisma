@@ -345,6 +345,7 @@ enum MatchStatus {
 
 enum MatchEventType {
   GOAL
+  MISSED_PENALTY
   YELLOW_CARD
   RED_CARD
   SUBSTITUTION

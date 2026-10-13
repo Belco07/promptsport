@@ -2,9 +2,9 @@ name: Synchronisation des scores
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
-    - cron: '0 * * * *'
-    - cron: '0 2 * * *'
+    - cron: '3-59/10 * * * *'
+    - cron: '7 * * * *'
+    - cron: '17 2 * * *'
   workflow_dispatch:
     inputs:
       priority:
@@ -43,8 +43,8 @@ jobs:
             exit 1
           fi
           priority="${MANUAL_PRIORITY:-live}"
-          if [[ "$SCHEDULE" == '0 * * * *' ]]; then priority=upcoming; fi
-          if [[ "$SCHEDULE" == '0 2 * * *' ]]; then priority=finished; fi
+          if [[ "$SCHEDULE" == '7 * * * *' ]]; then priority=upcoming; fi
+          if [[ "$SCHEDULE" == '17 2 * * *' ]]; then priority=finished; fi
           curl --silent --show-error --fail-with-body \
             --connect-timeout 10 --max-time 65 \
             --request POST \
