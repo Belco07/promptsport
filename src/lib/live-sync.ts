@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { fetchSyncEvents, LEAGUES, mapMatchStatus, type ApiEvent } from "@/lib/allsports-sync";
+import { eventClock, fetchSyncEvents, LEAGUES, mapMatchStatus, type ApiEvent } from "@/lib/allsports-sync";
 import { revalidatePath } from "next/cache";
 
 export type SyncPriority = "live" | "upcoming" | "finished";
@@ -15,8 +15,8 @@ async function updateMatches(type: SyncPriority, deadline: number): Promise<Sync
     where: {
       competition: { externalId: { in: Object.values(LEAGUES).map(league => String(league.id)) } },
       externalId: { not: null },
-      ...(type === "live" ? { status: "LIVE" } : {
-        scheduledAt: { gte: new Date(now.getTime() - 86400000), lte: new Date(now.getTime() + (type === "upcoming" ? 86400000 : 0)) },
+      ...(type === "live" ? { OR: [{ status: "LIVE" }, { status: "SCHEDULED", scheduledAt: { gte: new Date(now.getTime() - 10800000), lte: now } }] } : {
+        scheduledAt: { gte: new Date(now.getTime() - (type === "upcoming" ? 10800000 : 86400000)), lte: now },
         status: { in: type === "upcoming" ? ["SCHEDULED", "LIVE"] : ["SCHEDULED", "LIVE", "FINISHED"] },
       }),
     },
@@ -30,7 +30,7 @@ async function updateMatches(type: SyncPriority, deadline: number): Promise<Sync
   }
   // A match disappearing from the live feed is not proof it finished.
   // Retrieve its dated feed to obtain an explicit status (including cancellations).
-  const dates = new Map(matches.filter(match => type !== "live" || !events.has(Number(match.externalId)))
+  const dates = new Map(matches.filter(match => type !== "live" || (match.status === "LIVE" && !events.has(Number(match.externalId))))
     .map(match => { const date=match.scheduledAt.toISOString().slice(0,10); const tournamentId=Number(match.competition.externalId); return [`${tournamentId}/${date}`, { date, tournamentId }] as const; }));
   for (const { date, tournamentId } of dates.values()) {
     try {
@@ -44,9 +44,15 @@ async function updateMatches(type: SyncPriority, deadline: number): Promise<Sync
   for (const match of matches) {
     if (Date.now() + 2000 >= deadline) { errors.push("Synchronisation : limite de temps atteinte."); break; }
     const event = events.get(Number(match.externalId));
-    if (!event) { errors.push(`Match ${match.id} absent des réponses fournisseur.`); continue; }
+    if (!event) {
+      // A due fixture not yet present in the live feed stays scheduled. Its
+      // dated status is checked by the hourly upcoming job, without extra calls.
+      if (type === "live" && match.status === "SCHEDULED") continue;
+      errors.push(`Match ${match.id} absent des réponses fournisseur.`); continue;
+    }
     try {
       const status = mapMatchStatus(event.status);
+      if (!Number.isSafeInteger(event.startTimestamp) || event.startTimestamp <= 0) throw new Error(`Date fournisseur invalide pour ${match.id}.`);
       const homeScore = event.homeScore?.current ?? null;
       const awayScore = event.awayScore?.current ?? null;
       if ([homeScore, awayScore].some(score => score !== null && (!Number.isSafeInteger(score) || score < 0))) throw new Error(`Score invalide pour le match ${match.id}.`);
@@ -54,9 +60,11 @@ async function updateMatches(type: SyncPriority, deadline: number): Promise<Sync
       if (match.status === "FINISHED" && status !== "FINISHED") continue;
       await prisma.match.update({ where: { id: match.id }, data: {
         status, homeScore, awayScore,
-        ...(status === "LIVE" && !match.startedAt ? { startedAt: new Date(event.startTimestamp * 1000) } : {}),
+        scheduledAt: new Date(event.startTimestamp * 1000),
+        ...(status === "LIVE" ? { startedAt: new Date(event.startTimestamp * 1000) } : {}),
         ...(status === "FINISHED" && !match.finishedAt ? { finishedAt: now } : {}),
       } });
+      await prisma.syncLog.create({data:{type:`clock:${match.id}`,status:"SUCCESS",finishedAt:new Date(),errors:eventClock(event)}});
       synced++;
     } catch (error) { errors.push(error instanceof Error ? error.message : "Mise à jour du match impossible."); }
   }

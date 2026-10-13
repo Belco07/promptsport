@@ -13,6 +13,7 @@ import { auth } from "@/lib/auth";
 import { getReaderFollows } from "@/lib/follows";
 import { prisma } from "@/lib/prisma";
 import { computeStandings } from "@/lib/standings";
+import { getStoredChampionsLeagueStandings } from "@/lib/allsports-sync";
 import { buildPageMetadata, jsonLdString, sportsOrganizationJsonLd } from "@/lib/seo";
 export const revalidate = 60;
 type Props = { params: Promise<{slug:string}>; searchParams:Promise<{tab?:string}> };
@@ -42,8 +43,9 @@ export default async function CompetitionPage({params,searchParams}:Props){
    session?.user?.id ? getReaderFollows(session.user.id) : null,
    prisma.team.findMany({ where: { OR: [{ homeMatches: { some: { competitionId: competition.id } } }, { awayMatches: { some: { competitionId: competition.id } } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
  ]);
- const standings=active==="classement"?computeStandings(competition.matches):[];
- const logos=Object.fromEntries(competition.matches.flatMap(m=>[[m.homeTeam.id,m.homeTeam.logoUrl],[m.awayTeam.id,m.awayTeam.logoUrl]]));
+ const official=active==="classement"&&competition.externalId==="7"?await getStoredChampionsLeagueStandings(competition.season):null;
+ const standings=active==="classement"?(competition.externalId==="7"?official?.rows??[]:computeStandings(competition.matches)):[];
+ const logos=official?.logos??Object.fromEntries(competition.matches.flatMap(m=>[[m.homeTeam.id,m.homeTeam.logoUrl],[m.awayTeam.id,m.awayTeam.logoUrl]]));
  return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
         <script
           type="application/ld+json"
@@ -65,7 +67,7 @@ export default async function CompetitionPage({params,searchParams}:Props){
  <div className="my-5"><FollowButton id={competition.id} kind="competition" name={competition.name} following={follows?.followedCompetitions.some(item => item.id === competition.id) ?? false} signedIn={!!follows} /></div>
  <CompetitionTabs slug={slug} active={active}/>
  <section aria-labelledby="competition-panel"><h2 id="competition-panel" className="mb-5 text-2xl font-black uppercase text-foreground">{competitionTabs[active]}</h2>
- {active==="classement"?<><StandingsTable rows={standings} logos={logos} competitionSlug={slug}/><p className="mt-3 text-xs text-muted-foreground">Couleurs : tête de tableau, poursuivants et bas de tableau. Ces repères ne déterminent pas les qualifications européennes ni les relégations officielles.</p><p className="mt-3 text-xs text-muted-foreground">J : joués · G : gagnés · N : nuls · P : perdus · BP/BC : buts pour / contre · Diff : différence · Pts : points.</p></>:competition.matches.length?<div className="grid gap-3 md:grid-cols-2">{competition.matches.map(match=><MatchCard key={match.id} match={{...match,competition:{name:competition.name}}} compact />)}</div>:<p className="border border-border bg-card p-6 text-muted-foreground">{active==="calendrier"?"Aucun match à venir dans le calendrier.":"Aucun résultat disponible pour le moment."}</p>}
+ {active==="classement"?<>{competition.externalId==="7"&&<p className="mb-4 text-sm text-muted-foreground">Phase de ligue uniquement : les qualifications et barrages ne comptent pas.{official?.updatedAt&&<> Dernière synchronisation : <time dateTime={official.updatedAt.toISOString()}>{official.updatedAt.toLocaleString("fr-FR",{timeZone:"Africa/Lagos"})}</time>.</>}</p>}<StandingsTable rows={standings} logos={logos} competitionSlug={slug}/><p className="mt-3 text-xs text-muted-foreground">Couleurs : tête de tableau, poursuivants et bas de tableau. Ces repères ne déterminent pas les qualifications européennes ni les relégations officielles.</p><p className="mt-3 text-xs text-muted-foreground">J : joués · G : gagnés · N : nuls · P : perdus · BP/BC : buts pour / contre · Diff : différence · Pts : points.</p></>:competition.matches.length?<div className="grid gap-3 md:grid-cols-2">{competition.matches.map(match=><MatchCard key={match.id} match={{...match,competition:{name:competition.name}}} compact />)}</div>:<p className="border border-border bg-card p-6 text-muted-foreground">{active==="calendrier"?"Aucun match à venir dans le calendrier.":"Aucun résultat disponible pour le moment."}</p>}
  </section>
  <section id="clubs" className="mt-10 scroll-mt-32" aria-labelledby="follow-clubs">
    <h2 id="follow-clubs" className="mb-4 text-2xl font-bold">Suivre les clubs</h2>

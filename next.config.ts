@@ -46,6 +46,7 @@ const imageConfig: ImageConfig = {
   imageSizes: [40, 64, 96, 128, 256, 384],
   // Hôtes distants autorisés pour l'optimiseur d'images.
   remotePatterns: [
+    { protocol: "https", hostname: "img.sofascore.com", pathname: "/api/v1/team/**" },
     { protocol: "https", hostname: "media.api-sports.io" },
     // Logos des équipes servis par l'API football-data.org.
     { protocol: "https", hostname: "crests.football-data.org" },
