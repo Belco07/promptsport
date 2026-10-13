@@ -1,0 +1,52 @@
+name: Synchronisation des scores
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+    - cron: '0 * * * *'
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      priority:
+        description: Type de synchronisation
+        type: choice
+        options: [live, upcoming, finished]
+        default: live
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-sports
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Appeler le site de production
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          SCHEDULE: ${{ github.event.schedule }}
+          MANUAL_PRIORITY: ${{ inputs.priority }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$CRON_SECRET" || -z "$SITE_URL" ]]; then
+            echo "Configurer le secret CRON_SECRET et la variable SITE_URL du dépôt."
+            exit 1
+          fi
+          if [[ "$SITE_URL" != https://* || "$SITE_URL" == *'?'* || "$SITE_URL" == *'#'* ]]; then
+            echo "SITE_URL doit être l'adresse HTTPS du site de production."
+            exit 1
+          fi
+          priority="${MANUAL_PRIORITY:-live}"
+          if [[ "$SCHEDULE" == '0 * * * *' ]]; then priority=upcoming; fi
+          if [[ "$SCHEDULE" == '0 2 * * *' ]]; then priority=finished; fi
+          curl --silent --show-error --fail-with-body \
+            --connect-timeout 10 --max-time 65 \
+            --request POST \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "${SITE_URL%/}/api/cron/sync-sports?priority=$priority"

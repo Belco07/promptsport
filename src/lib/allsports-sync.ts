@@ -166,7 +166,37 @@ async function reserveRequest(key: string): Promise<void> {
 }
 
 /** Appel API avec cache en mémoire (30 s pour le direct, 5 min sinon). */
-async function request<T>(endpoint: string, ttlMs = 300000): Promise<T> {
+export type SyncRequestOptions = { deadline?: number; attempts?: number; tournamentId?: number };
+
+/** Durable quota shared by CLI, cron and all serverless instances. */
+async function reserveSharedRequest(key: string, endpoint: string, automatic = false): Promise<string> {
+  const keyHash = createHash("sha256").update(key).digest("hex");
+  return prisma.$transaction(async db => {
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(190021)`;
+    const where = { type: "request", startedAt: { gt: new Date(Date.now() - DAY) }, errors: { path: ["keyHash"], equals: keyHash } };
+    const used = await db.syncLog.count({ where });
+    if (used >= (automatic ? 80 : 100)) throw new Error(automatic
+      ? "AllSportsApi : budget automatique de 80 requêtes atteint ; 20 appels réservés aux interventions manuelles."
+      : "AllSportsApi : budget partagé de 100 requêtes sur 24 heures atteint.");
+    const last = await db.syncLog.findFirst({ where, orderBy: { startedAt: "desc" } });
+    const lastResponse = await db.syncLog.findFirst({ where: { ...where, AND: [{ errors: { path: ["remaining"], gte: 0 } }] }, orderBy: { startedAt: "desc" } });
+    if (lastResponse) {
+      const metadata = lastResponse.errors as { remaining?: number; resetAt?: number };
+      if ((!metadata.resetAt || metadata.resetAt > Date.now()) && metadata.remaining !== undefined && metadata.remaining <= (automatic ? 20 : 0)) throw new Error("AllSportsApi : réserve fournisseur préservée ou quota épuisé.");
+    }
+    if (last) {
+      const metadata = last.errors as { remaining?: number; resetAt?: number };
+      if (metadata.remaining === 0 && (!metadata.resetAt || metadata.resetAt > Date.now())) throw new Error("AllSportsApi : quota fournisseur épuisé.");
+      if (automatic && metadata.remaining !== undefined && metadata.remaining <= 20 && (!metadata.resetAt || metadata.resetAt > Date.now())) throw new Error("AllSportsApi : réserve de 20 requêtes fournisseur préservée.");
+      const wait = last.startedAt.getTime() + MIN_INTERVAL_MS - Date.now();
+      if (wait > 0) await sleep(wait);
+    }
+    const row = await db.syncLog.create({ data: { type: "request", startedAt: new Date(), errors: { keyHash, endpoint }, status: "FAILED" } });
+    return row.id;
+  }, { timeout: 5000, maxWait: 3000 });
+}
+
+async function request<T>(endpoint: string, ttlMs = 300000, options: SyncRequestOptions = {}): Promise<T> {
   const key = apiKey();
   const url = `${BASE}${endpoint}`;
   const cacheKey = createHash("sha256").update(key).digest("hex") + url;
@@ -175,13 +205,17 @@ async function request<T>(endpoint: string, ttlMs = 300000): Promise<T> {
 
   const value = (async () => {
     let lastError: Error | null = null;
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-      await reserveRequest(key);
+    const attempts = options.attempts ?? MAX_ATTEMPTS;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      if (options.deadline && Date.now() + 5000 >= options.deadline) throw new Error("Synchronisation : limite de temps atteinte.");
+      // The filesystem limiter remains useful for local CLI processes only.
+      if (!process.env.VERCEL) await reserveRequest(key);
+      const requestId = await reserveSharedRequest(key, endpoint, options.deadline !== undefined);
       let response: Response;
       try {
         response = await fetch(url, {
           headers: { "x-rapidapi-key": key, "x-rapidapi-host": HOST },
-          signal: AbortSignal.timeout(45000),
+          signal: AbortSignal.timeout(Math.max(1, Math.min(45000, options.deadline ? Math.min(15000, options.deadline - Date.now()) : 45000))),
           cache: "no-store",
         });
       } catch {
@@ -192,6 +226,14 @@ async function request<T>(endpoint: string, ttlMs = 300000): Promise<T> {
 
       const remaining = response.headers.get("x-ratelimit-requests-remaining");
       if (remaining !== null && /^\d+$/.test(remaining)) quotaRemaining = Number(remaining);
+      const reset = response.headers.get("x-ratelimit-requests-reset");
+      await prisma.syncLog.update({ where: { id: requestId }, data: {
+        finishedAt: new Date(), status: response.ok ? "SUCCESS" : "FAILED",
+        errors: { keyHash: createHash("sha256").update(key).digest("hex"), endpoint,
+          ...(remaining !== null && /^\d+$/.test(remaining) ? { remaining: Number(remaining) } : {}),
+          ...(reset && /^\d+$/.test(reset) ? { resetAt: Date.now() + Number(reset) * 1000 } : {}),
+        },
+      } });
       if (!response.ok) {
         const detail =
           response.status === 429
@@ -277,6 +319,17 @@ export async function fetchMatches(tournamentId: number, seasonId: number, pages
 /** Matchs en direct, toutes compétitions confondues. */
 export const fetchLiveMatches = () =>
   request<{ events?: ApiEvent[] }>("/api/matches/live", 30000).then((data) => data.events ?? []);
+
+/** AllSportsApi uses /api/matches/*, not API-Football's /fixtures. */
+export async function fetchSyncEvents(date: string | null, options: SyncRequestOptions): Promise<ApiEvent[]> {
+  if (date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Date de synchronisation invalide.");
+  // The provider retired its flat dated feed; schedules are per tournament.
+  if (date && (!options.tournamentId || !Number.isSafeInteger(options.tournamentId))) throw new Error("Compétition requise pour les matchs datés.");
+  const endpoint = date ? `/api/tournament/${options.tournamentId}/scheduled-events/${date}` : "/api/matches/live";
+  const data = await request<{ events?: ApiEvent[] }>(endpoint, 300000, { ...options, attempts: 1 });
+  if (!Array.isArray(data.events)) throw new Error("AllSportsApi : liste des matchs absente ou invalide.");
+  return data.events;
+}
 
 /**
  * Statuts AllSportsApi → `MatchStatus` (énumération Prisma).
