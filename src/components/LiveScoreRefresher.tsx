@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-type Props = { hasLiveMatches: boolean; lastSync?: string | null; showControls?: boolean; pauseWhenIdle?: boolean };
+type Props = { hasLiveMatches: boolean; lastSync?: string | null; showControls?: boolean; pauseWhenIdle?: boolean; watchForKickoff?: boolean };
 const interval = 30000;
 const inactivity = 300000;
 
-export function LiveScoreRefresher({ hasLiveMatches, lastSync = null, showControls = false, pauseWhenIdle = true }: Props) {
+export function LiveScoreRefresher({ hasLiveMatches, lastSync = null, showControls = false, pauseWhenIdle = true, watchForKickoff = false }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [seconds, setSeconds] = useState(0);
@@ -30,16 +30,17 @@ export function LiveScoreRefresher({ hasLiveMatches, lastSync = null, showContro
   }, [pending]);
 
   useEffect(() => {
-    if (!hasLiveMatches) return;
+    if (!hasLiveMatches && !watchForKickoff) return;
+    const delay = hasLiveMatches ? interval : 60000;
     let disposed = false;
     const controller = new AbortController();
     updated.current = Date.now();
     activity.current = Date.now();
-    refreshDue.current = Date.now() + interval;
+    refreshDue.current = Date.now() + delay;
     const perform = async () => {
       if (busy.current || document.hidden || disposed) return;
       busy.current = true;
-      refreshDue.current = Date.now() + interval;
+      refreshDue.current = Date.now() + delay;
       try {
         const response = await fetch("/api/sync-status", { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]) });
         if (!response.ok) throw new Error("Statut indisponible");
@@ -85,7 +86,7 @@ export function LiveScoreRefresher({ hasLiveMatches, lastSync = null, showContro
       events.forEach(event => window.removeEventListener(event, resume));
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [hasLiveMatches, router, pauseWhenIdle]);
+  }, [hasLiveMatches, router, pauseWhenIdle, watchForKickoff]);
 
   // Refresh effects remain active; the reader-facing pages render no controls.
   if (!hasLiveMatches || !showControls) return null;
