@@ -305,6 +305,9 @@ model Team {
 }
 
 model Match {
+  events MatchEvent[]
+  statistics MatchStatistics[]
+  lineups MatchLineup[]
   id            String      @id @default(cuid())
   competitionId String
   competition   Competition @relation(fields: [competitionId], references: [id])
@@ -338,6 +341,56 @@ enum MatchStatus {
   FINISHED
   POSTPONED
   CANCELLED
+}
+
+enum MatchEventType {
+  GOAL
+  YELLOW_CARD
+  RED_CARD
+  SUBSTITUTION
+}
+
+model MatchEvent {
+  id String @id @default(cuid())
+  matchId String
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  teamId String
+  playerName String
+  assistName String?
+  type MatchEventType
+  minute Int
+  extraMinute Int?
+  createdAt DateTime @default(now())
+  @@index([matchId, minute])
+}
+
+model MatchStatistics {
+  id String @id @default(cuid())
+  matchId String
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  teamId String
+  possession Float?
+  shots Int?
+  shotsOnTarget Int?
+  corners Int?
+  fouls Int?
+  yellowCards Int?
+  redCards Int?
+  createdAt DateTime @default(now())
+  @@unique([matchId, teamId])
+}
+
+model MatchLineup {
+  id String @id @default(cuid())
+  matchId String
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  teamId String
+  formation String?
+  coach String?
+  starters Json
+  substitutes Json
+  createdAt DateTime @default(now())
+  @@unique([matchId, teamId])
 }
 
 // ---------------------------------------------------------------------------
