@@ -287,6 +287,7 @@ model Competition {
 }
 
 model Team {
+  players Player[]
   followers Author[] @relation("ReaderFollowedTeams")
   id         String  @id @default(cuid())
   name       String
@@ -302,6 +303,22 @@ model Team {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Player {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  teamId     String
+  team       Team     @relation(fields: [teamId], references: [id])
+  position   String?
+  externalId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([teamId, name])
+  @@index([teamId])
+  @@index([name])
 }
 
 model Match {

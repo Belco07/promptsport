@@ -1,0 +1,4 @@
+import Link from "next/link";
+export function PlayerList({ players }: { players: { id: string; name: string; slug: string; position: string | null }[] }) {
+  return <><p className="mb-5 text-sm text-muted-foreground">Joueurs identifiés dans les événements de match enregistrés. Cette liste ne constitue pas l’effectif officiel complet.</p>{players.length ? <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{players.map(player => <li key={player.id}><Link href={`/joueur/${player.slug}`} className="block rounded-lg border border-border bg-card p-5 hover:bg-muted focus-visible:outline-2"><span className="font-bold text-foreground">{player.name}</span>{player.position && <span className="mt-1 block text-sm text-muted-foreground">{player.position}</span>}</Link></li>)}</ul> : <p className="rounded-lg border border-border bg-card p-6 text-muted-foreground">Aucun joueur identifié dans les données disponibles pour ce club.</p>}</>;
+}

@@ -18,6 +18,7 @@ import { formatMatchDate } from "@/lib/formatDate";
 import { getLastSportsUpdate } from "@/lib/live-sync";
 import { withLocalFootballLive } from "@/lib/fotmob-live";
 import { withStoredMatchClocks } from "@/lib/allsports-sync";
+import { playerProfileKey } from "@/lib/slug";
 import { buildPageMetadata, jsonLdString, sportsEventJsonLd } from "@/lib/seo";
 export const dynamic="force-dynamic";
 type Props={params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>};
@@ -26,8 +27,8 @@ const getMatch = cache(async (id: string, tab: keyof typeof matchTabs) => {
   const match = await prisma.match.findUnique({
     where: { id },
     include: {
-      homeTeam: { select: { name: true, shortName: true, logoUrl: true } },
-      awayTeam: { select: { name: true, shortName: true, logoUrl: true } },
+      homeTeam: { select: { name: true, slug: true, shortName: true, logoUrl: true, players: { select: { name: true, slug: true, teamId: true } } } },
+      awayTeam: { select: { name: true, slug: true, shortName: true, logoUrl: true, players: { select: { name: true, slug: true, teamId: true } } } },
       competition: { select: { name: true, slug: true } },
       events: { orderBy: [{ minute: "asc" }, { extraMinute: "asc" }, { createdAt: "asc" }] },
       statistics: tab === "statistiques",
@@ -64,6 +65,7 @@ export default async function MatchPage({params,searchParams}:Props){
  const {id}=await params;const query=await searchParams;const active=activeTab(query.tab);const match=await getMatch(id,active);if(!match)notFound();
  const lastUpdate=match.status==="LIVE"?await getLastSportsUpdate("live"):null;
  const hasScore=match.homeScore!=null&&match.awayScore!=null;
+ const playerLinks=Object.fromEntries([...match.homeTeam.players,...match.awayTeam.players].map(player=>[playerProfileKey(player.teamId,player.name),`/joueur/${player.slug}`]));
  return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
         <script
           type="application/ld+json"
@@ -88,9 +90,9 @@ export default async function MatchPage({params,searchParams}:Props){
 
  <Link href="/scores" className="mb-6 inline-block text-sm font-bold text-editorial-link">← Tous les scores</Link>
  {match.status==="LIVE"&&<><div className="mb-3"><LiveBadge/></div><LiveScoreRefresher hasLiveMatches={true} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null}/></>}
- <MatchHeader match={match}/><MatchTabs id={id} active={active}/>
+ <MatchHeader match={match} playerLinks={playerLinks}/><MatchTabs id={id} active={active}/>
  <section aria-labelledby="match-panel" className="min-h-40"><h2 id="match-panel" className="mb-5 text-2xl font-black uppercase text-foreground">{matchTabs[active]}</h2>
- {active==="resume"||active==="commentaires"?<MatchTimeline commentary={active==="commentaires"} events={match.events} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="statistiques"?<MatchStats statistics={match.statistics} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:<MatchLineup lineups={match.lineups} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>}
+ {active==="resume"||active==="commentaires"?<MatchTimeline playerLinks={playerLinks} commentary={active==="commentaires"} events={match.events} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="statistiques"?<MatchStats statistics={match.statistics} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:<MatchLineup lineups={match.lineups} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>}
  </section><RelatedArticles teams={[match.homeTeam.name,match.homeTeam.shortName??match.homeTeam.name,match.awayTeam.name,match.awayTeam.shortName??match.awayTeam.name]}/><AdSlotGate><AdSlot className="mt-10"/></AdSlotGate>
  </main><Footer/></>;
 }

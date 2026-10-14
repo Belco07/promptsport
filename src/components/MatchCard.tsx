@@ -32,8 +32,8 @@ export type MatchCardData = {
   minuteObservedAt?: string | null;
   minutePeriodEnd?: number | null;
   id: string;
-  homeTeam: { name: string; shortName: string | null; logoUrl: string | null };
-  awayTeam: { name: string; shortName: string | null; logoUrl: string | null };
+  homeTeam: { name: string; slug?: string; shortName: string | null; logoUrl: string | null };
+  awayTeam: { name: string; slug?: string; shortName: string | null; logoUrl: string | null };
   homeScore: number | null;
   awayScore: number | null;
   status: MatchStatus;
@@ -110,7 +110,7 @@ export function MatchCard({
   if (compact) return <article className="col-span-full overflow-hidden rounded-lg border border-border bg-card"><p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{match.competition?.name} · <time dateTime={match.scheduledAt.toISOString()}>{formatMatchDate(match.scheduledAt)}</time></p><ScoreRow match={match}/></article>;
   return (
     <Card as="article" interactive>
-      <Link href={`/match/${match.id}`} className="block rounded-xl p-4">
+      <div className="block rounded-xl p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="truncate text-xs font-semibold uppercase tracking-wide text-neutral-500 [.public-site_&]:text-muted-foreground">
             {match.competition?.name ?? "Match"}
@@ -120,30 +120,30 @@ export function MatchCard({
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 flex-col items-center gap-2 sm:flex-row sm:gap-3">
-            <TeamLogo
+            <Link href={match.homeTeam.slug ? `/club/${match.homeTeam.slug}` : `/match/${match.id}`} aria-label={`Club ${match.homeTeam.name}`}><TeamLogo
               name={match.homeTeam.name}
               logoUrl={match.homeTeam.logoUrl}
               priority={priority}
-            />
+            /></Link>
             <span className="w-full truncate text-center text-sm font-semibold text-neutral-900 [.public-site_&]:text-foreground sm:w-auto sm:text-left">
               {match.homeTeam.shortName ?? match.homeTeam.name}
             </span>
           </div>
 
-          <span
+          <Link href={`/match/${match.id}`} aria-label={`Fiche du match ${match.homeTeam.name} contre ${match.awayTeam.name}`}
             className={`shrink-0 px-2 text-2xl font-extrabold tabular-nums ${
               isLive ? "text-danger-600 [.public-site_&]:text-status-danger" : "text-primary-900 [.public-site_&]:text-foreground"
             }`}
           >
             {scoreLabel}
-          </span>
+          </Link>
 
           <div className="flex min-w-0 flex-1 flex-col items-center gap-2 sm:flex-row-reverse sm:gap-3">
-            <TeamLogo
+            <Link href={match.awayTeam.slug ? `/club/${match.awayTeam.slug}` : `/match/${match.id}`} aria-label={`Club ${match.awayTeam.name}`}><TeamLogo
               name={match.awayTeam.name}
               logoUrl={match.awayTeam.logoUrl}
               priority={priority}
-            />
+            /></Link>
             <span className="w-full truncate text-center text-sm font-semibold text-neutral-900 [.public-site_&]:text-foreground sm:w-auto sm:text-right">
               {match.awayTeam.shortName ?? match.awayTeam.name}
             </span>
@@ -152,9 +152,9 @@ export function MatchCard({
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-neutral-500 [.public-site_&]:text-muted-foreground">
           <Clock aria-hidden="true" className="h-3.5 w-3.5" />
-          <time dateTime={match.scheduledAt.toISOString()}>{formatMatchDate(match.scheduledAt)}</time>
+          <Link href={`/match/${match.id}`}><time dateTime={match.scheduledAt.toISOString()}>{formatMatchDate(match.scheduledAt)}</time></Link>
         </p>
-      </Link>
+      </div>
     </Card>
   );
 }
