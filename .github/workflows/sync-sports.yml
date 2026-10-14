@@ -10,7 +10,7 @@ on:
       priority:
         description: Type de synchronisation
         type: choice
-        options: [check, live, upcoming, finished]
+        options: [check, check-provider, live, upcoming, finished]
         default: live
 
 permissions:
@@ -47,6 +47,7 @@ jobs:
           if [[ "$SCHEDULE" == '17 2 * * *' ]]; then priority=finished; fi
           query="priority=$priority"
           if [[ "$priority" == 'check' ]]; then query='check=1'; fi
+          if [[ "$priority" == 'check-provider' ]]; then query='check=1&provider=1'; fi
           # Print the response and HTTP status separately: curl exit 22 alone
           # cannot distinguish missing configuration, database errors or quota.
           response_file=$(mktemp)
