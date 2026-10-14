@@ -76,6 +76,9 @@ export const syncUpcomingMatches = (deadline = Date.now() + 55000) => updateMatc
 export const syncFinishedMatches = (deadline = Date.now() + 55000) => updateMatches("finished", deadline);
 
 async function run(type: SyncPriority): Promise<SyncResult> {
+  // Establish the connection before the short transaction. A sleeping database
+  // must not spend the transaction's entire timeout opening its first socket.
+  await prisma.$queryRaw`SELECT 1`;
   const started = Date.now();
   const claim = await prisma.$transaction(async db => {
     await db.$executeRaw`SELECT pg_advisory_xact_lock(190022)`;
@@ -99,6 +102,7 @@ async function run(type: SyncPriority): Promise<SyncResult> {
   } });
   if (result.synced) {
     revalidatePath("/scores");
+    revalidatePath("/live");
     revalidatePath("/match/[id]", "page");
     revalidatePath("/competition/[slug]", "page");
   }

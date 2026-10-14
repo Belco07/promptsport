@@ -10,7 +10,7 @@ on:
       priority:
         description: Type de synchronisation
         type: choice
-        options: [live, upcoming, finished]
+        options: [check, live, upcoming, finished]
         default: live
 
 permissions:
@@ -45,8 +45,30 @@ jobs:
           priority="${MANUAL_PRIORITY:-live}"
           if [[ "$SCHEDULE" == '7 * * * *' ]]; then priority=upcoming; fi
           if [[ "$SCHEDULE" == '17 2 * * *' ]]; then priority=finished; fi
-          curl --silent --show-error --fail-with-body \
+          query="priority=$priority"
+          if [[ "$priority" == 'check' ]]; then query='check=1'; fi
+          # Print the response and HTTP status separately: curl exit 22 alone
+          # cannot distinguish missing configuration, database errors or quota.
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+          http_status=$(curl --silent --show-error \
             --connect-timeout 10 --max-time 65 \
             --request POST \
             --header "Authorization: Bearer $CRON_SECRET" \
-            "${SITE_URL%/}/api/cron/sync-sports?priority=$priority"
+            --output "$response_file" --write-out '%{http_code}' \
+            "${SITE_URL%/}/api/cron/sync-sports?$query")
+          cat "$response_file"
+          echo
+          echo "HTTP $http_status — priorité $priority — déclencheur ${GITHUB_EVENT_NAME}"
+          if [[ "$http_status" != 2* ]]; then
+            echo "::error::Synchronisation refusée (HTTP $http_status). Voir la réponse ci-dessus."
+            exit 1
+          fi
+          python3 - "$response_file" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as response:
+              result = json.load(response)
+          if result.get("ok") is not True:
+              sys.exit("La réponse signale une synchronisation incomplète ou en erreur.")
+          print("Résultat :", result.get("skipped") or f"{result.get('synced', 0)} match(s) synchronisé(s)")
+          PY
