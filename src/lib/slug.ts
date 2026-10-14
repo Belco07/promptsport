@@ -31,3 +31,14 @@ export function resolveSlug(slugInput: string, title: string): string {
   }
   return slugify(title);
 }
+
+/** Identity is scoped to a club: names alone cannot distinguish homonyms. */
+export function playerProfileKey(teamId: string, name: string): string {
+  const normalized = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("fr").trim().replace(/\s+/g, " ");
+  return `${teamId}/${normalized}`;
+}
+
+export function cleanPlayerName(name: string | null | undefined): string | null {
+  const value = name?.trim().replace(/\s+/g, " ");
+  return value && !/\((entra[iî]neur|coach|manager)\)/i.test(value) ? value : null;
+}

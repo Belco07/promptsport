@@ -30,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const windowStart = new Date(now.getTime() - MATCH_WINDOW_DAYS * 864e5);
   const windowEnd = new Date(now.getTime() + MATCH_WINDOW_DAYS * 864e5);
 
-  const [articles, competitions, matches, themes] = await Promise.all([
+  const [articles, competitions, matches, themes, clubs, players] = await Promise.all([
     prisma.article.findMany({
       where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
@@ -52,6 +52,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       orderBy: { name: "asc" },
       select: { slug: true, updatedAt: true },
     }),
+    prisma.team.findMany({ orderBy: { name: "asc" }, select: { slug: true, updatedAt: true } }),
+    prisma.player.findMany({ orderBy: { name: "asc" }, select: { slug: true, updatedAt: true } }),
   ]);
 
   const entries: MetadataRoute.Sitemap = [
@@ -114,6 +116,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     });
   }
+
+  for (const club of clubs) entries.push({ url: `${SITE_URL}/club/${club.slug}`, lastModified: club.updatedAt, changeFrequency: "daily", priority: 0.6 });
+  for (const player of players) entries.push({ url: `${SITE_URL}/joueur/${player.slug}`, lastModified: player.updatedAt, changeFrequency: "daily", priority: 0.5 });
 
   return entries.slice(0, MAX_URLS);
 }

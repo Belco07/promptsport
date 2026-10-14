@@ -4,9 +4,11 @@ import { MATCH_STATUS_LABELS, MATCH_STATUS_TONES, type MatchCardData } from "@/c
 import { Badge } from "@/components/ui/Badge";
 import { formatMatchDate } from "@/lib/formatDate";
 import type { MatchEvent } from "@/generated/prisma/client";
+import { playerProfileKey } from "@/lib/slug";
 import { LiveMinute } from "@/components/LiveMinute";
 
-export function MatchHeader({ match: m }: { match: MatchCardData & { venue: string | null; homeTeamId: string; awayTeamId: string; events: MatchEvent[]; competition: { name: string; slug: string } } }) {
+export function MatchHeader({ match: m, playerLinks = {} }: { playerLinks?: Record<string, string>; match: MatchCardData & { venue: string | null; homeTeamId: string; awayTeamId: string; events: MatchEvent[]; competition: { name: string; slug: string } } }) {
+  const playerName = (teamId: string, name: string) => { const href = playerLinks[playerProfileKey(teamId, name)]; return href ? <Link href={href} className="hover:underline focus-visible:outline-2">{name}</Link> : name; };
   const score = (m.status === "LIVE" || m.status === "FINISHED") && m.homeScore !== null && m.awayScore !== null ? m.homeScore + ' – ' + m.awayScore : 'vs';
   return <header className="border-y border-border bg-card px-3 py-7 text-center md:p-8">
     <Link href={'/competition/' + m.competition.slug} className="text-xs font-bold uppercase tracking-widest text-editorial-link">{m.competition.name}</Link>
@@ -21,11 +23,11 @@ export function MatchHeader({ match: m }: { match: MatchCardData & { venue: stri
         const teamScore=index?m.awayScore:m.homeScore;
         return <div key={index} className={index ? 'col-start-3 row-start-1' : 'col-start-1 row-start-1'}>
           {team.logoUrl ? <Image src={team.logoUrl} alt="" width={80} height={80} sizes="80px" className="mx-auto h-14 w-14 object-contain md:h-20 md:w-20"/> : <span className="text-4xl font-black text-muted-foreground">{team.name[0]}</span>}
-          <p className="mt-3 break-words text-sm font-bold text-foreground md:text-xl">{team.name}</p>
-          {!!goals.length && <ul aria-label={'Buteurs de ' + team.name} className="mt-3 space-y-1 text-xs text-muted-foreground">{goals.map(event => <li key={event.id}>⚽ {event.playerName} <span className="whitespace-nowrap tabular-nums">{event.minute}{event.extraMinute ? '+' + event.extraMinute : ''}′</span></li>)}</ul>}
+          <p className="mt-3 break-words text-sm font-bold text-foreground md:text-xl">{team.slug ? <Link href={`/club/${team.slug}`} className="hover:underline focus-visible:outline-2">{team.name}</Link> : team.name}</p>
+          {!!goals.length && <ul aria-label={'Buteurs de ' + team.name} className="mt-3 space-y-1 text-xs text-muted-foreground">{goals.map(event => <li key={event.id}>⚽ {playerName(teamId, event.playerName)} <span className="whitespace-nowrap tabular-nums">{event.minute}{event.extraMinute ? '+' + event.extraMinute : ''}′</span></li>)}</ul>}
           {(teamScore??0)>goals.length&&<p className="mt-2 text-xs text-muted-foreground">Buteur en attente de mise à jour.</p>}
-          {!!missedPenalties.length&&<ul aria-label={'Penalties manqués de '+team.name} className="mt-2 space-y-1 text-xs text-status-danger">{missedPenalties.map(event=><li key={event.id}>× Penalty manqué · {event.playerName} {event.minute}{event.extraMinute?'+'+event.extraMinute:''}′</li>)}</ul>}
-          {!!cards.length && <ul aria-label={'Cartons de ' + team.name} className="mt-2 space-y-1 text-xs text-muted-foreground">{cards.map(event => <li key={event.id} className="flex items-center justify-center gap-1.5"><span aria-label={event.type === 'RED_CARD' ? 'Carton rouge' : 'Carton jaune'} className={'inline-block h-3 w-2 shrink-0 rounded-sm ' + (event.type === 'RED_CARD' ? 'bg-red-600' : 'bg-yellow-400')}/><span>{event.playerName} {event.minute}{event.extraMinute ? '+' + event.extraMinute : ''}′</span></li>)}</ul>}
+          {!!missedPenalties.length&&<ul aria-label={'Penalties manqués de '+team.name} className="mt-2 space-y-1 text-xs text-status-danger">{missedPenalties.map(event=><li key={event.id}>× Penalty manqué · {playerName(teamId, event.playerName)} {event.minute}{event.extraMinute?'+'+event.extraMinute:''}′</li>)}</ul>}
+          {!!cards.length && <ul aria-label={'Cartons de ' + team.name} className="mt-2 space-y-1 text-xs text-muted-foreground">{cards.map(event => <li key={event.id} className="flex items-center justify-center gap-1.5"><span aria-label={event.type === 'RED_CARD' ? 'Carton rouge' : 'Carton jaune'} className={'inline-block h-3 w-2 shrink-0 rounded-sm ' + (event.type === 'RED_CARD' ? 'bg-red-600' : 'bg-yellow-400')}/><span>{playerName(teamId, event.playerName)} {event.minute}{event.extraMinute ? '+' + event.extraMinute : ''}′</span></li>)}</ul>}
         </div>;
       })}
       <p className="col-start-2 row-start-1 mt-5 whitespace-nowrap text-4xl font-black tabular-nums text-foreground md:mt-8 md:text-6xl">{score}</p>
