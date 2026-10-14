@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { synchronizeSports, type SyncPriority } from "@/lib/live-sync";
-import { syncEligibleMatchDetails, syncChampionsLeagueStandings, type MatchDetailPart } from "@/lib/allsports-sync";
+import { fetchSyncEvents, getQuotaRemaining, syncEligibleMatchDetails, syncChampionsLeagueStandings, type MatchDetailPart } from "@/lib/allsports-sync";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -23,13 +23,20 @@ async function handle(request: Request) {
     return NextResponse.json({ ok: false, error: "ALLSPORTS_API_KEY absente de ce déploiement de production.", code: "MISSING_API_KEY" }, { status: 503, headers });
   }
   if (url.searchParams.get("check") === "1") {
+    let providerCheck = false;
     try {
       await prisma.$queryRaw`SELECT 1`;
+      if (url.searchParams.get("provider") === "1") {
+        providerCheck = true;
+        // Explicit manual check only: one shared, quota-protected request.
+        const events = await fetchSyncEvents(null, { deadline: Date.now() + 20000, attempts: 1 });
+        return NextResponse.json({ ok: true, configuration: "Présente", database: "Accessible", provider: "Accessible", providerRequests: 1, providerLiveCount: events.length, remaining: getQuotaRemaining() }, { headers });
+      }
       return NextResponse.json({ ok: true, configuration: "Présente", database: "Accessible", providerRequests: 0 }, { headers });
     } catch (error) {
       const code = error && typeof error === "object" && "code" in error ? String(error.code) : "DATABASE_UNAVAILABLE";
-      console.error("[sports-sync] Database check failed", { code });
-      return NextResponse.json({ ok: false, error: "Connexion à la base de données indisponible.", code }, { status: 503, headers });
+      console.error("[sports-sync] Configuration check failed", { code, providerCheck });
+      return NextResponse.json({ ok: false, error: providerCheck ? "Contrôle AllSports indisponible : vérifier la clé, l'abonnement et le quota." : "Connexion à la base de données indisponible.", code }, { status: 503, headers });
     }
   }
   const priority = url.searchParams.get("priority") ?? "live";
@@ -51,7 +58,10 @@ async function handle(request: Request) {
         }
       }
     }
-    const details = include.length && Date.now() + 5000 < deadline ? await syncEligibleMatchDetails(include as MatchDetailPart[], deadline) : { synced: 0, errors: [] };
+    // A live/upcoming job with no eligible scores must not spend requests on
+    // yesterday's details. The daily finished job remains responsible for them.
+    const shouldSyncDetails = priority === "finished" || !result.skipped;
+    const details = shouldSyncDetails && include.length && Date.now() + 5000 < deadline ? await syncEligibleMatchDetails(include as MatchDetailPart[], deadline) : { synced: 0, errors: [] };
     if (details.synced) revalidatePath("/match/[id]", "page");
     return NextResponse.json({ ok: !result.errors.length && !details.errors.length, ...result, details }, { status: result.errors.length && !result.synced ? 502 : 200, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
