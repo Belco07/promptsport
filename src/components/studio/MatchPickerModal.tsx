@@ -38,7 +38,7 @@ export function MatchPickerModal({ articleId, title, content, onSelect, onClose 
         ]);
         if (!cancelled) {
           // Explicit filters narrow results; suggestions remain first when browsing.
-          const visible = suggested.filter(match => (!date || new Date(match.scheduledAt).toLocaleDateString("en-CA", {timeZone:"Africa/Lagos"}) === date) && (!query.trim() || `${match.homeName} ${match.awayName}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())));
+          const visible = suggested.filter(match => (!date || new Date(match.scheduledAt).toLocaleDateString("en-CA", {timeZone:"Africa/Lagos"}) === date) && (!query.trim() || found.some(result => result.id === match.id)));
           setSuggestions(visible);
           setResults(found.filter(match => !visible.some(s => s.id === match.id)).slice(0, 10-visible.length));
         }
