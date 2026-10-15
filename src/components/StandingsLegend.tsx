@@ -12,11 +12,11 @@ export const NEUTRAL_STANDINGS_RULES: StandingsRules = {
 };
 
 export const STANDINGS_ZONES = {
-  ucl: { name: "Ligue des Champions", description: "Place en Ligue des Champions", logo: 2, row: "bg-ucl-soft/10 hover:bg-ucl-soft/15", badge: "bg-ucl text-white", border: "border-l-ucl", dot: "bg-ucl" },
-  uel: { name: "Ligue Europa", description: "Place en Ligue Europa", logo: 3, row: "bg-uel-soft/10 hover:bg-uel-soft/15", badge: "bg-uel text-black", border: "border-l-uel", dot: "bg-uel" },
-  uecl: { name: "Conference League", description: "Place en Conference League", logo: 848, row: "bg-uecl-soft/10 hover:bg-uecl-soft/15", badge: "bg-uecl text-black", border: "border-l-uecl", dot: "bg-uecl" },
-  barrage: { name: "Barrage", description: "Barrage de maintien", logo: null, row: "bg-barrage-soft/10 hover:bg-barrage-soft/15", badge: "bg-barrage text-white", border: "border-l-barrage", dot: "bg-barrage" },
-  relegation: { name: "Relégation", description: "Relégation directe", logo: null, row: "bg-relegation-soft/15 hover:bg-relegation-soft/20", badge: "bg-relegation text-black", border: "border-l-relegation", dot: "bg-relegation" },
+  ucl: { name: "Ligue des Champions", description: "Place en Ligue des Champions", logo: 2, row: "hover:bg-standing-ucl dark:hover:bg-standing-ucl-night", badge: "bg-standing-ucl text-standing-ucl-ink", border: "border-l-ucl", dot: "bg-ucl" },
+  uel: { name: "Ligue Europa", description: "Place en Ligue Europa", logo: 3, row: "hover:bg-standing-uel dark:hover:bg-standing-uel-night", badge: "bg-standing-uel text-standing-uel-ink", border: "border-l-uel", dot: "bg-uel" },
+  uecl: { name: "Conference League", description: "Place en Conference League", logo: 848, row: "hover:bg-standing-uecl dark:hover:bg-standing-uecl-night", badge: "bg-standing-uecl text-standing-uecl-ink", border: "border-l-uecl", dot: "bg-uecl" },
+  barrage: { name: "Barrage", description: "Barrage de maintien", logo: null, row: "hover:bg-standing-barrage dark:hover:bg-standing-barrage-night", badge: "bg-standing-barrage text-standing-barrage-ink", border: "border-l-barrage", dot: "bg-barrage" },
+  relegation: { name: "Relégation", description: "Relégation directe", logo: null, row: "hover:bg-standing-relegation dark:hover:bg-standing-relegation-night", badge: "bg-standing-relegation text-standing-relegation-ink", border: "border-l-relegation", dot: "bg-relegation" },
 } as const;
 export type StandingsZone = keyof typeof STANDINGS_ZONES;
 
