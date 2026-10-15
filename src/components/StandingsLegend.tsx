@@ -12,11 +12,11 @@ export const NEUTRAL_STANDINGS_RULES: StandingsRules = {
 };
 
 export const STANDINGS_ZONES = {
-  ucl: { name: "Ligue des Champions", description: "Place en Ligue des Champions", logo: 2, row: "bg-ucl/15 hover:bg-ucl/20", border: "border-l-ucl", dot: "bg-ucl" },
-  uel: { name: "Ligue Europa", description: "Place en Ligue Europa", logo: 3, row: "bg-uel/15 hover:bg-uel/20", border: "border-l-uel", dot: "bg-uel" },
-  uecl: { name: "Conference League", description: "Place en Conference League", logo: 848, row: "bg-uecl/15 hover:bg-uecl/20", border: "border-l-uecl", dot: "bg-uecl" },
-  barrage: { name: "Barrage", description: "Barrage de maintien", logo: null, row: "bg-barrage/15 hover:bg-barrage/20", border: "border-l-barrage", dot: "bg-barrage" },
-  relegation: { name: "Relégation", description: "Relégation directe", logo: null, row: "bg-relegation/20 hover:bg-relegation/25", border: "border-l-relegation", dot: "bg-relegation" },
+  ucl: { name: "Ligue des Champions", description: "Place en Ligue des Champions", logo: 2, row: "bg-ucl-soft/10 hover:bg-ucl-soft/15", badge: "bg-ucl text-white", border: "border-l-ucl", dot: "bg-ucl" },
+  uel: { name: "Ligue Europa", description: "Place en Ligue Europa", logo: 3, row: "bg-uel-soft/10 hover:bg-uel-soft/15", badge: "bg-uel text-black", border: "border-l-uel", dot: "bg-uel" },
+  uecl: { name: "Conference League", description: "Place en Conference League", logo: 848, row: "bg-uecl-soft/10 hover:bg-uecl-soft/15", badge: "bg-uecl text-black", border: "border-l-uecl", dot: "bg-uecl" },
+  barrage: { name: "Barrage", description: "Barrage de maintien", logo: null, row: "bg-barrage-soft/10 hover:bg-barrage-soft/15", badge: "bg-barrage text-white", border: "border-l-barrage", dot: "bg-barrage" },
+  relegation: { name: "Relégation", description: "Relégation directe", logo: null, row: "bg-relegation-soft/15 hover:bg-relegation-soft/20", badge: "bg-relegation text-black", border: "border-l-relegation", dot: "bg-relegation" },
 } as const;
 export type StandingsZone = keyof typeof STANDINGS_ZONES;
 
