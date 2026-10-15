@@ -31,7 +31,8 @@ import type { StandingRow } from "@/lib/standings";
  *     (`seasons`, `teams`, `events`) et non dans `result` ;
  *   - les équipes n'exposent **aucune URL de logo** (les images passent par
  *     `/api/team/{id}/image`, derrière l'authentification de l'API) : `logoUrl`
- *     reste donc `null` et l'interface affiche son visuel de repli.
+ *     utilise le CDN public SofaScore, dont les identifiants d'équipes
+ *     correspondent à ceux de ce fournisseur. Aucun appel RapidAPI d'image.
  */
 
 /** Compétitions importables : identifiants de tournoi AllSportsApi. */
@@ -561,14 +562,14 @@ export async function persistCompetition(
     const fields = {
       name: team.name,
       shortName: team.shortName ?? team.nameCode ?? null,
-      // AllSportsApi ne fournit pas d'URL de logo exploitable côté navigateur.
       country: team.category?.country?.name ?? team.country?.name ?? league.country,
       sport: "football",
     };
     const row = await db.team.upsert({
       where: { externalId: String(team.id) },
       update: fields,
-      create: { ...fields, logoUrl: null, externalId: String(team.id), slug: `${slugify(team.name) || "team"}-${team.id}` },
+      // Existing logos (including curated ones) are preserved on update.
+      create: { ...fields, logoUrl: `https://img.sofascore.com/api/v1/team/${team.id}/image`, externalId: String(team.id), slug: `${slugify(team.name) || "team"}-${team.id}` },
     });
     ids.set(team.id, row.id);
   }
