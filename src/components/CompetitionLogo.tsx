@@ -12,6 +12,8 @@ const logos: Record<string, number> = {
   "serie-a": 135,
   bundesliga: 78,
   "uefa-champions-league": 2,
+  "uefa-europa-league": 3,
+  "uefa-conference-league": 848,
 };
 
 export function CompetitionLogo({ slug }: { slug: string }) {
