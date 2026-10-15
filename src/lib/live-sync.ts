@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { AllSportsHttpError, eventClock, fetchMatchEvent, fetchSyncEvents, LEAGUES, mapMatchStatus, type ApiEvent } from "@/lib/allsports-sync";
+import { AllSportsHttpError, eventClock, eventRoundInfo, fetchMatchEvent, fetchSyncEvents, LEAGUES, mapMatchStatus, type ApiEvent } from "@/lib/allsports-sync";
 import { revalidatePath } from "next/cache";
 
 export type SyncPriority = "live" | "upcoming" | "finished";
@@ -43,6 +43,7 @@ async function updateMatches(type: SyncPriority | "orphans", deadline: number): 
       // Guard the administrative 404 fallback against a concurrent live update.
       const result = await prisma.match.updateMany({ where: { id: match.id, ...(!event ? { status: "SCHEDULED" as const } : status !== "FINISHED" ? { status: { not: "FINISHED" as const } } : {}) }, data: {
         status, homeScore, awayScore, scheduledAt: kickoff,
+        ...(event ? eventRoundInfo(event) : {}),
         ...(status === "LIVE" || status === "FINISHED" ? { startedAt: match.startedAt ?? kickoff } : {}),
         ...(status === "FINISHED" ? { finishedAt: match.finishedAt ?? new Date() } : {}),
       } });

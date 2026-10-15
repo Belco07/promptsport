@@ -336,6 +336,8 @@ model Player {
 }
 
 model Match {
+  matchday Int?
+  roundName String?
   articles Article[]
   events MatchEvent[]
   statistics MatchStatistics[]
