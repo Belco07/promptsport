@@ -176,6 +176,7 @@ export function sportsEventJsonLd({
   awayTeam,
   competitionName,
   description,
+  status,
 }: {
   name: string;
   path: string;
@@ -185,6 +186,7 @@ export function sportsEventJsonLd({
   awayTeam: string;
   competitionName: string | null;
   description?: string;
+  status?: "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
 }): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
@@ -192,7 +194,7 @@ export function sportsEventJsonLd({
     name,
     ...(description ? { description } : {}),
     startDate,
-    eventStatus: "https://schema.org/EventScheduled",
+    eventStatus: status === "CANCELLED" ? "https://schema.org/EventCancelled" : status === "POSTPONED" ? "https://schema.org/EventPostponed" : "https://schema.org/EventScheduled",
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     ...(venue ? { location: { "@type": "Place", name: venue } } : {}),
     competitor: [

@@ -3,7 +3,8 @@ import { FormatBadge } from "@/components/FormatBadge";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
+import { MatchCard } from "@/components/MatchCard";
 
 import { ArticleHero } from "@/components/ArticleHero";
 import { ArticleMeta } from "@/components/ArticleMeta";
@@ -30,7 +31,7 @@ import {
 import { formatDate } from "@/lib/formatDate";
 import { prisma } from "@/lib/prisma";
 import { COMMENT_RATE_LIMIT, peekRateLimit, rateLimitMessage } from "@/lib/rate-limit";
-import { buildPageMetadata, jsonLdString, newsArticleJsonLd } from "@/lib/seo";
+import { buildPageMetadata, jsonLdString, newsArticleJsonLd, sportsEventJsonLd } from "@/lib/seo";
 import { hasActiveSubscription } from "@/lib/subscription";
 
 /**
@@ -53,17 +54,18 @@ type ArticlePageProps = {
   }>;
 };
 
-async function getPublishedArticle(slug: string) {
+const getPublishedArticle = cache(async (slug: string) => {
   return prisma.article.findFirst({
     where: { slug, status: "PUBLISHED" },
     include: {
+      match: { include: { homeTeam: { select: { name: true, shortName: true, logoUrl: true } }, awayTeam: { select: { name: true, shortName: true, logoUrl: true } }, competition: { select: { name: true } } } },
       author: { select: { name: true, slug: true, photoUrl: true } },
       category: { select: { name: true, slug: true } },
       // WP16b : thèmes éditoriaux affichés à côté de la catégorie.
       themes: { where: { active: true }, orderBy: { name: "asc" }, select: { name: true, slug: true, color: true } },
     },
   });
-}
+});
 
 /**
  * Description SEO d'un article : extrait, sinon 160 premiers caractères du
@@ -351,11 +353,19 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
         </Link>
 
         <article>
+          {article.match && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(sportsEventJsonLd({
+            name: `${article.match.homeTeam.name} vs ${article.match.awayTeam.name}`,
+            path: `/match/${article.match.id}`, startDate: article.match.scheduledAt.toISOString(),
+            venue: article.match.venue, homeTeam: article.match.homeTeam.name, awayTeam: article.match.awayTeam.name,
+            competitionName: article.match.competition.name, status: article.match.status,
+            description: article.match.homeScore !== null && article.match.awayScore !== null ? `${article.match.homeTeam.name} ${article.match.homeScore} - ${article.match.awayScore} ${article.match.awayTeam.name}` : undefined,
+          })) }} />}
           <div className="mb-3"><FormatBadge format={article.format} /></div>
           <ArticleHero title={article.title} image={article.coverImageUrl} premium={article.isPremium} />
           <div className={`mt-8 ${session?.user?.isPremium === true ? "mx-auto max-w-[720px]" : "lg:grid lg:grid-cols-[minmax(0,720px)_300px] lg:justify-between lg:gap-10"}`}>
           <div className="w-full min-w-0 max-w-[720px]">
             <ArticleMeta author={article.author} category={article.category} themes={article.themes} date={article.publishedAt} minutes={minutes} />
+            {article.match && <section aria-labelledby="article-match-title" className="mb-6 rounded-lg border border-border bg-card p-4"><h2 id="article-match-title" className="mb-3 text-lg font-bold text-foreground">Match associé</h2><p className="mb-3 text-sm text-muted-foreground">{new Date(article.match.scheduledAt).toLocaleString("fr-FR", { timeZone: "Africa/Lagos", dateStyle: "long", timeStyle: "short" })}</p><MatchCard match={article.match} /><Link href={`/match/${article.match.id}`} className="mt-3 inline-block text-sm font-semibold text-editorial-link underline">Voir la fiche du match</Link></section>}
             {/* Même retrait que le corps : rail w-12 + espacement gap-5, uniquement lorsqu’il est visible. */}
             {article.excerpt && <p className="mb-6 text-xl font-semibold leading-relaxed text-foreground xl:ml-[4.25rem]">{article.excerpt}</p>}
             {/*

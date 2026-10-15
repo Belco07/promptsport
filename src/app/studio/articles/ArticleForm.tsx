@@ -3,7 +3,10 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { ArticleFormat } from "@/components/FormatBadge";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { getArticleMatch, type MatchPickerOption } from "./actions";
+import { MatchPickerModal, matchPickerLabel } from "@/components/studio/MatchPickerModal";
 
 import { ImageUpload } from "@/components/ImageUpload";
 import { ThemeSelector, type ThemeOption } from "@/components/studio/ThemeSelector";
@@ -126,9 +129,33 @@ export function ArticleForm({
   const [coverImageUrl, setCoverImageUrl] = useState(initial.coverImageUrl);
   // WP16b : thèmes retenus, sérialisés dans un champ caché pour la Server Action.
   const [themeIds, setThemeIds] = useState<string[]>(initial.themeIds);
+  const params = useParams<{ id?: string }>();
+  const articleId = params?.id;
+  const [match, setMatch] = useState<MatchPickerOption | null>(null);
+  const [matchLoaded, setMatchLoaded] = useState(!articleId);
+  const [matchError, setMatchError] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  useEffect(() => {
+    if (!articleId) return;
+    let cancelled = false;
+    getArticleMatch(articleId).then(selected => {
+      if (!cancelled) { setMatch(selected); setMatchLoaded(true); }
+    }).catch(() => { if (!cancelled) setMatchError(true); });
+    return () => { cancelled = true; };
+  }, [articleId]);
 
   return (
     <form action={formAction} className="max-w-2xl space-y-5">
+      <section aria-labelledby="associated-match-label" className="rounded-md border border-border bg-card p-4">
+        <h2 id="associated-match-label" className="mb-2 text-sm font-semibold text-foreground">Match associé</h2>
+        <p className="mb-3 text-sm text-muted-foreground">{match ? matchPickerLabel(match) : matchLoaded ? "Aucun match associé." : matchError ? "Association indisponible. La valeur existante sera conservée." : "Chargement de l’association…"}</p>
+        {matchLoaded && <input type="hidden" name="matchId" value={match?.id ?? ""} />}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={!matchLoaded} onClick={() => setPickerOpen(true)} className="rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-50">{match ? "Changer de match" : "Choisir un match"}</button>
+          {match && <button type="button" onClick={() => setMatch(null)} className="rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-muted">Retirer l’association</button>}
+        </div>
+        {pickerOpen && <MatchPickerModal articleId={articleId} title={title} content={content} onClose={() => setPickerOpen(false)} onSelect={selected => { setMatch(selected); setPickerOpen(false); }} />}
+      </section>
       <div>
         <label htmlFor="format" className={labelClass}>Format</label>
         <select id="format" name="format" value={format} onChange={(event) => setFormat(event.target.value as ArticleFormat)} className={inputClass}>
