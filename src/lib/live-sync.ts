@@ -11,30 +11,41 @@ const inFlight = new Map<SyncPriority, Promise<SyncResult>>();
 async function updateMatches(type: SyncPriority, deadline: number): Promise<SyncResult> {
   const started = Date.now();
   const now = new Date();
+  const events = new Map<number, ApiEvent>();
+  const errors: string[] = [];
+  // Discover live fixtures first, even if the stored status/date/competition
+  // is wrong. One unfiltered feed serves every fixture already in our database.
+  if (type === "live") {
+    for (const event of await fetchSyncEvents(null, { deadline })) {
+      if (!Number.isSafeInteger(event.id) || event.id <= 0) {
+        errors.push("AllSportsApi : identifiant de match invalide dans le flux live.");
+        continue;
+      }
+      events.set(event.id, event);
+    }
+  }
   const matches = await prisma.match.findMany({
     where: {
-      competition: { externalId: { in: Object.values(LEAGUES).map(league => String(league.id)) } },
       externalId: { not: null },
-      ...(type === "live" ? { OR: [{ status: "LIVE" }, { status: "SCHEDULED", scheduledAt: { gte: new Date(now.getTime() - 10800000), lte: now } }] } : {
+      ...(type === "live" ? { OR: [{ externalId: { in: [...events.keys()].map(String) } }, { status: "LIVE" }] } : {
+        competition: { externalId: { in: Object.values(LEAGUES).map(league => String(league.id)) } },
         scheduledAt: { gte: new Date(now.getTime() - (type === "upcoming" ? 10800000 : 86400000)), lte: now },
         status: { in: type === "upcoming" ? ["SCHEDULED", "LIVE"] : ["SCHEDULED", "LIVE", "FINISHED"] },
       }),
     },
     select: { id: true, externalId: true, scheduledAt: true, status: true, startedAt: true, finishedAt: true, competition: { select: { externalId: true } } },
   });
-  if (!matches.length) return { synced: 0, errors: [], duration: Date.now() - started, skipped: "Aucun match à synchroniser." };
-  const events = new Map<number, ApiEvent>();
-  const errors: string[] = [];
-  if (type === "live") {
-    for (const event of await fetchSyncEvents(null, { deadline })) events.set(event.id, event);
-  }
+  if (!matches.length) return { synced: 0, errors, duration: Date.now() - started, ...(errors.length ? {} : { skipped: "Aucun match à synchroniser." }) };
   // A match disappearing from the live feed is not proof it finished.
   // Retrieve its dated feed to obtain an explicit status (including cancellations).
   const dates = new Map(matches.filter(match => type !== "live" || (match.status === "LIVE" && !events.has(Number(match.externalId))))
     .map(match => { const date=match.scheduledAt.toISOString().slice(0,10); const tournamentId=Number(match.competition.externalId); return [`${tournamentId}/${date}`, { date, tournamentId }] as const; }));
   for (const { date, tournamentId } of dates.values()) {
     try {
-      for (const event of await fetchSyncEvents(date, { deadline, tournamentId })) events.set(event.id, event);
+      for (const event of await fetchSyncEvents(date, { deadline, tournamentId })) {
+        // The dated fallback can be older than the global live snapshot.
+        if (type !== "live" || !events.has(event.id)) events.set(event.id, event);
+      }
     } catch (error) {
       errors.push(error instanceof Error ? error.message : "AllSportsApi indisponible.");
       if (Date.now() + 5000 >= deadline) break;

@@ -33,7 +33,7 @@ import type { StandingRow } from "@/lib/standings";
  *     reste donc `null` et l'interface affiche son visuel de repli.
  */
 
-/** Compétitions suivies : identifiants de tournoi AllSportsApi (validation Phase 1). */
+/** Compétitions importables : identifiants de tournoi AllSportsApi. */
 export const LEAGUES = {
   FL1: { id: 34, name: "Ligue 1", slug: "ligue-1", country: "France" },
   PL: { id: 17, name: "Premier League", slug: "premier-league", country: "Angleterre" },
@@ -41,9 +41,13 @@ export const LEAGUES = {
   SA: { id: 23, name: "Serie A", slug: "serie-a", country: "Italie" },
   BL1: { id: 35, name: "Bundesliga", slug: "bundesliga", country: "Allemagne" },
   CL: { id: 7, name: "UEFA Champions League", slug: "uefa-champions-league", country: "Europe" },
+  EL: { id: 679, name: "UEFA Europa League", slug: "uefa-europa-league", country: "Europe" },
+  ECL: { id: 17015, name: "UEFA Conference League", slug: "uefa-conference-league", country: "Europe" },
 } as const;
 
-export const DEFAULT_COMPETITIONS = Object.keys(LEAGUES);
+// Additional European tournaments are opt-in imports: do not increase the
+// default import's request budget when adding supported competitions.
+export const DEFAULT_COMPETITIONS = ["FL1", "PL", "PD", "SA", "BL1", "CL"];
 export const COMPETITION_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(LEAGUES).map(([code, league]) => [code, league.name]),
 );
@@ -399,7 +403,7 @@ function resolveCode(input: string): keyof typeof LEAGUES {
       LEAGUES[candidate].slug === input.toLowerCase(),
   );
   if (!code) {
-    throw new Error(`Compétition non prise en charge : ${input}. Utilisez ${DEFAULT_COMPETITIONS.join(", ")}.`);
+    throw new Error(`Compétition non prise en charge : ${input}. Utilisez ${Object.keys(LEAGUES).join(", ")}.`);
   }
   return code;
 }
@@ -704,10 +708,10 @@ export async function syncMatchDetails(match: DetailMatch, include: readonly Mat
   return result;
 }
 
-export async function syncEligibleMatchDetails(include: readonly MatchDetailPart[], deadline: number) {
+export async function syncEligibleMatchDetails(include: readonly MatchDetailPart[], deadline: number, scope: "all" | "live" = "all") {
   const midnight = new Date(); midnight.setUTCHours(0, 0, 0, 0); midnight.setUTCDate(midnight.getUTCDate() - 1);
   const end = new Date(midnight); end.setUTCDate(end.getUTCDate() + 2);
-  const matches = await prisma.match.findMany({ where: { competition: { externalId: { in: Object.values(LEAGUES).map(league => String(league.id)) } }, externalId: { not: null }, OR: [{ status: "LIVE" }, { status: "FINISHED", scheduledAt: { gte: midnight, lt: end } }] }, select: { id: true, externalId: true, homeTeamId: true, awayTeamId: true, status: true }, orderBy: { scheduledAt: "asc" } });
+  const matches = await prisma.match.findMany({ where: { competition: { externalId: { in: Object.values(LEAGUES).map(league => String(league.id)) } }, externalId: { not: null }, OR: scope === "live" ? [{ status: "LIVE" }] : [{ status: "LIVE" }, { status: "FINISHED", scheduledAt: { gte: midnight, lt: end } }] }, select: { id: true, externalId: true, homeTeamId: true, awayTeamId: true, status: true }, orderBy: { scheduledAt: "asc" } });
   const result = { synced: 0, errors: [] as string[] };
   for (const match of matches) {
     if (Date.now() + 5000 >= deadline) break;

@@ -61,7 +61,7 @@ async function handle(request: Request) {
     // A live/upcoming job with no eligible scores must not spend requests on
     // yesterday's details. The daily finished job remains responsible for them.
     const shouldSyncDetails = priority === "finished" || !result.skipped;
-    const details = shouldSyncDetails && include.length && Date.now() + 5000 < deadline ? await syncEligibleMatchDetails(include as MatchDetailPart[], deadline) : { synced: 0, errors: [] };
+    const details = shouldSyncDetails && include.length && Date.now() + 5000 < deadline ? await syncEligibleMatchDetails(include as MatchDetailPart[], deadline, priority === "live" ? "live" : "all") : { synced: 0, errors: [] };
     if (details.synced) revalidatePath("/match/[id]", "page");
     return NextResponse.json({ ok: !result.errors.length && !details.errors.length, ...result, details }, { status: result.errors.length && !result.synced ? 502 : 200, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
