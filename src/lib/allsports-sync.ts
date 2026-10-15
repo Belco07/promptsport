@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { mkdir, readFile, writeFile, rmdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -45,9 +46,19 @@ export const LEAGUES = {
   ECL: { id: 17015, name: "UEFA Conference League", slug: "uefa-conference-league", country: "Europe" },
 } as const;
 
-// Additional European tournaments are opt-in imports: do not increase the
-// default import's request budget when adding supported competitions.
-export const DEFAULT_COMPETITIONS = ["FL1", "PL", "PD", "SA", "BL1", "CL"];
+export const DEFAULT_COMPETITIONS = ["FL1", "PL", "PD", "SA", "BL1", "CL", "EL", "ECL"];
+
+const operationBudget = new AsyncLocalStorage<{ remaining: number; reserved: number }>();
+/** Shared across parallel preparation calls, including retries. */
+export async function withSportsRequestBudget<T>(maximum: number, work: () => Promise<T>) {
+  if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > 80) throw new Error("Budget requis : de 1 à 80 requêtes.");
+  const budget = { remaining: maximum, reserved: 0 };
+  return operationBudget.run(budget, async () => ({ result: await work(), reservedRequests: budget.reserved }));
+}
+
+export class AllSportsHttpError extends Error {
+  constructor(public readonly status: number, message: string) { super(message); }
+}
 export const COMPETITION_LABELS: Record<string, string> = Object.fromEntries(
   Object.entries(LEAGUES).map(([code, league]) => [code, league.name]),
 );
@@ -113,6 +124,7 @@ export type PreparedCompetition = {
   season: ApiSeason;
   teams: ApiTeam[];
   events: ApiEvent[];
+  completeHistory?: boolean;
 };
 
 const HOST = "allsportsapi2.p.rapidapi.com";
@@ -242,9 +254,14 @@ async function request<T>(endpoint: string, ttlMs = 300000, options: SyncRequest
     const attempts = options.attempts ?? MAX_ATTEMPTS;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       if (options.deadline && Date.now() + 5000 >= options.deadline) throw new Error("Synchronisation : limite de temps atteinte.");
+      const budget = operationBudget.getStore();
+      if (budget) {
+        if (budget.remaining === 0) throw new Error("AllSportsApi : budget de cette opération atteint.");
+        budget.remaining--; budget.reserved++;
+      }
       // The filesystem limiter remains useful for local CLI processes only.
       if (!process.env.VERCEL) await reserveRequest(key);
-      const requestId = await reserveSharedRequest(key, endpoint, options.deadline !== undefined);
+      const requestId = await reserveSharedRequest(key, endpoint, options.deadline !== undefined || !!budget);
       let response: Response;
       try {
         response = await fetch(url, {
@@ -277,7 +294,7 @@ async function request<T>(endpoint: string, ttlMs = 300000, options: SyncRequest
               : response.status === 404
                 ? "endpoint inconnu"
                 : "service indisponible";
-        const error = new Error(`AllSportsApi HTTP ${response.status} (${endpoint}) : ${detail}.`);
+        const error = new AllSportsHttpError(response.status, `AllSportsApi HTTP ${response.status} (${endpoint}) : ${detail}.`);
         // Seules les erreurs passagères méritent une nouvelle tentative.
         if (response.status < 500) throw error;
         lastError = error;
@@ -334,11 +351,11 @@ export const fetchTeams = (tournamentId: number, seasonId: number) =>
  * complet. Les prochains matchs restent limités au nombre de pages demandé.
  * Une page en erreur annule l'import : aucune suppression sur un jeu incomplet.
  */
-export async function fetchMatches(tournamentId: number, seasonId: number, pages = MATCH_PAGES): Promise<ApiEvent[]> {
+export async function fetchMatches(tournamentId: number, seasonId: number, pages = MATCH_PAGES, completeHistory = true): Promise<ApiEvent[]> {
   if (!Number.isSafeInteger(pages) || pages < 1 || pages > 50) throw new Error("ALLSPORTS_MATCH_PAGES doit être compris entre 1 et 50.");
   const events = new Map<number, ApiEvent>();
   for (const direction of ["last", "next"] as const) {
-    const limit = direction === "last" ? 50 : pages;
+    const limit = direction === "last" ? (completeHistory ? 50 : 1) : pages;
     for (let page = 0; page < limit; page += 1) {
         const data = await request<{ events?: ApiEvent[]; hasNextPage?: boolean }>(
           `/api/tournament/${tournamentId}/season/${seasonId}/matches/${direction}/${page}`,
@@ -347,7 +364,7 @@ export async function fetchMatches(tournamentId: number, seasonId: number, pages
         if (!Array.isArray(data.events)) throw new Error(`AllSportsApi : page ${direction}/${page} invalide pour ${tournamentId}.`);
         for (const event of data.events) events.set(event.id, event);
         if (!data.events.length || data.hasNextPage === false || (data.hasNextPage === undefined && data.events.length < 30)) break;
-        if (direction === "last" && page === limit - 1) throw new Error(`AllSportsApi : historique incomplet pour ${tournamentId}, import annulé.`);
+        if (direction === "last" && completeHistory && page === limit - 1) throw new Error(`AllSportsApi : historique incomplet pour ${tournamentId}, import annulé.`);
     }
   }
   return [...events.values()];
@@ -366,6 +383,20 @@ export async function fetchSyncEvents(date: string | null, options: SyncRequestO
   const data = await request<{ events?: ApiEvent[] }>(endpoint, 300000, { ...options, attempts: 1 });
   if (!Array.isArray(data.events)) throw new Error("AllSportsApi : liste des matchs absente ou invalide.");
   return data.events;
+}
+
+/** A real 404 is distinguishable from quota, transport and malformed responses. */
+export async function fetchMatchEvent(externalId: string, deadline: number): Promise<ApiEvent | null> {
+  const id = Number(externalId);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Identifiant AllSportsApi invalide.");
+  try {
+    const data = await request<{ event?: ApiEvent }>(`/api/match/${id}`, 300000, { deadline, attempts: 1 });
+    if (!data.event || data.event.id !== id) throw new Error("AllSportsApi : fiche match absente ou invalide.");
+    return data.event;
+  } catch (error) {
+    if (error instanceof AllSportsHttpError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 /**
@@ -448,16 +479,19 @@ function pickSeason(seasons: ApiSeason[], code: string): ApiSeason {
  * Prépare une compétition : saison, équipes et matchs. N'écrit rien en base —
  * c'est ce qui permet un `--dry-run` complet.
  */
-export async function prepareCompetition(input: string): Promise<PreparedCompetition> {
+export async function prepareCompetition(input: string, options: { recentOnly?: boolean } = {}): Promise<PreparedCompetition> {
   const code = resolveCode(input);
   const league = LEAGUES[code];
 
   const seasons = await fetchSeasons(league.id);
   const season = pickSeason(seasons, code);
-  const [teams, events] = await Promise.all([
+  const [teamResult, eventResult] = await Promise.allSettled([
     fetchTeams(league.id, season.id),
-    fetchMatches(league.id, season.id),
+    fetchMatches(league.id, season.id, MATCH_PAGES, !options.recentOnly),
   ]);
+  if (teamResult.status === "rejected") throw teamResult.reason;
+  if (eventResult.status === "rejected") throw eventResult.reason;
+  const teams = teamResult.value, events = eventResult.value;
 
   if (!teams.length || !events.length) {
     throw new Error(`${code} : équipes ou matchs absents pour ${season.year}. Vérifiez la saison demandée.`);
@@ -475,7 +509,7 @@ export async function prepareCompetition(input: string): Promise<PreparedCompeti
     mapMatchStatus(event.status);
   }
 
-  return { code, season, teams, events };
+  return { code, season, teams, events, completeHistory: !options.recentOnly };
 }
 
 /**
@@ -541,13 +575,16 @@ export async function persistCompetition(
 
   // Les classements sont calculés localement : on ne mélange pas les saisons.
   const matchIds = events.map((event) => String(event.id));
-  await db.match.deleteMany({ where: { competitionId: competition.id, externalId: { not: null, notIn: matchIds } } });
+  const existingTimes = new Map((await db.match.findMany({ where: { externalId: { in: matchIds } }, select: { externalId: true, startedAt: true, finishedAt: true } })).map(match => [match.externalId, match]));
+  if (prepared.completeHistory !== false) await db.match.deleteMany({ where: { competitionId: competition.id, externalId: { not: null, notIn: matchIds } } });
 
   let matches = 0;
   for (const event of events) {
     const homeId = ids.get(event.homeTeam.id);
     const awayId = ids.get(event.awayTeam.id);
     if (!homeId || !awayId) continue;
+    const status = mapMatchStatus(event.status);
+    const existing = existingTimes.get(String(event.id));
     const fields = {
       competitionId: competition.id,
       homeTeamId: homeId,
@@ -555,7 +592,10 @@ export async function persistCompetition(
       scheduledAt: new Date(event.startTimestamp * 1000),
       homeScore: event.homeScore?.current ?? null,
       awayScore: event.awayScore?.current ?? null,
-      status: mapMatchStatus(event.status),
+      status,
+      startedAt: existing?.startedAt ?? (status === "LIVE" || status === "FINISHED" ? new Date(event.startTimestamp * 1000) : null),
+      // Observation time of the terminal status, not an invented final whistle.
+      finishedAt: existing?.finishedAt ?? (status === "FINISHED" ? new Date() : null),
       venue: event.venue?.stadium?.name ?? event.venue?.name ?? null,
     };
     await db.match.upsert({

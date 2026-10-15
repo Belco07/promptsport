@@ -17,6 +17,7 @@ import { withStoredMatchClocks } from "@/lib/allsports-sync";
 export const metadata=buildPageMetadata({title:"Scores en direct",description:"Résultats, matchs en direct et rencontres à venir de toutes les compétitions.",path:"/scores"});
 export default async function ScoresPage({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}) {
   const params=await searchParams;
+  const now=new Date();
   const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Lagos",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
   const validDate=/^\d{4}-\d{2}-\d{2}$/.test(params.date??"") && Number.isFinite(Date.parse(`${params.date}T00:00:00Z`)) && new Date(`${params.date}T00:00:00Z`).toISOString().slice(0,10)===params.date;
   const date=validDate?params.date!:today;
@@ -24,7 +25,7 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
   const view=["live","upcoming","finished"].includes(params.view??"")?params.view:"day";
   const where:Prisma.MatchWhereInput={
     competition:{...(params.sport?{sport:params.sport}:{}),...(params.competition?{slug:params.competition}:{})},
-    ...(view==="day"?{scheduledAt:{gte:start,lt:end}}:view==="live"&&isFotmobLiveEnabled()?{OR:[{status:"LIVE"},{status:"SCHEDULED",scheduledAt:{gte:start,lt:end}}]}:{status:view==="live"?"LIVE":view==="finished"?"FINISHED":"SCHEDULED"}),
+    ...(view==="day"?{scheduledAt:{gte:start,lt:end}}:view==="live"&&isFotmobLiveEnabled()?{OR:[{status:"LIVE"},{status:"SCHEDULED",scheduledAt:{gte:start,lt:end}}]}:{status:view==="live"?"LIVE":view==="finished"?"FINISHED":"SCHEDULED",...(view==="upcoming"?{scheduledAt:{gt:now}}:{})}),
     ...(params.q?.trim()?{OR:[{homeTeam:{name:{contains:params.q.trim().slice(0,200),mode:"insensitive"}}},{awayTeam:{name:{contains:params.q.trim().slice(0,200),mode:"insensitive"}}}]}:{}),
   };
   const [storedMatches,competitions,session,lastUpdate]=await Promise.all([
@@ -49,7 +50,7 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
       <div className="space-y-7">{[...groups.values()].map(rows=><section key={rows[0].competitionId}>
         {view==="live"&&!premium&&<AdSlot format="banner" className="mb-6"/>}
         <Link href={`/competition/${rows[0].competition.slug}`} className="mb-3 flex items-center gap-3"><CompetitionLogo slug={rows[0].competition.slug}/><span><h2 className="text-xl font-black">{rows[0].competition.name}</h2><span className="text-sm text-muted-foreground">{rows[0].competition.country??rows[0].competition.sport}</span></span></Link>
-        <div className="overflow-hidden rounded-md bg-muted">{rows.map((match,i)=>{const day=match.scheduledAt.toLocaleDateString("fr-FR",{day:"numeric",month:"long",timeZone:"Africa/Lagos"});const previous=i?rows[i-1].scheduledAt.toLocaleDateString("fr-FR",{day:"numeric",month:"long",timeZone:"Africa/Lagos"}):null;return <div key={match.id}>{day!==previous&&<p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{day}</p>}<div className="border-b border-border last:border-0"><ScoreRow match={{...match,minuteObservedAt:match.minuteObservedAt??match.events[0]?.createdAt?.toISOString()??null,minute:match.minute??(match.events[0]?String(match.events[0].minute)+(match.events[0].extraMinute?"+"+match.events[0].extraMinute:"")+"′":null)}}/></div></div>;})}</div>
+        <div className="overflow-hidden rounded-md bg-muted">{rows.map((match,i)=>{const day=match.scheduledAt.toLocaleDateString("fr-FR",{day:"numeric",month:"long",timeZone:"Africa/Lagos"});const previous=i?rows[i-1].scheduledAt.toLocaleDateString("fr-FR",{day:"numeric",month:"long",timeZone:"Africa/Lagos"}):null;return <div key={match.id}>{match.status==="SCHEDULED"&&match.scheduledAt>now&&day!==previous&&<p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{day}</p>}<div className="border-b border-border last:border-0"><ScoreRow match={{...match,minuteObservedAt:match.minuteObservedAt??match.events[0]?.createdAt?.toISOString()??null,minute:match.minute??(match.events[0]?String(match.events[0].minute)+(match.events[0].extraMinute?"+"+match.events[0].extraMinute:"")+"′":null)}}/></div></div>;})}</div>
       </section>)}</div>
     </div>
     {!premium&&<aside className="hidden lg:block"><div className="sticky top-28"><AdSlot format="skyscraper"/></div></aside>}

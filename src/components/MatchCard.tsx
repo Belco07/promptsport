@@ -1,11 +1,9 @@
 import { LiveBadge } from "@/components/LiveBadge";
-import { Clock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { formatMatchDate } from "@/lib/formatDate";
 import { ScoreRow } from "@/components/ScoreRow";
 
 export type MatchStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
@@ -105,9 +103,10 @@ export function MatchCard({
   const isLive = match.status === "LIVE";
   const hasScore = match.homeScore != null && match.awayScore != null;
   const showScore = isLive || match.status === "FINISHED";
-  const scoreLabel = showScore ? (hasScore ? `${match.homeScore} - ${match.awayScore}` : "–") : "vs";
+  const pending = match.status === "SCHEDULED" && match.scheduledAt <= new Date();
+  const scoreLabel = showScore ? (hasScore ? `${match.homeScore} - ${match.awayScore}` : "—") : match.status === "SCHEDULED" && !pending ? match.scheduledAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }) : "—";
 
-  if (compact) return <article className="col-span-full overflow-hidden rounded-lg border border-border bg-card"><p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{match.competition?.name} · <time dateTime={match.scheduledAt.toISOString()}>{formatMatchDate(match.scheduledAt)}</time></p><ScoreRow match={match}/></article>;
+  if (compact) return <article className="col-span-full overflow-hidden rounded-lg border border-border bg-card"><p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{match.competition?.name}</p><ScoreRow match={match}/></article>;
   return (
     <Card as="article" interactive>
       <div className="block rounded-xl p-4">
@@ -115,7 +114,7 @@ export function MatchCard({
           <span className="truncate text-xs font-semibold uppercase tracking-wide text-neutral-500 [.public-site_&]:text-muted-foreground">
             {match.competition?.name ?? "Match"}
           </span>
-          {isLive ? <LiveBadge/> : <Badge variant="status" tone={MATCH_STATUS_TONES[match.status]}>{MATCH_STATUS_LABELS[match.status]}</Badge>}
+          {isLive ? <LiveBadge/> : <Badge variant="status" tone={MATCH_STATUS_TONES[match.status]}>{pending ? "Résultat en attente" : MATCH_STATUS_LABELS[match.status]}</Badge>}
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -150,10 +149,6 @@ export function MatchCard({
           </div>
         </div>
 
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-neutral-500 [.public-site_&]:text-muted-foreground">
-          <Clock aria-hidden="true" className="h-3.5 w-3.5" />
-          <Link href={`/match/${match.id}`}><time dateTime={match.scheduledAt.toISOString()}>{formatMatchDate(match.scheduledAt)}</time></Link>
-        </p>
       </div>
     </Card>
   );
