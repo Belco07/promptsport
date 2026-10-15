@@ -21,6 +21,9 @@ export type RateLimitOptions = {
 /** Recherche publique : trente requêtes par minute et par adresse IP. */
 export const SEARCH_RATE_LIMIT: RateLimitOptions = { max: 30, windowMs: 60_000 };
 
+export const ANALYTICS_RATE_LIMIT: RateLimitOptions = { max: 60, windowMs: 60_000 };
+export const SYNC_STATUS_RATE_LIMIT: RateLimitOptions = { max: 120, windowMs: 60_000 };
+
 /** Limite demandée par le brief : 10 commentaires par heure et par utilisateur. */
 export const COMMENT_RATE_LIMIT: RateLimitOptions = {
   max: 10,
@@ -68,6 +71,12 @@ export function clientIpFromHeaders(headerList: Headers): string {
 type Entry = { count: number; resetAt: number };
 
 const buckets = new Map<string, Entry>();
+let nextCleanupAt = 0;
+function cleanupExpired(timestamp: number): void {
+  if (timestamp < nextCleanupAt) return;
+  for (const [key, entry] of buckets) if (entry.resetAt <= timestamp) buckets.delete(key);
+  nextCleanupAt = timestamp + 60_000;
+}
 
 export type RateLimitState = {
   allowed: boolean;
@@ -89,6 +98,7 @@ function now(): number {
  */
 export function consumeRateLimit(key: string, options: RateLimitOptions = COMMENT_RATE_LIMIT): RateLimitState {
   const timestamp = now();
+  cleanupExpired(timestamp);
   const entry = buckets.get(key);
 
   if (!entry || entry.resetAt <= timestamp) {

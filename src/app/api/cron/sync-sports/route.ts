@@ -14,7 +14,7 @@ async function handle(request: Request) {
   if (!secret) return NextResponse.json({ error: "Cron non configuré." }, { status: 503 });
   const url = new URL(request.url);
   const authorization = request.headers.get("authorization");
-  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1].trim() ?? url.searchParams.get("token") ?? "";
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1].trim() ?? "";
   const left = Buffer.from(token), right = Buffer.from(secret);
   if (left.length !== right.length || !timingSafeEqual(left, right)) return NextResponse.json({ error: "Jeton invalide." }, { status: 401 });
   const headers = { "Cache-Control": "no-store" };
@@ -46,6 +46,8 @@ async function handle(request: Request) {
   const deadline = Date.now() + 55000;
   try {
     const result = await synchronizeSports(priority as SyncPriority);
+    // Keep durable standings/import snapshots; purge operational logs only.
+    if (priority === "finished") await prisma.syncLog.deleteMany({ where: { type: { in: ["live", "upcoming", "finished", "request"] }, finishedAt: { lt: new Date(Date.now() - 90 * 86400000) } } });
     // One standings snapshot per day; never fetch it from a public page.
     if (priority === "finished" && Date.now()+10000 < deadline) {
       const seed = await prisma.syncLog.findFirst({where:{type:"standings:7",status:"SUCCESS"},orderBy:{finishedAt:"desc"}});
