@@ -1,3 +1,4 @@
+import { clientIpFromHeaders, consumeRateLimit, ANALYTICS_RATE_LIMIT } from "@/lib/rate-limit";
 import {
   VISITOR_COOKIE,
   categorizeSource,
@@ -31,6 +32,8 @@ function noContent(): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limit = consumeRateLimit(`analytics:${clientIpFromHeaders(request.headers)}`, ANALYTICS_RATE_LIMIT);
+  if (!limit.allowed) return Response.json({ error: "Trop de requêtes." }, { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(Math.max(1, Math.ceil(limit.retryAfterMs / 1000))) } });
   // 1) Visiteur identifié par son cookie first-party (sinon rien à enregistrer).
   const visitorId = readCookie(request.headers.get("cookie"), VISITOR_COOKIE);
   if (!isValidVisitorId(visitorId)) {

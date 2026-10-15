@@ -6,6 +6,18 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { ScoreRow } from "@/components/ScoreRow";
 
+/** Keep public crests; only authenticated AllSports URLs use our server proxy. */
+export function teamLogoSource(url: string): string {
+  try {
+    const source = new URL(url);
+    if (["allsportsapi2.p.rapidapi.com", "allsportsapi.com", "apiv2.allsportsapi.com"].includes(source.hostname)) {
+      const id = source.pathname.match(/^\/api\/team\/(\d{1,12})\/image$/)?.[1];
+      if (id) return `/api/logo/${id}`;
+    }
+  } catch { /* Existing local assets remain valid. */ }
+  return url;
+}
+
 export type MatchStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
 
 export const MATCH_STATUS_LABELS: Record<MatchStatus, string> = {
@@ -64,7 +76,7 @@ function TeamLogo({
     // donc aucun décalage de mise en page (CLS).
     return (
       <Image
-        src={logoUrl}
+        src={teamLogoSource(logoUrl)}
         alt=""
         width={LOGO_SIZE}
         height={LOGO_SIZE}
@@ -106,7 +118,7 @@ export function MatchCard({
   const pending = match.status === "SCHEDULED" && match.scheduledAt <= new Date();
   const scoreLabel = showScore ? (hasScore ? `${match.homeScore} - ${match.awayScore}` : "—") : match.status === "SCHEDULED" && !pending ? match.scheduledAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }) : "—";
 
-  if (compact) return <article className="col-span-full overflow-hidden rounded-lg border border-border bg-card"><p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{match.competition?.name}</p><ScoreRow match={match}/></article>;
+  if (compact) return <article className="col-span-full overflow-hidden rounded-lg border border-border bg-card"><p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{match.competition?.name}</p><ScoreRow match={{ ...match, homeTeam: { ...match.homeTeam, logoUrl: match.homeTeam.logoUrl ? teamLogoSource(match.homeTeam.logoUrl) : null }, awayTeam: { ...match.awayTeam, logoUrl: match.awayTeam.logoUrl ? teamLogoSource(match.awayTeam.logoUrl) : null } }}/></article>;
   return (
     <Card as="article" interactive>
       <div className="block rounded-xl p-4">

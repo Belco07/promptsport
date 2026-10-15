@@ -319,13 +319,16 @@ Settings → Environment Variables, en cochant **Production** et **Preview**.
 | `AUTH_SECRET` | secret de signature des JWT (`openssl rand -base64 32`) |
 | `NEXT_PUBLIC_SITE_URL` | `https://<projet>.vercel.app` (sans barre oblique finale) |
 | `CRON_SECRET` | secret du cron (`openssl rand -base64 32`) |
-| `FOOTBALL_DATA_API_KEY` | clé Football-Data.org |
+| `ALLSPORTS_API_KEY` | clé RapidAPI AllSportsApi utilisée par les synchronisations |
+| `FOOTBALL_DATA_API_KEY` | ancienne page `/backoffice/sports/sync` uniquement, facultative et inutile pour AllSports |
+| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | identifiants OAuth Google, facultatifs |
+| `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET` | identifiants OAuth Facebook, facultatifs |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | clés Stripe (test ou live) |
 | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME` | envoi des e-mails |
 
 Deux remarques sur les noms : le code lit `AUTH_SECRET` (Auth.js v5 accepte
 `NEXTAUTH_SECRET` comme ancien nom, sans que ce projet en dépende) et
-`FOOTBALL_DATA_API_KEY` (et non `SPORTS_API_KEY`). `AUTH_URL` / `NEXTAUTH_URL`
+`ALLSPORTS_API_KEY` pour le fournisseur sportif actif. `AUTH_URL` / `NEXTAUTH_URL`
 sont inutiles ici : `trustHost: true` déduit l'URL de la requête.
 
 ### 4. Migrations en production
@@ -860,3 +863,38 @@ Les six compétitions utilisent désormais les identifiants AllSportsApi. Le bil
 Pour actualiser les données : `npx tsx scripts/sync-football.ts FL1 PL PD SA BL1 CL`. Le `DATABASE_URL` fourni dans l'environnement a priorité sur `.env`. La clé reste dans `ALLSPORTS_API_KEY` et ne doit pas être commitée.
 
 Le script `scripts/migrate-allsports-data.ts` inspecte la base sans écrire par défaut. L'option `--confirm-migration` est réservée à la bascule initiale depuis football-data.org, avec contrôle du quota, préparation des six ligues et sauvegarde PostgreSQL vérifiée avant transaction. Il refuse une base déjà migrée.
+
+
+## WP23 — exploitation et sécurité
+
+### OAuth facultatif
+
+Déclarer AUTH_GOOGLE_ID et AUTH_GOOGLE_SECRET pour Google, AUTH_FACEBOOK_ID et AUTH_FACEBOOK_SECRET pour Facebook, dans .env en local et dans Vercel pour chaque environnement concerné. Sans la paire complète, le fournisseur reste désactivé. Enregistrer les URL de retour du domaine exact : https://promptsport.net/api/auth/callback/google et https://promptsport.net/api/auth/callback/facebook. Ne jamais exposer les secrets avec un préfixe NEXT_PUBLIC_.
+
+### Restaurer une sauvegarde PostgreSQL
+
+Utiliser une archive pg_dump au format custom et une version de pg_restore compatible avec celle qui a créé l’archive. Depuis Git Bash, vérifier d’abord la table des matières :
+
+    docker exec -i promptsport-pg pg_restore --list < backups/production-avant-migrations.dump
+
+Restaurer d’abord dans une base vide de contrôle, créée au préalable. RESTORE_URL est l’URL directe de cette base de contrôle (pas celle de production), stockée dans l’environnement ; ne pas la coller dans une commande ou un journal :
+
+    PGDATABASE="$RESTORE_URL" docker exec -i -e PGDATABASE promptsport-pg sh -c 'pg_restore --dbname="$PGDATABASE" --no-owner --no-privileges --exit-on-error --single-transaction' < backups/production-avant-migrations.dump
+
+Vérifier les volumes des tables, les articles, les scores, les associations et les connexions. Appliquer ensuite les migrations manquantes avec DIRECT_URL visant explicitement la base restaurée : npm run db:deploy. Pour une restauration réelle, suspendre les écritures et les crons, sauvegarder l’état actuel, restaurer dans une nouvelle base vide puis basculer les URL pooled de l’application et directe des migrations vers cette base validée. Redéployer et vérifier le site avant de reprendre les écritures. Ne pas lancer --clean contre la production active. Conserver les sauvegardes hors du dépôt, dans un stockage protégé et avec une rétention adaptée.
+
+### Journaux et quota
+
+Le cron sportif accepte uniquement Authorization: Bearer <CRON_SECRET>. Le paramètre token dans l’URL ne sert plus à s’authentifier. Le workflow GitHub utilise déjà ce header. Ne jamais journaliser le secret ou une URL de connexion. Le cron newsletter conserve sa propre politique existante.
+
+Le passage finished du cron sportif purge les journaux opérationnels SyncLog (live, upcoming, finished, request) dont finishedAt remonte à plus de 90 jours. Les tâches non terminées et les instantanés durables de classement/import sont conservés : ils servent de données applicatives et ne doivent pas disparaître avec les logs. La purge nécessite un cron finished exécuté avec succès ; elle ne s’exécute pas depuis une page publique.
+
+### Limites des routes publiques
+
+Par adresse IP et par minute : recherche 30, analytics 60, statut de synchronisation 120. Le dépassement renvoie HTTP 429 et Retry-After. Les fenêtres expirées sont nettoyées. Les compteurs en mémoire sont propres à chaque processus : sur Vercel, ils ne constituent pas une limite globale entre instances. Les en-têtes IP doivent être fournis par le proxy de confiance. Le statut conserve son cache serveur de 15 secondes, mais sa réponse HTTP est privée pour que le CDN ne contourne pas le contrôle par IP.
+
+### Logos authentifiés
+
+/api/logo/[teamId] accepte l’identifiant local ou l’identifiant externe numérique d’une équipe connue. L’hôte et le chemin fournisseur sont fixes ; aucune URL arbitraire n’est acceptée et la clé RapidAPI reste côté serveur. Seuls PNG, JPEG, WebP et GIF, de taille au plus 256 Kio, sont servis ; les redirections et SVG sont refusés. Le cache partagé en base et le cache HTTP durent 24 heures. Les appels sont comptés dans le même registre de quota que la synchronisation, sous verrou PostgreSQL, avec un maximum supplémentaire de cinq nouveaux logos par 24 h et une réserve fournisseur de vingt appels. Les logos publics existants restent utilisés sans appel RapidAPI. Une indisponibilité fournisseur ou un budget épuisé renvoie 503 sans exposer l’erreur interne.
+
+Le dossier obsolète indiqué dans le brief, src/app/backoffice/sports/football-data/, n’existe pas. La page historique est dans src/app/backoffice/sports/sync/ ; elle est conservée car ce chemin et ses liens ont été explicitement exclus du périmètre autorisé.
