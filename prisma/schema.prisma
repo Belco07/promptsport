@@ -274,6 +274,12 @@ enum ArticleStatus {
 // ---------------------------------------------------------------------------
 
 model Competition {
+  uclSpots Int @default(0)
+  uelSpots Int @default(0)
+  ueclSpots Int @default(0)
+  relegationSpots Int @default(0)
+  relegationPlayoffSpots Int @default(0)
+  format CompetitionFormat @default(LEAGUE)
   followers Author[] @relation("ReaderFollowedCompetitions")
   id         String   @id @default(cuid())
   name       String
@@ -287,6 +293,11 @@ model Competition {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum CompetitionFormat {
+  LEAGUE
+  CUP_PHASE
 }
 
 model Team {

@@ -144,6 +144,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        ucl: "#1E3A8A",
+        uel: "#F97316",
+        uecl: "#10B981",
+        barrage: "#6B7280",
+        relegation: "#EF4444",
         primary: { DEFAULT: "hsl(var(--primary) / <alpha-value>)", foreground: "#fff", ...primary },
         destructive: { DEFAULT: "hsl(var(--destructive) / <alpha-value>)", foreground: "#fff" },
         secondary: { DEFAULT: "hsl(var(--muted) / <alpha-value>)", foreground: "hsl(var(--foreground) / <alpha-value>)" },
