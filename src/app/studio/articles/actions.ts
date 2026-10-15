@@ -79,6 +79,7 @@ function readCheckbox(formData: FormData, field: string): boolean {
 }
 
 type ArticleInput = {
+  matchId: string | null;
   format: "FLASH" | "NEWS" | "ANALYSIS";
   title: string;
   slug: string;
@@ -147,6 +148,10 @@ async function validate(
   const excerpt = readText(formData, "excerpt");
   const coverImageUrl = readText(formData, "coverImageUrl");
   const rawStatus = readText(formData, "status");
+  const matchId = readText(formData, "matchId") || null;
+  if (matchId && (matchId.length > 100 || !await prisma.match.findUnique({ where: { id: matchId }, select: { id: true } }))) {
+    return { ok: false, error: "Le match sélectionné n’existe plus. Choisissez un autre match." };
+  }
   const format = formData.has("format") ? readText(formData, "format") : "NEWS";
   if (format !== "FLASH" && format !== "NEWS" && format !== "ANALYSIS") {
     return { ok: false, error: "Format invalide : choisissez Flash, Actualité ou Analyse." };
@@ -180,6 +185,7 @@ async function validate(
   return {
     ok: true,
     data: {
+      matchId,
       format,
       title,
       slug,
@@ -294,6 +300,8 @@ export async function updateArticle(
       data: {
         ...articleData,
         themes: { set: linkedThemeIds.map((themeId) => ({ id: themeId })) },
+        // Older forms and a failed initial picker load must preserve the association.
+        matchId: formData.has("matchId") ? articleData.matchId : existing.matchId,
         // Le caractère premium ne suit pas le droit d'édition : un journaliste
         // qui enregistre son brouillon ne peut ni l'activer ni l'effacer. Sa
         // valeur en base est donc conservée telle quelle (WP11) — sinon un
@@ -414,6 +422,83 @@ const ALLOWED_IMAGE_TYPES = new Map([
   ["image/gif", ".gif"],
 ]);
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 Mo
+
+export type MatchPickerOption = {
+  id: string;
+  homeName: string;
+  awayName: string;
+  scheduledAt: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: string;
+};
+
+const pickerSelect = {
+  id: true, scheduledAt: true, homeScore: true, awayScore: true, status: true,
+  homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } },
+} as const;
+
+function pickerOption(match: { id: string; scheduledAt: Date; homeScore: number | null; awayScore: number | null; status: string; homeTeam: { name: string }; awayTeam: { name: string } }): MatchPickerOption {
+  return { id: match.id, homeName: match.homeTeam.name, awayName: match.awayTeam.name,
+    scheduledAt: match.scheduledAt.toISOString(), homeScore: match.homeScore, awayScore: match.awayScore, status: match.status };
+}
+
+/** Read existing selection without changing the studio page's props or permissions. */
+export async function getArticleMatch(articleId: string): Promise<MatchPickerOption | null> {
+  const session = await auth();
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) throw new Error("Non authentifié.");
+  const article = await prisma.article.findUnique({ where: { id: articleId }, select: { authorId: true, status: true, match: { select: pickerSelect } } });
+  if (!article || !canEditArticle({ id: session.user.id, role: session.user.role }, article)) throw new Error("Article inaccessible.");
+  return article.match ? pickerOption(article.match) : null;
+}
+
+export async function searchMatches(query: string, date: string): Promise<MatchPickerOption[]> {
+  const session = await auth();
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) throw new Error("Non authentifié.");
+  const text = query.trim().slice(0, 150);
+  if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date)))) throw new Error("Date invalide.");
+  // Same Africa/Lagos calendar day as the public scores, including midnight.
+  const start = date ? new Date(`${date}T00:00:00+01:00`) : null;
+  const rows = await prisma.match.findMany({
+    where: {
+      ...(start ? { scheduledAt: { gte: start, lt: new Date(start.getTime() + 86400000) } } : {}),
+      ...(text ? { OR: [
+        { homeTeam: { name: { contains: text, mode: "insensitive" as const } } },
+        { homeTeam: { shortName: { contains: text, mode: "insensitive" as const } } },
+        { awayTeam: { name: { contains: text, mode: "insensitive" as const } } },
+        { awayTeam: { shortName: { contains: text, mode: "insensitive" as const } } },
+      ] } : {}),
+    }, select: pickerSelect, orderBy: [{ scheduledAt: "desc" }, { id: "asc" }], take: 10,
+  });
+  return rows.map(pickerOption);
+}
+
+/** Suggestions never save an association. Draft text also works before first save. */
+export async function suggestMatches(articleId?: string, draft?: { title: string; content: string }): Promise<MatchPickerOption[]> {
+  const session = await auth();
+  if (!session?.user?.id || !canAccessStudio(session.user.role)) throw new Error("Non authentifié.");
+  let text: string;
+  if (articleId) {
+    const article = await prisma.article.findUnique({ where: { id: articleId }, select: { title: true, content: true, authorId: true, status: true } });
+    if (!article || !canEditArticle({ id: session.user.id, role: session.user.role }, article)) throw new Error("Article inaccessible.");
+    text = `${draft?.title ?? article.title} ${draft?.content ?? article.content}`;
+  } else { text = `${draft?.title ?? ""} ${draft?.content ?? ""}`; }
+  // Whole normalized phrases: "Inter" does not accidentally match "interview".
+  const normalized = ` ${text.slice(0, 200000).replace(/<[^>]*>/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
+  if (!normalized.trim()) return [];
+  const now = new Date();
+  const rows = await prisma.$queryRaw<Array<Omit<MatchPickerOption, "scheduledAt"> & { scheduledAt: Date }>>(Prisma.sql`
+    SELECT m."id", h."name" AS "homeName", a."name" AS "awayName", m."scheduledAt", m."homeScore", m."awayScore", m."status"
+    FROM "Match" m JOIN "Team" h ON h."id" = m."homeTeamId" JOIN "Team" a ON a."id" = m."awayTeamId"
+    WHERE m."scheduledAt" BETWEEN ${new Date(now.getTime()-30*86400000)} AND ${new Date(now.getTime()+30*86400000)}
+    AND EXISTS (
+      SELECT 1 FROM (VALUES (h."name"), (h."shortName"), (a."name"), (a."shortName")) AS names(name)
+      CROSS JOIN LATERAL (SELECT trim(regexp_replace(translate(lower(names.name), 'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc'), '[^a-z0-9]+', ' ', 'g')) AS value) n
+      WHERE length(n.value) >= 2 AND strpos(${normalized}, ' ' || n.value || ' ') > 0
+    ) ORDER BY abs(extract(epoch FROM (m."scheduledAt" - ${now}::timestamp))), m."id" LIMIT 10
+  `);
+  return rows.map(row => ({ ...row, scheduledAt: row.scheduledAt.toISOString() }));
+}
 
 type UploadImageResult =
   | { ok: true; url: string }

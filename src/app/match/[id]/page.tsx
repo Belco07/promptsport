@@ -9,7 +9,7 @@ import { MatchTabs, matchTabs } from "@/components/MatchTabs";
 import { MatchTimeline } from "@/components/MatchTimeline";
 import { MatchStats } from "@/components/MatchStats";
 import { MatchLineup } from "@/components/MatchLineup";
-import { RelatedArticles } from "@/components/RelatedArticles";
+import { ArticleCard } from "@/components/ArticleCard";
 import { Footer } from "@/components/Footer";
 import { AdSlot } from "@/components/AdSlot";
 import { AdSlotGate } from "@/components/AdSlotGate";
@@ -33,6 +33,8 @@ const getMatch = cache(async (id: string, tab: keyof typeof matchTabs) => {
       events: { orderBy: [{ minute: "asc" }, { extraMinute: "asc" }, { createdAt: "asc" }] },
       statistics: tab === "statistiques",
       lineups: tab === "compositions",
+      articles: { where: { status: "PUBLISHED", publishedAt: { lte: new Date() } }, orderBy: { publishedAt: "desc" }, take: 5,
+        select: { slug: true, title: true, excerpt: true, coverImageUrl: true, publishedAt: true, isPremium: true, author: { select: { name: true, slug: true } }, category: { select: { name: true } } } },
     },
   });
   return match ? (await withLocalFootballLive(await withStoredMatchClocks([match])))[0] : null;
@@ -93,6 +95,6 @@ export default async function MatchPage({params,searchParams}:Props){
  <MatchHeader match={match} playerLinks={playerLinks}/><MatchTabs id={id} active={active}/>
  <section aria-labelledby="match-panel" className="min-h-40"><h2 id="match-panel" className="mb-5 text-2xl font-black uppercase text-foreground">{matchTabs[active]}</h2>
  {active==="resume"||active==="commentaires"?<MatchTimeline playerLinks={playerLinks} commentary={active==="commentaires"} events={match.events} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="statistiques"?<MatchStats statistics={match.statistics} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:<MatchLineup lineups={match.lineups} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>}
- </section><RelatedArticles teams={[match.homeTeam.name,match.homeTeam.shortName??match.homeTeam.name,match.awayTeam.name,match.awayTeam.shortName??match.awayTeam.name]}/><AdSlotGate><AdSlot className="mt-10"/></AdSlotGate>
+ </section><section aria-labelledby="linked-articles-title" className="mt-12 border-t-2 border-border pt-6"><h2 id="linked-articles-title" className="mb-6 text-2xl font-black uppercase text-foreground">Articles liés au match</h2>{match.articles.length ? <div className="grid gap-5 md:grid-cols-3">{match.articles.map(article => <ArticleCard key={article.slug} article={article} headingLevel={3} />)}</div> : <p className="text-sm text-muted-foreground">Aucun article lié pour le moment.</p>}</section><AdSlotGate><AdSlot className="mt-10"/></AdSlotGate>
  </main><Footer/></>;
 }
