@@ -1,0 +1,1 @@
+ALTER TABLE "Match" ADD COLUMN "matchday" INTEGER, ADD COLUMN "roundName" TEXT;

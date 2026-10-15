@@ -85,6 +85,7 @@ export type ApiTeam = {
 };
 export type ApiEventStatus = { code?: number; description?: string | null; type?: string | null };
 export type ApiEvent = {
+  roundInfo?: { round?: number | null; name?: string | null } | null;
   id: number;
   startTimestamp: number;
   status: ApiEventStatus;
@@ -100,6 +101,14 @@ export type ApiEvent = {
 };
 
 export type MatchClock = { minute: string | null; observedAt: string; running: boolean; periodEnd: number | null };
+/** Only persist provider metadata, never derive a round from dates or fixture order. */
+export function eventRoundInfo(event: Pick<ApiEvent, "roundInfo">): { matchday?: number; roundName?: string | null } {
+  const round = event.roundInfo?.round;
+  const name = event.roundInfo?.name?.trim().slice(0, 160) || null;
+  return typeof round === "number" && Number.isSafeInteger(round) && round > 0 && round < 10000
+    ? { matchday: round, roundName: name }
+    : name ? { roundName: name } : {};
+}
 export function eventClock(event: ApiEvent, now = Date.now()): MatchClock {
   const observedAt = new Date(now).toISOString();
   const description = event.status.description?.toLowerCase() ?? "";
@@ -588,6 +597,7 @@ export async function persistCompetition(
     const existing = existingTimes.get(String(event.id));
     const fields = {
       competitionId: competition.id,
+      ...eventRoundInfo(event),
       homeTeamId: homeId,
       awayTeamId: awayId,
       scheduledAt: new Date(event.startTimestamp * 1000),
