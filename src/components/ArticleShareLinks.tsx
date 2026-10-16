@@ -137,10 +137,13 @@ export function ArticleShareLinks({
       ))}
 
       {showComments ? (
+        // Pas de parenthèses dans le libellé : axe retire le contenu entre
+        // parenthèses des noms accessibles, et le compteur visible ne serait
+        // plus « contenu » dans le nom (label-content-name-mismatch, WP30).
         <a
           href="#commentaires"
-          aria-label={`Commentaires (${comments.count})`}
-          title={`Commentaires (${comments.count})`}
+          aria-label={`Commentaires ${comments.count}`}
+          title={`Commentaires ${comments.count}`}
           className="relative flex h-12 w-12 items-center justify-center border border-border bg-card text-foreground transition-colors hover:border-editorial-link hover:bg-muted hover:text-editorial-link"
         >
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="h-[22px] w-[22px]">

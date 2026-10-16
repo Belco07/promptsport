@@ -23,6 +23,9 @@
 .rich-text-editor-content blockquote { border-left: 3px solid hsl(var(--accent)); padding-left: 1em; color: hsl(var(--muted-foreground)); }
 .rich-text-editor-content a { color: var(--ed-link); text-decoration: underline; }
 .rich-text-editor-content code { background: hsl(var(--muted)); padding: 2px 4px; }
+/* Placeholder de l'éditeur : --baseSolid (#8b8d98) échoue le contraste 4.5:1
+   sur blanc (axe, WP30). Ce gris 500 atteint 4.83:1, lisible aussi en thème sombre. */
+.rich-text-editor .mdxeditor [class*="_placeholder_"] { color: #6b7280; }
 .dark .rich-text-editor { color-scheme: dark; }
 
 /* Embeds sociaux (WP15c), insertion d'image (WP15b) et citations (WP15d) :

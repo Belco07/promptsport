@@ -12,12 +12,14 @@ const TABS = [
 ];
 
 /**
- * Onglets de la section Sports du backoffice, avec un bouton de synchronisation
- * en haut à droite (visible sur les trois onglets).
+ * Onglets de la section Sports du backoffice.
  *
  * L'onglet actif n'est marqué qu'après montage : c'est la même précaution que
  * dans les autres navigations, pour que le HTML du serveur et le premier rendu
  * client ne puissent pas diverger.
+ *
+ * WP30 : le bouton « Synchroniser les données » a été retiré avec la page
+ * dépréciée /backoffice/sports/sync qu'il ouvrait.
  */
 export function SportTabs() {
   const pathname = usePathname();
@@ -45,13 +47,6 @@ export function SportTabs() {
           );
         })}
       </nav>
-
-      <Link
-        href="/backoffice/sports/sync"
-        className="mb-2 rounded-md bg-blue-700 [.public-site_&]:bg-primary px-4 py-2 text-sm font-medium text-white [.public-site_&]:text-primary-foreground transition-colors hover:bg-blue-800 [.public-site_&]:hover:bg-primary-hover"
-      >
-        Synchroniser les données
-      </Link>
     </div>
   );
 }

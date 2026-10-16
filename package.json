@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "db:check": "prisma migrate status",
     "db:generate": "prisma generate",
     "db:seed": "node prisma/seed.cjs",
     "db:seed:themes": "node prisma/seed-themes.cjs",

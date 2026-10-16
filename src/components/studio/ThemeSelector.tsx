@@ -15,6 +15,30 @@ import { themeBadgeStyle, themeIcon } from "@/lib/themes";
  * public des pages de thème, WP16c).
  */
 
+/**
+ * Texte lisible sur une couleur : noir ou blanc, selon le meilleur contraste.
+ *
+ * `themeTextColor` (lib/themes) tranche par seuil de luminance ; au voisinage
+ * du seuil, ce choix peut rester sous le rapport 4.5:1 exigé par axe. Comparer
+ * les deux ratios garantit au moins 4.58:1 quelle que soit la couleur.
+ */
+function readableTextColor(background: string): "#000000" | "#ffffff" {
+  const luminance = (hex: string) => {
+    const channels = [1, 3, 5].map((offset) => {
+      const value = Number.parseInt(hex.slice(offset, offset + 2), 16) / 255;
+      return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const ratio = (first: number, second: number) =>
+    (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+  const backgroundLuminance = luminance(background);
+  return ratio(backgroundLuminance, luminance("#000000")) >=
+    ratio(backgroundLuminance, luminance("#ffffff"))
+    ? "#000000"
+    : "#ffffff";
+}
+
 export type ThemeOption = {
   id: string;
   name: string;
@@ -55,6 +79,15 @@ export function ThemeSelector({
         const selected = value.includes(theme.id);
         const Icon = themeIcon(theme.icon);
         const badge = themeBadgeStyle(theme.color);
+        // Thème retenu : fond plein, texte noir ou blanc selon le contraste.
+        // Thème non retenu : plus d'aplat à 50 % d'opacité (il écrasait le
+        // contraste) — l'icône colorée porte l'identité, le texte reste lisible.
+        const chipStyle = selected
+          ? {
+              backgroundColor: badge.backgroundColor,
+              color: readableTextColor(badge.backgroundColor),
+            }
+          : undefined;
         return (
           <button
             key={theme.id}
@@ -63,15 +96,14 @@ export function ThemeSelector({
             aria-checked={selected}
             aria-label={`Thème ${theme.name}`}
             onClick={() => toggle(theme.id)}
-            className={`theme-badge${selected ? " theme-badge--on" : " theme-badge--off"}`}
-            style={
-              selected
-                ? badge
-                : // Thème non retenu : la couleur reste lisible, l'opacité marque l'état.
-                  { ...badge, opacity: 0.5 }
-            }
+            className={`theme-badge text-foreground${selected ? " theme-badge--on" : " theme-badge--off"}`}
+            style={chipStyle}
           >
-            <Icon size={14} aria-hidden="true" />
+            <Icon
+              size={14}
+              aria-hidden="true"
+              style={selected ? undefined : { color: badge.backgroundColor }}
+            />
             <span>{theme.name}</span>
           </button>
         );

@@ -225,12 +225,21 @@ UTC (`@prisma/adapter-pg` convertit les `Date` avec leurs composants UTC).
 
 ```bash
 npm run db:deploy    # prisma migrate deploy (production et développement)
+npm run db:check     # prisma migrate status : migrations en attente ? (code 1 si oui)
 npm run db:studio    # Prisma Studio
 npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 ```
 
 La dernière commande doit répondre `No difference detected` (code 0) : elle
 vérifie que la base réellement migrée correspond au schéma Prisma.
+
+`db:check` et `db:deploy` visent la même base : `DIRECT_URL` d'abord, sinon
+`DATABASE_URL`. Sur un poste configuré pour la production, `npm run db:check`
+contrôle donc la production. Le workflow `Migrations`
+(`.github/workflows/migrate-check.yml`) exécute ce contrôle automatiquement à
+chaque pull request et à chaque push sur `main`, avec le secret `DIRECT_URL` :
+il échoue si une migration n'est pas appliquée. C'est le garde-fou qui
+manquait — Vercel ne joue pas `prisma migrate deploy` au déploiement.
 
 ### Piège à connaître : l'import de l'adaptateur PostgreSQL
 
@@ -347,6 +356,11 @@ npm run db:deploy
 Avant de déployer, lancer le préflight (§4 ter) : il vérifie en quelques
 secondes la chaîne de connexion, le serveur, les migrations en attente et
 l'extension `pg_trgm`.
+
+Le même garde-fou existe en automatique : à chaque pull request et à chaque
+push sur `main`, le workflow « Migrations » compare `prisma/migrations` à la
+production et échoue si une migration est en attente ; `npm run db:check` fait
+ce contrôle à la demande, localement (même cible que `db:deploy`).
 
 `postinstall: prisma generate` régénère le client Prisma à chaque installation :
 c'est indispensable sur Vercel, où `src/generated/` n'est pas versionné.
@@ -896,7 +910,7 @@ Par adresse IP et par minute : recherche 30, analytics 60, statut de synchronisa
 
 /api/logo/[teamId] accepte l’identifiant local ou l’identifiant externe numérique d’une équipe connue. L’hôte et le chemin fournisseur sont fixes ; aucune URL arbitraire n’est acceptée et la clé RapidAPI reste côté serveur. Seuls PNG, JPEG, WebP et GIF, de taille au plus 256 Kio, sont servis ; les redirections et SVG sont refusés. Le cache partagé en base et le cache HTTP durent 24 heures. Les appels sont comptés dans le même registre de quota que la synchronisation, sous verrou PostgreSQL, avec un maximum supplémentaire de cinq nouveaux logos par 24 h et une réserve fournisseur de vingt appels. Les logos publics existants restent utilisés sans appel RapidAPI. Une indisponibilité fournisseur ou un budget épuisé renvoie 503 sans exposer l’erreur interne.
 
-La page historique /backoffice/sports/sync est dépréciée : son formulaire de synchronisation et sa référence à FOOTBALL_DATA_API_KEY ont été retirés. Elle reste un panneau informatif pour ne pas casser les liens du backoffice existants. Le fournisseur actif est AllSportsApi.
+La page historique /backoffice/sports/sync a été supprimée (WP30), avec le bouton « Synchroniser les données » qui y menait. La synchronisation des scores passe par AllSportsApi et le suivi des exécutions par GitHub Actions ; les Server Actions de synchronisation du backoffice restent en place, seuls la page dépréciée et son formulaire orphelin ont été retirés.
 
 ### Audit des dépendances WP23 — 16 octobre 2026
 
@@ -905,6 +919,8 @@ Les correctifs ont été isolés dans codex/wp23-dependency-fixes puis intégré
 Résultat de npm audit --package-lock-only --omit=dev : **0 vulnérabilité de production**, dont 0 high et 0 critical. L’audit complet garde **5 alertes high**, 0 moderate et 0 critical, sur la chaîne de développement eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces. Il s’agit de la chaîne affectée par [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), un épuisement de pile à partir de motifs imbriqués. La dernière version publiée de braces, 3.0.3, est encore affectée. Le correctif automatique forcé propose eslint-config-next 14.2.35, une rétrogradation majeure incompatible avec l’alignement Next.js 15 retenu : elle n’est pas appliquée. La levée de ces alertes exige un correctif amont ou un remplacement/migration de la chaîne de lint, à tester séparément. Le critère « aucune high dans l’audit complet » n’est donc pas atteint.
 
 Le contrôle sur lockfile rend l’audit reproductible indépendamment des paquets natifs locaux. Les téléchargements natifs Windows ont été interrompus après blocage réseau ; l’installation complète des versions retenues et le build sont contrôlés en CI avec npm ci. Ne pas assimiler cette validation à une installation locale Windows terminée. Pour réinstaller localement quand le registre est accessible : npm ci, puis npm run build. Aucun nouveau service ni bibliothèque applicative n’est ajouté.
+
+Réexamen WP30 (16 octobre 2026) : `npm audit fix` (sans `--force`) ne corrige rien de plus et laisse le lockfile inchangé ; les **5 alertes high** restent limitées à la chaîne de développement décrite ci-dessus (aucune dépendance embarquée ni de production concernée : 0 vulnérabilité de production). Le correctif sans rétrogradation majeure dépend toujours de l'amont.
 
 ### Rétention et sauvegardes — WP23 complété
 
