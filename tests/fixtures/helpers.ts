@@ -125,12 +125,12 @@ export async function fillArticleContent(page: Page, text: string): Promise<void
 /**
  * Vérifie l'accessibilité de la page courante avec axe-core.
  *
- * Le test échoue sur les violations « critical » : c'est le niveau qui casse
- * réellement l'accès (contrôles inaccessibles au clavier, libellés absents…).
- * Les niveaux « serious »/« moderate »/« minor » sont journalisés sans bloquer :
- * l'interface publique a des chantiers d'accessibilité connus, hors périmètre
- * du WP E2E-1 (aucune modification de `src/**` n'est autorisée), et une suite
- * rouge en permanence ne protégerait plus rien.
+ * La gate bloque sur « critical » et « serious » (WP30) : ce sont les niveaux
+ * qui empêchent réellement l'accès ou la compréhension (contrôles inaccessibles,
+ * libellés absents, contrastes illisibles…). Les niveaux « moderate » et
+ * « minor » restent journalisés sans bloquer — l'interface a des chantiers
+ * d'accessibilité connus hors des parcours critiques, et une suite rouge en
+ * permanence ne protégerait plus rien.
  */
 export async function expectNoBlockingA11yViolations(
   page: Page,
@@ -138,10 +138,11 @@ export async function expectNoBlockingA11yViolations(
 ): Promise<void> {
   const results = await new AxeBuilder({ page }).analyze();
   const blocking = results.violations.filter(
-    (violation) => violation.impact === "critical",
+    (violation) =>
+      violation.impact === "critical" || violation.impact === "serious",
   );
   for (const violation of results.violations.filter(
-    (v) => v.impact !== "critical",
+    (v) => v.impact !== "critical" && v.impact !== "serious",
   )) {
     console.warn(
       `[a11y] ${context} — ${violation.impact} : ${violation.id} (${violation.nodes.length} élément(s))`,
