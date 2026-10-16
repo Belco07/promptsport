@@ -12,6 +12,11 @@ import { ClubTabs, clubTabs, type ClubTab } from "@/components/ClubTabs";
 import { PlayerList } from "@/components/PlayerList";
 import { ArticleCard, type ArticleCardData } from "@/components/ArticleCard";
 import { MatchCard } from "@/components/MatchCard";
+import { ClubPulse } from "@/components/club/ClubPulse";
+import { CalendarExportButton } from "@/components/club/CalendarExportButton";
+import { ManOfTheMatchVote } from "@/components/club/ManOfTheMatchVote";
+import { ManOfTheMatchResults } from "@/components/club/ManOfTheMatchResults";
+import { getClubPulse, getMatchVoteData, getClubRivalry } from "@/lib/club-digest";
 import { Footer } from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +43,8 @@ export default async function ClubPage({ params, searchParams }: Props) {
   const competitions = [...new Map([...club.homeMatches, ...club.awayMatches].map(match => [match.competition.slug, match.competition])).values()];
   const session = await auth();
   const follows = session?.user?.id ? await getReaderFollows(session.user.id) : null;
+  const [pulse, rivalry] = await Promise.all([getClubPulse(club.id), getClubRivalry(club.id)]);
+  const vote = pulse.last ? await getMatchVoteData(pulse.last.id, session?.user?.id ?? null) : null;
   const now = new Date();
   // One dataset query for the selected tab; common header lookup is cached
   // within the request and shared with generateMetadata.
@@ -60,6 +67,10 @@ export default async function ClubPage({ params, searchParams }: Props) {
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({ "@context": "https://schema.org", "@type": "SportsTeam", name: club.name, sport: club.sport, url: absoluteUrl(`/club/${club.slug}`), ...(club.logoUrl ? { logo: club.logoUrl } : {}), ...(club.country ? { location: { "@type": "Country", name: club.country } } : {}) }) }}/>
     <Link href="/scores" className="mb-6 inline-block text-sm font-bold text-editorial-link">← Tous les scores</Link>
     <ClubHeader club={club} competitions={competitions} signedIn={!!session?.user?.id} following={!!follows?.followedTeams.some(team => team.id === club.id)}/>
+    <div className="mt-4 flex flex-wrap items-center gap-4"><CalendarExportButton slug={club.slug}/><Link href="/mon-compte/preferences" className="text-sm font-semibold text-editorial-link">Gérer mon digest hebdomadaire</Link></div>
+    <ClubPulse pulse={pulse}/>
+    {vote?.status === "FINISHED" && <section aria-label="Homme du dernier match" className="mb-8 rounded-xl border border-border bg-card p-5"><h2 className="text-xl font-bold text-foreground">Homme du dernier match</h2><Link className="text-sm text-editorial-link" href={`/match/${vote.id}`}>{pulse.last?.home} – {pulse.last?.away}</Link><ManOfTheMatchVote matchId={vote.id} candidates={vote.candidates} choice={vote.choice} signedIn={!!session?.user?.id}/><ManOfTheMatchResults results={vote.results}/></section>}
+    <section aria-label="Rivalité" className="mb-8 rounded-xl border border-border bg-card p-5"><h2 className="mb-3 text-xl font-bold text-foreground">Rivalité</h2>{rivalry ? <><Link href={`/club/${rivalry.slug}`} className="font-semibold text-editorial-link">{rivalry.name}</Link>{rivalry.derby ? <p className="mt-2 text-sm text-foreground">Prochain derby : <Link href={`/match/${rivalry.derby.id}`} className="text-editorial-link">{new Date(rivalry.derby.scheduledAt).toLocaleDateString("fr-FR", {timeZone:"Africa/Lagos"})}</Link></p> : <p className="mt-2 text-sm text-muted-foreground">Aucun prochain derby programmé.</p>}{rivalry.fixtures.length ? <ul className="mt-3 space-y-2">{rivalry.fixtures.map(match => <li key={match.id}><Link href={`/match/${match.id}`} className="text-sm text-foreground">{new Date(match.scheduledAt).toLocaleDateString("fr-FR", {timeZone:"Africa/Lagos"})} · {match.home} {match.homeScore ?? "—"} – {match.awayScore ?? "—"} {match.away}</Link></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">Aucune confrontation enregistrée.</p>}</> : <p className="text-sm text-muted-foreground">Aucun rival principal renseigné pour ce club.</p>}</section>
     <ClubTabs slug={club.slug} active={tab}/>
     <section aria-labelledby="club-panel"><h2 id="club-panel" className="mb-6 text-2xl font-black text-foreground">{clubTabs[tab]}</h2>
       {tab === "actualites" ? <>{articles.length ? <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{articles.slice(0, 12).map(article => <ArticleCard key={article.slug} article={article} headingLevel={3}/>)}</div> : <p className="text-muted-foreground">Aucun article disponible pour ce club{page > 1 ? " à cette page" : ""}.</p>}<nav aria-label="Pagination des actualités" className="mt-8 flex items-center justify-between gap-4">{page > 1 ? <Link href={`/club/${club.slug}?tab=actualites&page=${page - 1}`} className="font-bold text-editorial-link">← Page précédente</Link> : <span/>}<span className="text-sm text-muted-foreground">Page {page}</span>{articles.length > 12 ? <Link href={`/club/${club.slug}?tab=actualites&page=${page + 1}`} className="font-bold text-editorial-link">Page suivante →</Link> : <span/>}</nav></> : tab === "effectif" ? <PlayerList players={players}/> : matches.length ? <div className="space-y-3">{matches.map(match => <MatchCard key={match.id} match={match} compact/>)}</div> : <p className="rounded-lg border border-border bg-card p-6 text-muted-foreground">{tab === "resultats" ? "Aucun résultat enregistré pour ce club." : "Aucun match à venir enregistré pour ce club."}</p>}

@@ -1,5 +1,28 @@
 import { absoluteUrl } from "@/lib/seo";
 
+export type ClubDigestEmail = {
+  clubName: string;
+  clubSlug: string;
+  nextMatch: string;
+  lastResult: string;
+  topScorer: string;
+  article: { title: string; slug: string } | null;
+  manOfTheMatch: string;
+};
+
+export function renderClubDigestEmail(data: ClubDigestEmail): { html: string; text: string } {
+  const title = `La semaine de ${data.clubName}`;
+  const sections = [["Prochain match", data.nextMatch], ["Dernier résultat", data.lastResult], ["Buteur du club", data.topScorer], ["Homme du match — vote des lecteurs", data.manOfTheMatch]];
+  const preferences = absoluteUrl("/mon-compte/preferences");
+  const contentHtml = sections.map(([heading, value]) => `<h2 style="font-size:18px;margin:24px 0 8px;">${escapeHtml(heading)}</h2><p>${escapeHtml(value)}</p>`).join("")
+    + (data.article ? `<h2 style="font-size:18px;">À lire</h2><p><a href="${escapeHtml(absoluteUrl(`/article/${data.article.slug}`))}">${escapeHtml(data.article.title)}</a></p>` : "<p>Aucun nouvel article disponible pour ce club.</p>")
+    + button(absoluteUrl(`/club/${data.clubSlug}`), "Retrouver mon club");
+  return {
+    html: layout({ title, previewText: title, contentHtml, footerHtml: `Vous avez choisi le digest hebdomadaire de ce club. <a href="${escapeHtml(preferences)}">Gérer mes digests ou me désabonner</a>. Aucun pixel de suivi.` }),
+    text: `${title}\n\n${sections.map(([heading, value]) => `${heading}\n${value}`).join("\n\n")}\n\n${data.article ? `${data.article.title}\n${absoluteUrl(`/article/${data.article.slug}`)}` : "Aucun nouvel article disponible."}\n\nPréférences et désabonnement : ${preferences}`,
+  };
+}
+
 /**
  * Templates des e-mails de newsletter (WP11b).
  *

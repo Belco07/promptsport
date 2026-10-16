@@ -23,6 +23,9 @@ datasource db {
 }
 
 model Author {
+  digestOptIn Boolean @default(false)
+  clubDigests ClubDigestSubscription[]
+  manOfTheMatchVotes ManOfTheMatchVote[]
   followedTeams Team[] @relation("ReaderFollowedTeams")
   followedCompetitions Competition[] @relation("ReaderFollowedCompetitions")
   welcomeCompleted Boolean @default(true)
@@ -317,6 +320,54 @@ model Team {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Match/player/club identifiers have database foreign keys in the migration.
+// Keeping them scalar avoids changing the existing sports models.
+model ManOfTheMatchVote {
+  id String @id @default(cuid())
+  matchId String
+  readerId String
+  reader Author @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  playerId String
+  createdAt DateTime @default(now())
+  @@unique([matchId, readerId])
+  @@index([matchId, playerId])
+}
+
+model ClubDigestSubscription {
+  id String @id @default(cuid())
+  readerId String
+  reader Author @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  clubId String
+  enabled Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([readerId, clubId])
+  @@index([enabled])
+}
+
+model ClubDigestDelivery {
+  id String @id @default(cuid())
+  subscriptionId String
+  week String
+  // A reserved delivery is never retried automatically: an interrupted provider
+  // response may still mean the email was sent.
+  status String @default("RESERVED")
+  providerMessageId String?
+  error String?
+  createdAt DateTime @default(now())
+  sentAt DateTime?
+  @@unique([subscriptionId, week])
+}
+
+model ClubRivalry {
+  id String @id @default(cuid())
+  clubId String
+  rivalClubId String
+  createdAt DateTime @default(now())
+  @@unique([clubId, rivalClubId])
+  @@index([rivalClubId])
 }
 
 model Player {
