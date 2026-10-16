@@ -7,7 +7,7 @@ import { renderClubDigestEmail, type ClubDigestEmail } from "@/lib/email-templat
 
 type Fixture = { id: string; home: string; away: string; homeScore: number | null; awayScore: number | null; scheduledAt: string };
 export type ClubPulseData = {
-  next: Fixture | null; last: Fixture | null; form: string[];
+  next: Fixture | null; last: Fixture | null; form: { matchId: string; result: string }[];
   redCards: { playerName: string; scheduledAt: string }[];
   mercato: { title: string; slug: string } | null;
   editorial: { title: string; slug: string } | null;
@@ -28,8 +28,8 @@ export async function loadClubPulse(clubId: string) {
       WHERE (m."homeTeamId"=${clubId} OR m."awayTeamId"=${clubId}) AND m.status='SCHEDULED' AND m."scheduledAt">NOW() ORDER BY m."scheduledAt", m.id LIMIT 1) AS next,
     (SELECT ${fixtureJson} FROM "Match" m JOIN "Team" h ON h.id=m."homeTeamId" JOIN "Team" a ON a.id=m."awayTeamId"
       WHERE (m."homeTeamId"=${clubId} OR m."awayTeamId"=${clubId}) AND m.status='FINISHED' ORDER BY m."scheduledAt" DESC, m.id LIMIT 1) AS last,
-    COALESCE((SELECT jsonb_agg(f.result ORDER BY f."scheduledAt" DESC) FROM
-      (SELECT m."scheduledAt", CASE WHEN m."homeScore" IS NULL OR m."awayScore" IS NULL THEN '—'
+    COALESCE((SELECT jsonb_agg(jsonb_build_object('matchId', f.id, 'result', f.result) ORDER BY f."scheduledAt" DESC, f.id) FROM
+      (SELECT m.id, m."scheduledAt", CASE WHEN m."homeScore" IS NULL OR m."awayScore" IS NULL THEN '—'
        WHEN m."homeScore"=m."awayScore" THEN 'N' WHEN (m."homeTeamId"=${clubId} AND m."homeScore">m."awayScore") OR (m."awayTeamId"=${clubId} AND m."awayScore">m."homeScore") THEN 'V' ELSE 'D' END result
        FROM "Match" m WHERE (m."homeTeamId"=${clubId} OR m."awayTeamId"=${clubId}) AND m.status='FINISHED' ORDER BY m."scheduledAt" DESC, m.id LIMIT 5) f), '[]') AS form,
     COALESCE((SELECT jsonb_agg(r) FROM (SELECT e."playerName", m."scheduledAt" FROM "MatchEvent" e JOIN "Match" m ON m.id=e."matchId"
@@ -48,7 +48,7 @@ export async function loadClubPulse(clubId: string) {
   `);
   return rows[0];
 }
-export const getClubPulse = unstable_cache(loadClubPulse, ["club-pulse-v1"], { revalidate: 300 });
+export const getClubPulse = unstable_cache(loadClubPulse, ["club-pulse-v2"], { revalidate: 300 });
 
 export type MatchVoteData = {
   id: string; status: string; choice: string | null;
