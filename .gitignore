@@ -58,6 +58,12 @@ scripts/out-*.html
 /backups/
 /tmp-results/
 
+# artefacts Playwright (E2E-1) : rapports HTML, résultats, traces et rapports blob
+/test-results/
+/playwright-report/
+/blob-report/
+/.playwright/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

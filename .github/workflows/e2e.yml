@@ -1,0 +1,89 @@
+# Tests E2E Playwright — parcours critiques (E2E-1).
+#
+# Déclenché sur chaque pull request et sur les poussées vers main. La suite
+# démarre un serveur Next.js de développement sur le port 3002 (Playwright s'en
+# charge via webServer), migre une base PostgreSQL vierge et crée les comptes de
+# test dédiés avant d'exécuter les cinq fichiers de tests/e2e.
+#
+# Le rapport HTML et, en cas d'échec, les traces du premier essai sont publiés
+# en artefacts de workflow.
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: promptsport
+          POSTGRES_PASSWORD: promptsport
+          POSTGRES_DB: promptsport
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U promptsport"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Valeurs factices propres à la CI : aucune clé réelle n'est nécessaire
+    # pour migrer, démarrer le serveur et jouer les parcours.
+    env:
+      DATABASE_URL: postgresql://promptsport:promptsport@localhost:5432/promptsport?schema=public
+      AUTH_SECRET: e2e-secret-non-utilise-en-production-0123456789
+      NEXT_PUBLIC_SITE_URL: http://localhost:3002
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Appliquer les migrations
+        run: npx prisma migrate deploy
+
+      - name: Seed de base (admin, thèmes)
+        run: npm run db:seed
+
+      - name: Créer les comptes de test E2E
+        run: node scripts/seed-test-users.cjs
+
+      - name: Installer Chromium (Playwright)
+        run: npx playwright install --with-deps chromium
+
+      - name: Lancer les tests E2E
+        run: npx playwright test
+
+      - name: Publier le rapport HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-playwright
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Publier les traces et captures d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces-playwright
+          path: test-results/
+          retention-days: 7
