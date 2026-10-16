@@ -1,6 +1,60 @@
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, type Competition } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { ArticleCardData } from "@/components/ArticleCard";
+import { computeStandings, type FinishedMatch, type StandingRow } from "@/lib/standings";
+
+type FollowedStandingsData = Pick<Competition, "id" | "name" | "slug" | "externalId" | "uclSpots" | "uelSpots" | "ueclSpots" | "relegationSpots" | "relegationPlayoffSpots" | "format"> & {
+  matches: FinishedMatch[];
+  officialRows: StandingRow[] | null;
+  teams: { id: string; externalId: string | null; logoUrl: string | null }[];
+};
+
+/** One query for the section, including the stored official league-phase table. */
+export async function getFollowedStandings(competitionIds: string[]) {
+  if (!competitionIds.length) return [];
+  const competitions = await prisma.$queryRaw<FollowedStandingsData[]>(Prisma.sql`
+    SELECT c.id, c.name, c.slug, c."externalId", c."uclSpots", c."uelSpots", c."ueclSpots",
+      c."relegationSpots", c."relegationPlayoffSpots", c.format,
+      fixture.matches, snapshot.rows AS "officialRows", directory.teams
+    FROM "Competition" c
+    LEFT JOIN LATERAL (
+      SELECT l.errors->'rows' AS rows FROM "SyncLog" l
+      WHERE c."externalId" = '7' AND l.type = 'standings:7' AND l.status = 'SUCCESS'
+        AND l.errors->>'seasonLabel' = c.season
+        AND jsonb_array_length(CASE WHEN jsonb_typeof(l.errors->'rows') = 'array' THEN l.errors->'rows' ELSE '[]'::jsonb END) = 36
+      ORDER BY l."finishedAt" DESC NULLS LAST LIMIT 1
+    ) snapshot ON TRUE
+    CROSS JOIN LATERAL (
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'homeTeamId', m."homeTeamId", 'awayTeamId', m."awayTeamId",
+        'homeScore', m."homeScore", 'awayScore', m."awayScore",
+        'homeTeam', jsonb_build_object('id', h.id, 'name', h.name),
+        'awayTeam', jsonb_build_object('id', a.id, 'name', a.name)
+      )), '[]'::jsonb) AS matches
+      FROM "Match" m JOIN "Team" h ON h.id = m."homeTeamId" JOIN "Team" a ON a.id = m."awayTeamId"
+      WHERE m."competitionId" = c.id AND m.status = 'FINISHED' AND c."externalId" IS DISTINCT FROM '7'
+    ) fixture
+    CROSS JOIN LATERAL (
+      SELECT COALESCE(jsonb_agg(jsonb_build_object('id', t.id, 'externalId', t."externalId", 'logoUrl', t."logoUrl")), '[]'::jsonb) AS teams
+      FROM "Team" t
+      WHERE EXISTS (SELECT 1 FROM "Match" m WHERE m."competitionId" = c.id AND (m."homeTeamId" = t.id OR m."awayTeamId" = t.id))
+        OR t."externalId" IN (SELECT item->>'teamId' FROM jsonb_array_elements(COALESCE(snapshot.rows, '[]'::jsonb)) item)
+    ) directory
+    WHERE c.id IN (${Prisma.join(competitionIds)}) ORDER BY c.name, c.id
+  `);
+  return competitions.map(competition => {
+    const official = competition.externalId === "7";
+    const teams = new Map(competition.teams.map(team => [team.externalId, team]));
+    const logos: Record<string, string | null> = Object.fromEntries(competition.teams.map(team => [team.id, team.logoUrl]));
+    const rows = official ? (competition.officialRows ?? []).map(row => {
+      const team = teams.get(row.teamId);
+      const teamId = team?.id ?? `allsports:${row.teamId}`;
+      logos[teamId] = team?.logoUrl ?? `https://img.sofascore.com/api/v1/team/${row.teamId}/image`;
+      return { ...row, teamId };
+    }) : computeStandings(competition.matches);
+    return { ...competition, rows, logos, totalTeams: official ? rows.length : competition.teams.length };
+  });
+}
 
 /** Whole phrases prevent e.g. Inter matching Interview. No premium body is read. */
 export function followTerms(subject: { name: string; shortName?: string | null }): string[] {
