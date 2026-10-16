@@ -15,6 +15,11 @@ export type ClubPulseData = {
 };
 const fixtureJson = Prisma.raw(`jsonb_build_object('id',m.id,'home',h.name,'away',a.name,'homeScore',m."homeScore",'awayScore',m."awayScore",'scheduledAt',to_char(m."scheduledAt",'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))`);
 
+const articleMentionsClub = Prisma.raw(`(EXISTS (SELECT 1 FROM "Match" linked WHERE linked.id=a."matchId" AND (linked."homeTeamId"=t.id OR linked."awayTeamId"=t.id))
+  OR EXISTS (SELECT 1 FROM (VALUES (t.name),(t."shortName")) AS terms(term) WHERE length(trim(term))>=3
+    AND strpos(' ' || regexp_replace(lower(concat_ws(' ',a.title,a.content)), '[^[:alnum:]]+', ' ', 'g') || ' ',
+      ' ' || trim(regexp_replace(lower(term), '[^[:alnum:]]+', ' ', 'g')) || ' ')>0))`);
+
 /** One SQL statement per public Pulse section; no sports-provider requests. */
 export async function loadClubPulse(clubId: string) {
   const rows = await prisma.$queryRaw<ClubPulseData[]>(Prisma.sql`
@@ -33,10 +38,10 @@ export async function loadClubPulse(clubId: string) {
     (SELECT jsonb_build_object('title',a.title,'slug',a.slug) FROM "Article" a JOIN "Team" t ON t.id=${clubId}
       WHERE a.status='PUBLISHED' AND a."publishedAt"<=NOW() AND EXISTS
        (SELECT 1 FROM "_ArticleToTheme" at JOIN "Theme" th ON th.id=at."B" WHERE at."A"=a.id AND lower(th.slug)='mercato')
-      AND (strpos(lower(a.title), lower(t.name))>0 OR (length(t."shortName")>=3 AND strpos(lower(a.title),lower(t."shortName"))>0)) ORDER BY a."publishedAt" DESC, a.id LIMIT 1) AS mercato,
+      AND ${articleMentionsClub} ORDER BY a."publishedAt" DESC, a.id LIMIT 1) AS mercato,
     (SELECT jsonb_build_object('title',a.title,'slug',a.slug) FROM "Article" a JOIN "Team" t ON t.id=${clubId}
       WHERE a.status='PUBLISHED' AND a."publishedAt"<=NOW() AND a."publishedAt">NOW()-INTERVAL '7 days'
-      AND (strpos(lower(a.title), lower(t.name))>0 OR (length(t."shortName")>=3 AND strpos(lower(a.title),lower(t."shortName"))>0)) ORDER BY a."publishedAt" DESC, a.id LIMIT 1) AS editorial,
+      AND ${articleMentionsClub} ORDER BY a."publishedAt" DESC, a.id LIMIT 1) AS editorial,
     (SELECT jsonb_build_object('playerName',e."playerName",'goals',count(*)) FROM "MatchEvent" e JOIN "Match" m ON m.id=e."matchId"
       WHERE e."teamId"=${clubId} AND e.type='GOAL' AND m."scheduledAt">NOW()-INTERVAL '7 days' AND m."scheduledAt"<=NOW()
       GROUP BY e."playerName" ORDER BY count(*) DESC, e."playerName" LIMIT 1) AS scorer
