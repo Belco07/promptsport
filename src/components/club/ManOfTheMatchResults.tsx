@@ -1,0 +1,3 @@
+export function ManOfTheMatchResults({ results }: { results: { id: string; name: string; votes: number }[] }) {
+  return <div className="mt-4"><h3 className="font-bold text-foreground">Le choix des lecteurs</h3>{results.length ? <ol className="mt-2 space-y-2">{results.map((player, i) => <li key={player.id} className="flex justify-between gap-3 text-sm text-foreground"><span>{i + 1}. {player.name}</span><span className="font-semibold tabular-nums">{player.votes} vote{player.votes > 1 ? "s" : ""}</span></li>)}</ol> : <p className="mt-2 text-sm text-muted-foreground">Aucun vote pour le moment.</p>}</div>;
+}
