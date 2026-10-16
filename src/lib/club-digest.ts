@@ -50,6 +50,21 @@ export async function loadClubPulse(clubId: string) {
 }
 export const getClubPulse = unstable_cache(loadClubPulse, ["club-pulse-v2"], { revalidate: 300 });
 
+
+/** The two opponents' recent results, loaded together in one statement. */
+export const getTeamForms = unstable_cache(async (teamIds: string[]) => {
+  if (!teamIds.length) return [];
+  return prisma.$queryRaw<{ teamId: string; form: ClubPulseData["form"] }[]>(Prisma.sql`
+    SELECT t.id AS "teamId", COALESCE((SELECT jsonb_agg(jsonb_build_object('matchId', f.id, 'result', f.result) ORDER BY f."scheduledAt" DESC, f.id)
+      FROM (SELECT m.id,m."scheduledAt",CASE WHEN m."homeScore" IS NULL OR m."awayScore" IS NULL THEN '—'
+        WHEN m."homeScore"=m."awayScore" THEN 'N'
+        WHEN (m."homeTeamId"=t.id AND m."homeScore">m."awayScore") OR (m."awayTeamId"=t.id AND m."awayScore">m."homeScore") THEN 'V' ELSE 'D' END AS result
+        FROM "Match" m WHERE (m."homeTeamId"=t.id OR m."awayTeamId"=t.id) AND m.status='FINISHED' AND m."scheduledAt"<=NOW()
+        ORDER BY m."scheduledAt" DESC,m.id LIMIT 5) f), '[]') AS form
+    FROM "Team" t WHERE t.id IN (${Prisma.join(teamIds)})
+  `);
+}, ["match-team-forms-v1"], { revalidate: 300 });
+
 export type MatchVoteData = {
   id: string; status: string; choice: string | null;
   candidates: { id: string; name: string; club: string }[];

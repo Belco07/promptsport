@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
-import { getMatchVoteData } from "@/lib/club-digest";
+import { getMatchVoteData, getTeamForms } from "@/lib/club-digest";
 import { ManOfTheMatchVote } from "@/components/club/ManOfTheMatchVote";
 import { ManOfTheMatchResults } from "@/components/club/ManOfTheMatchResults";
 import { cache } from "react";
@@ -72,6 +72,7 @@ export default async function MatchPage({params,searchParams}:Props){
  const lastUpdate=match.status==="LIVE"?await getLastSportsUpdate("live"):null;
  const session = match.status === "FINISHED" ? await auth() : null;
  const vote = match.status === "FINISHED" ? await getMatchVoteData(id, session?.user?.id ?? null) : null;
+ const teamForms = match.status === "SCHEDULED" ? Object.fromEntries((await getTeamForms([match.homeTeamId, match.awayTeamId])).map(team => [team.teamId, team.form])) : {};
  const hasScore=match.homeScore!=null&&match.awayScore!=null;
  const playerLinks=Object.fromEntries([...match.homeTeam.players,...match.awayTeam.players].map(player=>[playerProfileKey(player.teamId,player.name),`/joueur/${player.slug}`]));
  return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
@@ -98,7 +99,7 @@ export default async function MatchPage({params,searchParams}:Props){
 
  <Link href="/scores" className="mb-6 inline-block text-sm font-bold text-editorial-link">← Tous les scores</Link>
  {match.status==="LIVE"&&<><div className="mb-3"><LiveBadge/></div><LiveScoreRefresher hasLiveMatches={true} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null}/></>}
- <MatchHeader match={match} playerLinks={playerLinks}/><MatchTabs id={id} active={active}/>
+ <MatchHeader match={match} playerLinks={playerLinks} teamForms={teamForms}/><MatchTabs id={id} active={active}/>
  <section aria-labelledby="match-panel" className="min-h-40"><h2 id="match-panel" className="mb-5 text-2xl font-black uppercase text-foreground">{matchTabs[active]}</h2>
  {active==="resume"||active==="commentaires"?<MatchTimeline playerLinks={playerLinks} commentary={active==="commentaires"} events={match.events} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="statistiques"?<MatchStats statistics={match.statistics} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:<MatchLineup lineups={match.lineups} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>}
  </section>{vote?.status === "FINISHED" && <section aria-label="Vote homme du match" className="mt-8 rounded-xl border border-border bg-card p-5"><h2 className="text-xl font-bold text-foreground">Homme du match</h2><ManOfTheMatchVote matchId={id} candidates={vote.candidates} choice={vote.choice} signedIn={!!session?.user?.id}/><ManOfTheMatchResults results={vote.results}/></section>}<section aria-labelledby="linked-articles-title" className="mt-12 border-t-2 border-border pt-6"><h2 id="linked-articles-title" className="mb-6 text-2xl font-black uppercase text-foreground">Articles liés au match</h2>{match.articles.length ? <div className="grid gap-5 md:grid-cols-3">{match.articles.map(article => <ArticleCard key={article.slug} article={article} headingLevel={3} />)}</div> : <p className="text-sm text-muted-foreground">Aucun article lié pour le moment.</p>}</section><AdSlotGate><AdSlot className="mt-10"/></AdSlotGate>
