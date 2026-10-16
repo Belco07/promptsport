@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import type { ArticleCardData } from "@/components/ArticleCard";
 import { computeStandings, type FinishedMatch, type StandingRow } from "@/lib/standings";
 
+const OFFICIAL_LEAGUE_PHASE_SLUGS = ["uefa-champions-league", "uefa-europa-league", "uefa-conference-league"];
+
 type FollowedStandingsData = Pick<Competition, "id" | "name" | "slug" | "externalId" | "uclSpots" | "uelSpots" | "ueclSpots" | "relegationSpots" | "relegationPlayoffSpots" | "format"> & {
   matches: FinishedMatch[];
   officialRows: StandingRow[] | null;
@@ -19,7 +21,8 @@ export async function getFollowedStandings(competitionIds: string[]) {
     FROM "Competition" c
     LEFT JOIN LATERAL (
       SELECT l.errors->'rows' AS rows FROM "SyncLog" l
-      WHERE c."externalId" = '7' AND l.type = 'standings:7' AND l.status = 'SUCCESS'
+      WHERE (c."externalId" = '7' OR c.slug IN (${Prisma.join(OFFICIAL_LEAGUE_PHASE_SLUGS)}))
+        AND l.type = 'standings:' || c."externalId" AND l.status = 'SUCCESS'
         AND l.errors->>'seasonLabel' = c.season
         AND jsonb_array_length(CASE WHEN jsonb_typeof(l.errors->'rows') = 'array' THEN l.errors->'rows' ELSE '[]'::jsonb END) = 36
       ORDER BY l."finishedAt" DESC NULLS LAST LIMIT 1
@@ -33,6 +36,7 @@ export async function getFollowedStandings(competitionIds: string[]) {
       )), '[]'::jsonb) AS matches
       FROM "Match" m JOIN "Team" h ON h.id = m."homeTeamId" JOIN "Team" a ON a.id = m."awayTeamId"
       WHERE m."competitionId" = c.id AND m.status = 'FINISHED' AND c."externalId" IS DISTINCT FROM '7'
+        AND c.slug NOT IN (${Prisma.join(OFFICIAL_LEAGUE_PHASE_SLUGS)})
     ) fixture
     CROSS JOIN LATERAL (
       SELECT COALESCE(jsonb_agg(jsonb_build_object('id', t.id, 'externalId', t."externalId", 'logoUrl', t."logoUrl")), '[]'::jsonb) AS teams
@@ -43,7 +47,7 @@ export async function getFollowedStandings(competitionIds: string[]) {
     WHERE c.id IN (${Prisma.join(competitionIds)}) ORDER BY c.name, c.id
   `);
   return competitions.map(competition => {
-    const official = competition.externalId === "7";
+    const official = competition.externalId === "7" || OFFICIAL_LEAGUE_PHASE_SLUGS.includes(competition.slug);
     const teams = new Map(competition.teams.map(team => [team.externalId, team]));
     const logos: Record<string, string | null> = Object.fromEntries(competition.teams.map(team => [team.id, team.logoUrl]));
     const rows = official ? (competition.officialRows ?? []).map(row => {
@@ -52,7 +56,7 @@ export async function getFollowedStandings(competitionIds: string[]) {
       logos[teamId] = team?.logoUrl ?? `https://img.sofascore.com/api/v1/team/${row.teamId}/image`;
       return { ...row, teamId };
     }) : computeStandings(competition.matches);
-    return { ...competition, rows, logos, totalTeams: official ? rows.length : competition.teams.length };
+    return { ...competition, official, format: official ? "CUP_PHASE" as const : competition.format, rows, logos, totalTeams: official ? rows.length : competition.teams.length };
   });
 }
 

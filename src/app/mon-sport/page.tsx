@@ -72,9 +72,11 @@ export default async function MySportPage() {
       <h2 id="my-standings" className="mb-5 text-2xl font-black uppercase">Mes classements</h2>
       {standings.length ? <div className="space-y-8">{standings.map(competition => <div key={competition.id}>
         <h3 className="mb-3 text-lg font-bold"><Link href={`/competition/${competition.slug}`} className="hover:text-editorial-link">{competition.name}</Link></h3>
-        {competition.externalId === "7" && <p className="mb-3 text-sm text-muted-foreground">Phase de ligue uniquement : les qualifications et barrages ne comptent pas.</p>}
+        {competition.official && <p className="mb-3 text-sm text-muted-foreground">{competition.rows.length ? "Phase de ligue uniquement : les qualifications et barrages ne comptent pas." : "Classement officiel de la phase de ligue indisponible pour le moment."}</p>}
+        {(!competition.official || competition.rows.length > 0) && <>
         <StandingsTable rows={competition.rows} competitionSlug={competition.slug} rules={competition} totalTeams={competition.totalTeams} logos={competition.logos} />
         <StandingsLegend rules={competition} />
+        </>}
       </div>)}</div> : <p className="text-muted-foreground">Suivez une compétition pour afficher son classement.</p>}
     </section>
 
