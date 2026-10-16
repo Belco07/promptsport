@@ -21,10 +21,11 @@ function foldCalendarLine(line: string) {
 
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const upcoming = { scheduledAt: { gt: new Date() }, status: { in: ["SCHEDULED", "POSTPONED"] as ("SCHEDULED" | "POSTPONED")[] } };
   const club = await prisma.team.findUnique({ where: { slug }, select: {
     name: true, slug: true,
-    homeMatches: { include: { homeTeam: true, awayTeam: true, competition: true }, orderBy: { scheduledAt: "asc" } },
-    awayMatches: { include: { homeTeam: true, awayTeam: true, competition: true }, orderBy: { scheduledAt: "asc" } },
+    homeMatches: { where: upcoming, include: { homeTeam: true, awayTeam: true, competition: true }, orderBy: { scheduledAt: "asc" } },
+    awayMatches: { where: upcoming, include: { homeTeam: true, awayTeam: true, competition: true }, orderBy: { scheduledAt: "asc" } },
   } });
   if (!club) return new Response("Club introuvable", { status: 404 });
   const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PromptSport//Club calendar//FR", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${calendarText(club.name)}`];

@@ -12,6 +12,8 @@ export type ClubPulseData = {
   mercato: { title: string; slug: string } | null;
   editorial: { title: string; slug: string } | null;
   scorer: { playerName: string; goals: number } | null;
+  seasonLabel: string;
+  stats: { played: number; won: number; drawn: number; lost: number; goalsFor: number; goalsAgainst: number };
 };
 const fixtureJson = Prisma.raw(`jsonb_build_object('id',m.id,'home',h.name,'away',a.name,'homeScore',m."homeScore",'awayScore',m."awayScore",'scheduledAt',to_char(m."scheduledAt",'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))`);
 
@@ -22,8 +24,17 @@ const articleMentionsClub = Prisma.raw(`(EXISTS (SELECT 1 FROM "Match" linked WH
 
 /** One SQL statement per public Pulse section; no sports-provider requests. */
 export async function loadClubPulse(clubId: string) {
+  const now = new Date(), year = now.getUTCFullYear() - (now.getUTCMonth() < 6 ? 1 : 0);
+  const seasonStart = new Date(Date.UTC(year, 6, 1)), seasonEnd = new Date(Date.UTC(year + 1, 6, 1));
+  const seasonLabel = `${year}/${year + 1}`;
   const rows = await prisma.$queryRaw<ClubPulseData[]>(Prisma.sql`
-    SELECT
+    SELECT ${seasonLabel}::text AS "seasonLabel",
+    (SELECT jsonb_build_object('played',count(*)::int,'won',count(*) FILTER (WHERE (m."homeTeamId"=${clubId} AND m."homeScore">m."awayScore") OR (m."awayTeamId"=${clubId} AND m."awayScore">m."homeScore"))::int,
+      'drawn',count(*) FILTER (WHERE m."homeScore"=m."awayScore")::int,'lost',count(*) FILTER (WHERE (m."homeTeamId"=${clubId} AND m."homeScore"<m."awayScore") OR (m."awayTeamId"=${clubId} AND m."awayScore"<m."homeScore"))::int,
+      'goalsFor',COALESCE(sum(CASE WHEN m."homeTeamId"=${clubId} THEN m."homeScore" ELSE m."awayScore" END),0)::int,
+      'goalsAgainst',COALESCE(sum(CASE WHEN m."homeTeamId"=${clubId} THEN m."awayScore" ELSE m."homeScore" END),0)::int)
+      FROM "Match" m WHERE (m."homeTeamId"=${clubId} OR m."awayTeamId"=${clubId}) AND m.status='FINISHED' AND m."homeScore" IS NOT NULL AND m."awayScore" IS NOT NULL
+      AND m."scheduledAt">=${seasonStart} AND m."scheduledAt"<${seasonEnd} AND m."scheduledAt"<=NOW()) AS stats,
     (SELECT ${fixtureJson} FROM "Match" m JOIN "Team" h ON h.id=m."homeTeamId" JOIN "Team" a ON a.id=m."awayTeamId"
       WHERE (m."homeTeamId"=${clubId} OR m."awayTeamId"=${clubId}) AND m.status='SCHEDULED' AND m."scheduledAt">NOW() ORDER BY m."scheduledAt", m.id LIMIT 1) AS next,
     (SELECT ${fixtureJson} FROM "Match" m JOIN "Team" h ON h.id=m."homeTeamId" JOIN "Team" a ON a.id=m."awayTeamId"
@@ -43,12 +54,12 @@ export async function loadClubPulse(clubId: string) {
       WHERE a.status='PUBLISHED' AND a."publishedAt"<=NOW() AND a."publishedAt">NOW()-INTERVAL '7 days'
       AND ${articleMentionsClub} ORDER BY a."publishedAt" DESC, a.id LIMIT 1) AS editorial,
     (SELECT jsonb_build_object('playerName',e."playerName",'goals',count(*)) FROM "MatchEvent" e JOIN "Match" m ON m.id=e."matchId"
-      WHERE e."teamId"=${clubId} AND e.type='GOAL' AND m."scheduledAt">NOW()-INTERVAL '7 days' AND m."scheduledAt"<=NOW()
+      WHERE e."teamId"=${clubId} AND e.type='GOAL' AND m."scheduledAt">=${seasonStart} AND m."scheduledAt"<${seasonEnd} AND m."scheduledAt"<=NOW() AND m.status IN ('LIVE','FINISHED')
       GROUP BY e."playerName" ORDER BY count(*) DESC, e."playerName" LIMIT 1) AS scorer
   `);
   return rows[0];
 }
-export const getClubPulse = unstable_cache(loadClubPulse, ["club-pulse-v3"], { revalidate: 300 });
+export const getClubPulse = unstable_cache(loadClubPulse, ["club-pulse-v4"], { revalidate: 300 });
 
 
 /** The two opponents' recent results, loaded together in one statement. */
@@ -68,7 +79,7 @@ export const getTeamForms = unstable_cache(async (teamIds: string[]) => {
 export type MatchVoteData = {
   id: string; status: string; choice: string | null;
   candidates: { id: string; name: string; club: string }[];
-  results: { id: string; name: string; votes: number }[];
+  results: { id: string; name: string; votes: number; percentage: number }[];
 };
 /** Eligibility comes from the actual starting XI or recorded events, not the entire squad. */
 export async function getMatchVoteData(matchId: string, readerId: string | null = null) {
@@ -81,16 +92,21 @@ export async function getMatchVoteData(matchId: string, readerId: string | null 
           WHERE l."matchId"=m.id AND l."teamId"=p."teamId" AND lower(trim(x->>'name'))=lower(trim(p.name)))
         OR EXISTS (SELECT 1 FROM "MatchEvent" e WHERE e."matchId"=m.id AND e."teamId"=p."teamId" AND lower(trim(e."playerName"))=lower(trim(p.name)))
       )) c),'[]') AS candidates,
-    COALESCE((SELECT jsonb_agg(r ORDER BY r.votes DESC,r.name,r.id) FROM (SELECT p.id,p.name,count(*)::int AS votes FROM "ManOfTheMatchVote" v JOIN "Player" p ON p.id=v."playerId"
+    COALESCE((SELECT jsonb_agg(r ORDER BY r.votes DESC,r.name,r.id) FROM (SELECT p.id,p.name,count(*)::int AS votes,round(100.0*count(*)/sum(count(*)) OVER (),1)::float AS percentage FROM "ManOfTheMatchVote" v JOIN "Player" p ON p.id=v."playerId"
       WHERE v."matchId"=m.id GROUP BY p.id,p.name ORDER BY count(*) DESC,p.name,p.id LIMIT 3) r),'[]') AS results
     FROM "Match" m WHERE m.id=${matchId}
   `);
   return rows[0] ?? null;
 }
 
-export async function getClubRivalry(clubId: string) {
-  return (await prisma.$queryRaw<{ name: string; slug: string; fixtures: Fixture[]; derby: Fixture | null }[]>(Prisma.sql`
+export type RivalryData = { name: string; slug: string; fixtures: Fixture[]; derby: Fixture | null; record: { won: number; drawn: number; lost: number } };
+
+export async function getClubRivalries(clubId: string) {
+  return prisma.$queryRaw<RivalryData[]>(Prisma.sql`
     SELECT t.name,t.slug,
+    (SELECT jsonb_build_object('won',count(*) FILTER (WHERE (m."homeTeamId"=${clubId} AND m."homeScore">m."awayScore") OR (m."awayTeamId"=${clubId} AND m."awayScore">m."homeScore"))::int,
+      'drawn',count(*) FILTER (WHERE m."homeScore"=m."awayScore")::int,'lost',count(*) FILTER (WHERE (m."homeTeamId"=${clubId} AND m."homeScore"<m."awayScore") OR (m."awayTeamId"=${clubId} AND m."awayScore"<m."homeScore"))::int)
+      FROM "Match" m WHERE ((m."homeTeamId"=${clubId} AND m."awayTeamId"=t.id) OR (m."awayTeamId"=${clubId} AND m."homeTeamId"=t.id)) AND m.status='FINISHED' AND m."homeScore" IS NOT NULL AND m."awayScore" IS NOT NULL) AS record,
     COALESCE((SELECT jsonb_agg(raw.item ORDER BY raw."scheduledAt" DESC) FROM
       (SELECT ${fixtureJson} AS item,m."scheduledAt" FROM "Match" m JOIN "Team" h ON h.id=m."homeTeamId" JOIN "Team" a ON a.id=m."awayTeamId"
        WHERE ((m."homeTeamId"=${clubId} AND m."awayTeamId"=t.id) OR (m."awayTeamId"=${clubId} AND m."homeTeamId"=t.id)) AND m.status='FINISHED'
@@ -98,9 +114,11 @@ export async function getClubRivalry(clubId: string) {
     (SELECT ${fixtureJson} FROM "Match" m JOIN "Team" h ON h.id=m."homeTeamId" JOIN "Team" a ON a.id=m."awayTeamId"
       WHERE ((m."homeTeamId"=${clubId} AND m."awayTeamId"=t.id) OR (m."awayTeamId"=${clubId} AND m."homeTeamId"=t.id)) AND m.status='SCHEDULED' AND m."scheduledAt">NOW()
       ORDER BY m."scheduledAt",m.id LIMIT 1) AS derby
-    FROM "ClubRivalry" r JOIN "Team" t ON t.id=r."rivalClubId" WHERE r."clubId"=${clubId} ORDER BY r."createdAt",r.id LIMIT 1
-  `))[0] ?? null;
+    FROM "ClubRivalry" r JOIN "Team" t ON t.id=r."rivalClubId" WHERE r."clubId"=${clubId} ORDER BY t.name,t.id
+  `);
 }
+
+export async function getClubRivalry(clubId: string) { return (await getClubRivalries(clubId))[0] ?? null; }
 
 export function digestWeek(date = new Date()) {
   // Monday in Africa/Lagos (UTC+1, no daylight saving time).
@@ -114,8 +132,8 @@ export async function buildClubDigest(club: { id: string; name: string; slug: st
   const pulse = await loadClubPulse(club.id);
   const vote = pulse.last ? await getMatchVoteData(pulse.last.id) : null;
   return { clubName: club.name, clubSlug: club.slug, nextMatch: describe(pulse.next), lastResult: describe(pulse.last),
-    topScorer: pulse.scorer ? `${pulse.scorer.playerName} · ${pulse.scorer.goals} but(s) enregistrés ces 7 derniers jours` : "Aucun buteur renseigné cette semaine.",
-    article: pulse.editorial, manOfTheMatch: vote?.results.length ? vote.results.map(p => `${p.name} (${p.votes} vote(s))`).join(", ") : "Aucun vote pour le dernier match." };
+    topScorer: pulse.scorer ? `${pulse.scorer.playerName} · ${pulse.scorer.goals} but(s) enregistrés cette saison` : "Aucun buteur renseigné cette saison.",
+    article: pulse.editorial, manOfTheMatch: vote?.results.length ? vote.results.map(p => `${p.name} (${p.votes} vote(s), ${p.percentage.toLocaleString("fr-FR", {maximumFractionDigits:1})} %)`).join(", ") : "Aucun vote pour le dernier match." };
 }
 
 /** Bounded batches, explicit consent, unique weekly reservation and no automatic ambiguous retry. */

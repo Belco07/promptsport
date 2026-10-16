@@ -1,0 +1,36 @@
+name: Digests hebdomadaires des clubs
+on:
+  schedule:
+    - cron: '0 19 * * 0' # Dimanche 20h Africa/Lagos
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: club-digests
+  cancel-in-progress: false
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Envoyer les digests consentis
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET" && test -n "$SITE_URL"
+          if [[ "$SITE_URL" != https://* || "$SITE_URL" == *'?'* || "$SITE_URL" == *'#'* ]]; then exit 1; fi
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+          for batch in $(seq 1 10); do
+            curl --silent --show-error --fail-with-body --connect-timeout 10 --max-time 65 \
+              --request POST --header "Authorization: Bearer $CRON_SECRET" \
+              --output "$response_file" "${SITE_URL%/}/api/cron/club-digests"
+            cat "$response_file"
+            remaining=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["ok"]; print(d["eligible"])' "$response_file")
+            if [[ "$remaining" -lt 10 ]]; then exit 0; fi
+          done
+          echo '::error::Limite de 100 digests atteinte. Relancer manuellement pour la suite ; les réservations empêchent les doublons.'
+          exit 1

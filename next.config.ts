@@ -92,6 +92,10 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         headers: [{ key: "Cache-Control", value: "no-store" }],
       },
+      {
+        source: "/api/club/:slug/calendar.ics",
+        headers: [{ key: "Cache-Control", value: "public, max-age=300" }],
+      },
       ...[
         "/",
         "/scores",
