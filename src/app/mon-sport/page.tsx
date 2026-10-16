@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { Star } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getFollowedArticles, getReaderFollows } from "@/lib/follows";
-import { computeStandings } from "@/lib/standings";
+import { getFollowedArticles, getReaderFollows, getFollowedStandings } from "@/lib/follows";
+import { StandingsLegend } from "@/components/StandingsLegend";
 import { ArticleCard } from "@/components/ArticleCard";
 import { MatchCard } from "@/components/MatchCard";
 import { StandingsTable } from "@/components/StandingsTable";
@@ -28,7 +28,7 @@ export default async function MySportPage() {
     getFollowedArticles([...follows.followedTeams, ...follows.followedCompetitions]),
     teamIds.length ? prisma.match.findMany({ where: { ...clubFilter, status: "SCHEDULED", scheduledAt: { gte: new Date() } }, include: matchRelations, orderBy: [{ scheduledAt: "asc" }, { id: "asc" }], take: 20 }) : [],
     teamIds.length ? prisma.match.findMany({ where: { ...clubFilter, status: "FINISHED" }, include: matchRelations, orderBy: [{ scheduledAt: "desc" }, { id: "desc" }], take: 20 }) : [],
-    competitionIds.length ? prisma.competition.findMany({ where: { id: { in: competitionIds } }, orderBy: { name: "asc" }, include: { matches: { where: { status: "FINISHED" }, include: { homeTeam: true, awayTeam: true } } } }) : [],
+    getFollowedStandings(competitionIds),
     prisma.competition.findMany({ select: { id: true, name: true, slug: true, country: true }, orderBy: { name: "asc" } }),
   ]);
 
@@ -72,8 +72,11 @@ export default async function MySportPage() {
       <h2 id="my-standings" className="mb-5 text-2xl font-black uppercase">Mes classements</h2>
       {standings.length ? <div className="space-y-8">{standings.map(competition => <div key={competition.id}>
         <h3 className="mb-3 text-lg font-bold"><Link href={`/competition/${competition.slug}`} className="hover:text-editorial-link">{competition.name}</Link></h3>
-        <StandingsTable rows={computeStandings(competition.matches)} competitionSlug={competition.slug}
-          logos={Object.fromEntries(competition.matches.flatMap(match => [[match.homeTeamId, match.homeTeam.logoUrl], [match.awayTeamId, match.awayTeam.logoUrl]]))} />
+        {competition.official && <p className="mb-3 text-sm text-muted-foreground">{competition.rows.length ? "Phase de ligue uniquement : les qualifications et barrages ne comptent pas." : "Classement officiel de la phase de ligue indisponible pour le moment."}</p>}
+        {(!competition.official || competition.rows.length > 0) && <>
+        <StandingsTable rows={competition.rows} competitionSlug={competition.slug} rules={competition} totalTeams={competition.totalTeams} logos={competition.logos} />
+        <StandingsLegend rules={competition} />
+        </>}
       </div>)}</div> : <p className="text-muted-foreground">Suivez une compétition pour afficher son classement.</p>}
     </section>
 
