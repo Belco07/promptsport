@@ -22,7 +22,7 @@ export type RateLimitOptions = {
 export const SEARCH_RATE_LIMIT: RateLimitOptions = { max: 30, windowMs: 60_000 };
 
 export const ANALYTICS_RATE_LIMIT: RateLimitOptions = { max: 60, windowMs: 60_000 };
-export const SYNC_STATUS_RATE_LIMIT: RateLimitOptions = { max: 120, windowMs: 60_000 };
+export const SYNC_STATUS_RATE_LIMIT: RateLimitOptions = { max: 30, windowMs: 60_000 };
 
 /** Limite demandée par le brief : 10 commentaires par heure et par utilisateur. */
 export const COMMENT_RATE_LIMIT: RateLimitOptions = {

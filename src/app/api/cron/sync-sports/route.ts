@@ -47,7 +47,7 @@ async function handle(request: Request) {
   try {
     const result = await synchronizeSports(priority as SyncPriority);
     // Keep durable standings/import snapshots; purge operational logs only.
-    if (priority === "finished") await prisma.syncLog.deleteMany({ where: { type: { in: ["live", "upcoming", "finished", "request"] }, finishedAt: { lt: new Date(Date.now() - 90 * 86400000) } } });
+    if (priority === "finished") await prisma.syncLog.deleteMany({ where: { OR: [{ type: { in: ["live", "upcoming", "finished", "request"] } }, { type: { startsWith: "logo:" } }], finishedAt: { lt: new Date(Date.now() - 30 * 86400000) } } });
     // One standings snapshot per day; never fetch it from a public page.
     if (priority === "finished" && Date.now()+10000 < deadline) {
       const seed = await prisma.syncLog.findFirst({where:{type:"standings:7",status:"SUCCESS"},orderBy:{finishedAt:"desc"}});

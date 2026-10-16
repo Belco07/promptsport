@@ -320,7 +320,6 @@ Settings → Environment Variables, en cochant **Production** et **Preview**.
 | `NEXT_PUBLIC_SITE_URL` | `https://<projet>.vercel.app` (sans barre oblique finale) |
 | `CRON_SECRET` | secret du cron (`openssl rand -base64 32`) |
 | `ALLSPORTS_API_KEY` | clé RapidAPI AllSportsApi utilisée par les synchronisations |
-| `FOOTBALL_DATA_API_KEY` | ancienne page `/backoffice/sports/sync` uniquement, facultative et inutile pour AllSports |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | identifiants OAuth Google, facultatifs |
 | `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET` | identifiants OAuth Facebook, facultatifs |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | clés Stripe (test ou live) |
@@ -887,18 +886,30 @@ Vérifier les volumes des tables, les articles, les scores, les associations et 
 
 Le cron sportif accepte uniquement Authorization: Bearer <CRON_SECRET>. Le paramètre token dans l’URL ne sert plus à s’authentifier. Le workflow GitHub utilise déjà ce header. Ne jamais journaliser le secret ou une URL de connexion. Le cron newsletter conserve sa propre politique existante.
 
-Le passage finished du cron sportif purge les journaux opérationnels SyncLog (live, upcoming, finished, request) dont finishedAt remonte à plus de 90 jours. Les tâches non terminées et les instantanés durables de classement/import sont conservés : ils servent de données applicatives et ne doivent pas disparaître avec les logs. La purge nécessite un cron finished exécuté avec succès ; elle ne s’exécute pas depuis une page publique.
+Le passage finished du cron sportif purge les journaux opérationnels SyncLog (live, upcoming, finished, request et caches logo:) dont finishedAt remonte à plus de 30 jours. Les tâches non terminées et les instantanés durables de classement/import sont conservés : ils servent de données applicatives et ne doivent pas disparaître avec les logs. La purge nécessite l’exécution du cron finished et une connexion fonctionnelle à la base ; elle ne s’exécute pas depuis une page publique.
 
 ### Limites des routes publiques
 
-Par adresse IP et par minute : recherche 30, analytics 60, statut de synchronisation 120. Le dépassement renvoie HTTP 429 et Retry-After. Les fenêtres expirées sont nettoyées. Les compteurs en mémoire sont propres à chaque processus : sur Vercel, ils ne constituent pas une limite globale entre instances. Les en-têtes IP doivent être fournis par le proxy de confiance. Le statut conserve son cache serveur de 15 secondes, mais sa réponse HTTP est privée pour que le CDN ne contourne pas le contrôle par IP.
+Par adresse IP et par minute : recherche 30, analytics 60, statut de synchronisation 30. Le dépassement renvoie HTTP 429 et Retry-After. Les fenêtres expirées sont nettoyées. Les compteurs en mémoire sont propres à chaque processus : sur Vercel, ils ne constituent pas une limite globale entre instances. Les en-têtes IP doivent être fournis par le proxy de confiance. Le statut conserve son cache serveur de 15 secondes, mais sa réponse HTTP est privée pour que le CDN ne contourne pas le contrôle par IP.
 
 ### Logos authentifiés
 
 /api/logo/[teamId] accepte l’identifiant local ou l’identifiant externe numérique d’une équipe connue. L’hôte et le chemin fournisseur sont fixes ; aucune URL arbitraire n’est acceptée et la clé RapidAPI reste côté serveur. Seuls PNG, JPEG, WebP et GIF, de taille au plus 256 Kio, sont servis ; les redirections et SVG sont refusés. Le cache partagé en base et le cache HTTP durent 24 heures. Les appels sont comptés dans le même registre de quota que la synchronisation, sous verrou PostgreSQL, avec un maximum supplémentaire de cinq nouveaux logos par 24 h et une réserve fournisseur de vingt appels. Les logos publics existants restent utilisés sans appel RapidAPI. Une indisponibilité fournisseur ou un budget épuisé renvoie 503 sans exposer l’erreur interne.
 
-Le dossier obsolète indiqué dans le brief, src/app/backoffice/sports/football-data/, n’existe pas. La page historique est dans src/app/backoffice/sports/sync/ ; elle est conservée car ce chemin et ses liens ont été explicitement exclus du périmètre autorisé.
+La page historique /backoffice/sports/sync est dépréciée : son formulaire de synchronisation et sa référence à FOOTBALL_DATA_API_KEY ont été retirés. Elle reste un panneau informatif pour ne pas casser les liens du backoffice existants. Le fournisseur actif est AllSportsApi.
 
-### Audit des dépendances WP23
+### Audit des dépendances WP23 — 16 octobre 2026
 
-La branche codex/wp23-npm-audit a été réservée au correctif npm. Le périmètre confirmé exclut package-lock.json ; npm audit fix --package-lock=false refuse de fonctionner (fix cannot be used without a package-lock). Aucun correctif de dépendance n’est donc livré dans WP23. L’audit initial du 15 octobre 2026 compte 12 alertes high, 1 moderate, aucune critical. Résoudre ce point nécessite une mise à jour cohérente de package.json et package-lock.json, suivie du build ; ne pas utiliser --force pour rétrograder automatiquement Prisma ou Next.
+Les correctifs ont été isolés dans codex/wp23-dependency-fixes puis intégrés à la branche de finalisation. npm audit fix met à jour les dépendances compatibles ; les versions exactes ont été relevées vers Next.js / eslint-config-next 15.5.28 et Prisma / @prisma/client / @prisma/adapter-pg 7.10.1. L’override ciblé next@15.5.28 → postcss 8.5.30 corrige PostCSS sans migration majeure de Next.js. package-lock.json est versionné avec package.json.
+
+Résultat de npm audit --package-lock-only --omit=dev : **0 vulnérabilité de production**, dont 0 high et 0 critical. L’audit complet garde **5 alertes high**, 0 moderate et 0 critical, sur la chaîne de développement eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces. Il s’agit de la chaîne affectée par [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), un épuisement de pile à partir de motifs imbriqués. La dernière version publiée de braces, 3.0.3, est encore affectée. Le correctif automatique forcé propose eslint-config-next 14.2.35, une rétrogradation majeure incompatible avec l’alignement Next.js 15 retenu : elle n’est pas appliquée. La levée de ces alertes exige un correctif amont ou un remplacement/migration de la chaîne de lint, à tester séparément. Le critère « aucune high dans l’audit complet » n’est donc pas atteint.
+
+Le contrôle sur lockfile rend l’audit reproductible indépendamment des paquets natifs locaux. Les téléchargements natifs Windows ont été interrompus après blocage réseau ; l’installation complète des versions retenues et le build sont contrôlés en CI avec npm ci. Ne pas assimiler cette validation à une installation locale Windows terminée. Pour réinstaller localement quand le registre est accessible : npm ci, puis npm run build. Aucun nouveau service ni bibliothèque applicative n’est ajouté.
+
+### Rétention et sauvegardes — WP23 complété
+
+AnalyticsPageView : les événements bruts de plus de 90 jours sont purgés par npm run analytics:aggregate (scripts/analytics-aggregate.ts). Les agrégats restent disponibles ; la purge dépend de l’exécution de cette commande. SyncLog : le cron sportif finished purge les journaux opérationnels terminés et les caches de logos de plus de 30 jours, en conservant les instantanés de classement/import utilisés par l’application et les tâches non terminées. Les compteurs de quota des dernières 24 heures ne sont pas concernés.
+
+Politique de sauvegarde recommandée : archive PostgreSQL custom quotidienne et systématiquement avant une migration ou un import de remplacement ; garder 7 sauvegardes quotidiennes et 4 hebdomadaires, chiffrées dans un stockage distinct du poste et du dépôt, avec accès restreint. Tester la restauration dans une base vide au moins une fois par mois. Cette politique décrit les opérations à organiser ; aucun stockage externe ou planificateur de sauvegarde n’est créé par ce lot. La procédure de restauration est détaillée ci-dessus.
+
+Nettoyage Git WP23 : 17 branches locales codex/* et sauvegarde/* déjà contenues dans origin/main ont été supprimées avec git branch -d. Les branches de travail sont conservées tant qu’elles ne sont pas fusionnées ; les branches distantes ne sont pas supprimées.
