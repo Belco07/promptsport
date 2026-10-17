@@ -46,13 +46,13 @@ export function ArticleCard({
     <Card
       as="article"
       interactive
-      className="editorial-card flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 border-b border-b-ink-200 shadow-none hover:shadow-none"
+      className="editorial-card animate-fade-up flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 border-b border-b-border shadow-none hover:shadow-none"
     >
       <Link
         href={href}
         tabIndex={-1}
         aria-hidden="true"
-        className="relative block aspect-video w-full overflow-hidden bg-neutral-100 [.public-site_&]:bg-muted"
+        className="relative block aspect-video w-full overflow-hidden bg-muted"
       >
         {article.coverImageUrl ? (
           <Image
@@ -73,19 +73,19 @@ export function ArticleCard({
             className="object-cover transition-transform duration-300 hover:scale-[1.03] motion-reduce:transition-none motion-reduce:hover:scale-100"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-neutral-100 [.public-site_&]:bg-muted text-4xl text-neutral-300">
+          <div className="flex h-full w-full items-center justify-center bg-muted text-4xl text-muted-foreground">
             ⚽
           </div>
         )}
       </Link>
 
-      <CardBody className="flex flex-1 flex-col bg-neutral-50 [.public-site_&]:bg-muted p-0 py-[17px]">
+      <CardBody className="flex flex-1 flex-col bg-muted p-0 py-[17px]">
         {article.format || article.category || article.isPremium ? (
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {article.format && <FormatBadge format={article.format} />}
-            {/* Rubrique : libellé éditorial rouge, sans pastille (identité « news »). */}
+            {/* Rubrique : libellé éditorial (olive en clair, lime en sombre), sans pastille. */}
             {article.category ? (
-              <span className="text-[10px] font-extrabold uppercase tracking-[.6px] text-brand-600">
+              <span className="text-[10px] font-extrabold uppercase tracking-[.6px] text-editorial-link">
                 {article.category.name}
               </span>
             ) : null}
@@ -94,32 +94,32 @@ export function ArticleCard({
         ) : null}
 
         <Heading
-          className={`mb-2 font-heavy leading-tight text-ink-950 [.public-site_&]:text-foreground ${
+          className={`mb-2 font-heavy leading-tight text-foreground ${
             featured ? "text-2xl" : "text-xl tracking-[-.6px]"
           }`}
         >
-          <Link href={href} className="transition-colors hover:text-brand-600">
+          <Link href={href} className="transition-colors hover:text-editorial-link">
             {article.title}
           </Link>
         </Heading>
 
         {article.excerpt ? (
-          <p className="mb-4 line-clamp-3 text-sm leading-6 text-neutral-600 [.public-site_&]:text-muted-foreground">
+          <p className="mb-4 line-clamp-3 text-sm leading-6 text-muted-foreground">
             {article.excerpt}
           </p>
         ) : null}
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-neutral-100 [.public-site_&]:border-border pt-3 text-xs text-neutral-500 [.public-site_&]:text-muted-foreground">
-          <span className="font-semibold text-neutral-700 [.public-site_&]:text-foreground">
+        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">
             {authorHref ? (
-              <Link href={authorHref} className="transition-colors hover:text-brand-600">
+              <Link href={authorHref} className="transition-colors hover:text-editorial-link">
                 {article.author?.name}
               </Link>
             ) : (
               (article.author?.name ?? "Rédaction")
             )}
           </span>
-          <span aria-hidden="true" className="text-neutral-300">
+          <span aria-hidden="true" className="text-muted-foreground/60">
             •
           </span>
           <span className="inline-flex items-center gap-1">

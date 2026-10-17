@@ -28,8 +28,9 @@ import { useMounted } from "@/lib/use-mounted";
  * donc la barre sur ces routes pour ne pas polluer les espaces d'administration
  * (qui ont leur propre sidebar) ni la page de connexion.
  *
- * Tout le style passe par les jetons du design system (`brand`, `ink`,
- * `neutral`) plutôt que par une couche CSS dédiée.
+ * Tout le style passe par les jetons du design system (sémantiques
+ * `foreground`, `muted`, `border`, `editorial-link`…) plutôt que par une
+ * couche CSS dédiée.
  */
 
 export type NavCompetition = { slug: string; name: string };
@@ -114,13 +115,13 @@ export function PublicNav({
     mounted &&
     (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
-  /** Rubrique du menu : l'onglet actif est rouge, sans fond arrondi. */
+  /** Rubrique du menu : l'onglet actif est olive/lime, sans fond arrondi. */
   const linkClass = (href: string) =>
     [
       "editorial-nav-link px-3 py-2 text-sm font-strong transition-colors",
       isActive(href)
-        ? "bg-brand-50 text-brand-600"
-        : "text-neutral-700 hover:bg-neutral-100 hover:text-brand-600",
+        ? "bg-muted text-editorial-link"
+        : "text-foreground hover:bg-muted hover:text-editorial-link",
     ].join(" ");
 
   return (
@@ -132,7 +133,7 @@ export function PublicNav({
           barre sur /login, /studio et /backoffice). */}
       {scoresBar}
 
-      <header className="editorial-header sticky top-0 z-30 border-b border-neutral-200 border-t-4 border-t-brand-500 bg-white/95 backdrop-blur">
+      <header className="editorial-header sticky top-0 z-30 border-b border-border border-t-4 border-t-editorial-link bg-background/95 backdrop-blur">
       <nav
         aria-label="Navigation principale"
         className="relative mx-auto flex h-[55px] max-w-[1280px] items-center justify-between gap-4 px-4 max-[600px]:h-[44px]"
@@ -183,7 +184,7 @@ export function PublicNav({
               aria-expanded={competitionsOpen}
               aria-controls="menu-competitions"
               onClick={() => setCompetitionsOpen((open) => !open)}
-              className="editorial-nav-link inline-flex items-center gap-1 px-3 py-2 text-sm font-strong text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-brand-600"
+              className="editorial-nav-link inline-flex items-center gap-1 px-3 py-2 text-sm font-strong text-foreground transition-colors hover:bg-muted hover:text-editorial-link"
             >
               Compétitions
               <ChevronDown
@@ -195,10 +196,10 @@ export function PublicNav({
             {competitionsOpen ? (
               <div
                 id="menu-competitions"
-                className="absolute left-0 z-40 mt-2 w-64 overflow-hidden border border-neutral-200 bg-white py-1.5 shadow-lg"
+                className="animate-fade-up absolute left-0 z-40 mt-2 w-64 overflow-hidden border border-border bg-background py-1.5 shadow-lg"
               >
                 {competitions.length === 0 ? (
-                  <p className="px-4 py-2 text-sm text-neutral-500">
+                  <p className="px-4 py-2 text-sm text-muted-foreground">
                     Aucune compétition suivie.
                   </p>
                 ) : (
@@ -206,7 +207,7 @@ export function PublicNav({
                     <Link
                       key={competition.slug}
                       href={`/competition/${competition.slug}`}
-                      className="block px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-brand-50 hover:text-brand-600"
+                      className="block px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-editorial-link"
                     >
                       {competition.name}
                     </Link>
@@ -237,7 +238,7 @@ export function PublicNav({
 
           <button
             type="button"
-            className="inline-flex items-center justify-center border border-neutral-300 p-2 text-neutral-700 transition-colors hover:bg-neutral-100 md:hidden"
+            className="inline-flex items-center justify-center border border-border p-2 text-foreground transition-colors hover:bg-muted md:hidden"
             aria-expanded={burgerOpen}
             ref={burgerButtonRef}
             aria-controls="menu-mobile"
@@ -255,9 +256,9 @@ export function PublicNav({
 
       {/* Bandeau « À suivre » : accès direct aux compétitions suivies. */}
       {competitions.length > 0 ? (
-        <nav aria-label="Accès rapide aux compétitions" className="editorial-competition-nav border-t border-ink-100 bg-white">
+        <nav aria-label="Accès rapide aux compétitions" className="editorial-competition-nav border-t border-border bg-background">
           <div className="mx-auto flex max-w-[1280px] items-center gap-[27px] overflow-x-auto whitespace-nowrap px-4 py-3 text-xs font-bold [scrollbar-width:thin] max-[600px]:gap-[22px] max-[600px]:py-2.5">
-            <span className="text-[10px] uppercase tracking-[1px] text-brand-600">À suivre</span>
+            <span className="text-[10px] uppercase tracking-[1px] text-editorial-link">À suivre</span>
             {competitions.map((competition) => {
               const active = mounted && pathname === `/competition/${competition.slug}`;
               return (
@@ -265,7 +266,7 @@ export function PublicNav({
                   key={competition.slug}
                   href={`/competition/${competition.slug}`}
                   aria-current={active ? "page" : undefined}
-                  className={active ? "text-brand-600" : "transition-colors hover:text-brand-600"}
+                  className={active ? "text-editorial-link" : "transition-colors hover:text-editorial-link"}
                 >
                   {competition.name}
                 </Link>
@@ -278,7 +279,7 @@ export function PublicNav({
       {burgerOpen ? (
         <div
           id="menu-mobile"
-          className="border-t border-neutral-200 bg-white px-4 pb-5 pt-3 md:hidden"
+          className="animate-fade-up border-t border-border bg-background px-4 pb-5 pt-3 md:hidden"
         >
           <ul className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
@@ -288,8 +289,8 @@ export function PublicNav({
                   aria-current={isActive(link.href) ? "page" : undefined}
                   className={`block px-3 py-2.5 text-base font-semibold ${
                     isActive(link.href)
-                      ? "bg-brand-50 text-brand-600"
-                      : "text-neutral-800 hover:bg-neutral-100"
+                      ? "bg-muted text-editorial-link"
+                      : "text-foreground hover:bg-muted"
                   }`}
                 >
                   {link.label}
@@ -298,18 +299,18 @@ export function PublicNav({
             ))}
           </ul>
 
-          <p className="mt-4 px-3 text-xs font-bold uppercase tracking-wider text-neutral-500">
+          <p className="mt-4 px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Compétitions
           </p>
           <ul className="mt-1 flex flex-col">
             {competitions.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-neutral-500">Aucune compétition suivie.</li>
+              <li className="px-3 py-2 text-sm text-muted-foreground">Aucune compétition suivie.</li>
             ) : (
               competitions.map((competition) => (
                 <li key={competition.slug}>
                   <Link
                     href={`/competition/${competition.slug}`}
-                    className="block px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
+                    className="block px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     {competition.name}
                   </Link>
@@ -318,7 +319,7 @@ export function PublicNav({
             )}
           </ul>
 
-          <div className="mt-4 border-t border-neutral-200 pt-4">
+          <div className="mt-4 border-t border-border pt-4">
             <UserMenu />
           </div>
 

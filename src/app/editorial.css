@@ -1,6 +1,8 @@
 /* Goal-inspired editorial presentation, scoped away from the CMS. */
-.public-site { --ed-bg: #fff; --ed-surface: #f3f3f0; --ed-ink: #121212; --ed-muted: #636363; --ed-line: #deded8; --ed-lime: #d7ff00; --ed-link: #4b5e00; background: var(--ed-bg); color: var(--ed-ink); min-height: 100vh; }
-.dark .public-site { --ed-bg: #111211; --ed-surface: #1c1e1a; --ed-ink: #f7f7f2; --ed-muted: #b1b5aa; --ed-line: #353830; --ed-link: #d7ff00; }
+/* WP27 : les jetons éditoriaux dérivent des jetons sémantiques de globals.css
+   (:root/.dark) — une seule source de vérité, pour les deux thèmes. `--ed-link`
+   est défini globalement lui aussi (olive en clair, lime en sombre). */
+.public-site { --ed-bg: hsl(var(--background)); --ed-surface: hsl(var(--muted)); --ed-ink: hsl(var(--foreground)); --ed-muted: hsl(var(--muted-foreground)); --ed-line: hsl(var(--border)); --ed-lime: hsl(var(--accent)); background: var(--ed-bg); color: var(--ed-ink); min-height: 100vh; }
 .public-site :focus-visible { outline-color: #789000; outline-offset: 4px; }
 .public-site [id] { scroll-margin-top: 160px; }
 .public-site .editorial-header { background: var(--ed-bg); color: var(--ed-ink); border: 0; border-bottom: 1px solid var(--ed-line); backdrop-filter: none; }
@@ -69,7 +71,6 @@
 .public-site .editorial-card h2 { color: var(--ed-ink); font-weight: 850; line-height: 1.17; }
 .public-site .editorial-card h2 a:hover { color: var(--ed-link); }
 .public-site .editorial-card p { color: var(--ed-muted); font-size: 12px; }
-.public-site .editorial-card .text-brand-600 { color: var(--ed-link); }
 .editorial-sidebar { display: flex; flex-direction: column; gap: 26px; }
 .editorial-wire { background: var(--ed-surface); border-top: 3px solid var(--ed-ink); padding: 0 19px; }
 .editorial-wire-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 20px 0; border-bottom: 1px solid var(--ed-line); }
@@ -96,7 +97,7 @@
 .public-site .editorial-footer { background: var(--ed-surface); color: var(--ed-ink); border-top: 1px solid var(--ed-line); }
 .editorial-footer > div:first-child > div:first-child > p:first-child { font-size: 32px; text-transform: uppercase; font-weight: 900; letter-spacing: -1px; }
 .public-site .editorial-footer a:hover { color: var(--ed-link); }
-.editorial-footer :is(.text-white, .text-neutral-300) { color: var(--ed-ink); }
+.editorial-footer .text-white { color: var(--ed-ink); }
 .editorial-footer .text-neutral-400 { color: var(--ed-muted); }
 .editorial-footer :is(.border-b, .border-t) { border-color: var(--ed-line); }
 /* Shared public content keeps every existing component and interaction. */
@@ -105,9 +106,9 @@
 .public-site .article-body a { color: var(--ed-link); }
 .dark .public-site main :is(.bg-white, .bg-neutral-50) { background-color: var(--ed-bg); }
 .dark .public-site main :is(.bg-neutral-100, .bg-gray-50) { background-color: var(--ed-surface); }
-.dark .public-site main :is(.text-ink-950, .text-neutral-900, .text-primary-900, .text-neutral-800, .text-neutral-700, .article-body, .article-body strong, .article-body h2, .article-body h3) { color: var(--ed-ink); }
-.dark .public-site main :is(.text-neutral-600, .text-neutral-500, .text-ink-500, .text-ink-600) { color: var(--ed-muted); }
-.dark .public-site main :is(.border-neutral-200, .border-neutral-100, .border-ink-200) { border-color: var(--ed-line); }
+.dark .public-site main :is(.text-neutral-900, .text-primary-900, .text-neutral-800, .text-neutral-700, .article-body, .article-body strong, .article-body h2, .article-body h3) { color: var(--ed-ink); }
+.dark .public-site main :is(.text-neutral-600, .text-neutral-500) { color: var(--ed-muted); }
+.dark .public-site main :is(.border-neutral-200, .border-neutral-100) { border-color: var(--ed-line); }
 .dark .public-site main :is(input, textarea, select) { color: var(--ed-ink); background: var(--ed-surface); }
 @media (max-width: 1050px) { .editorial-header > nav:first-child { gap: 10px; } .editorial-header .editorial-logo img { height: 30px; } .editorial-header .editorial-nav-link { padding-inline: 9px; font-size: 10px; } }
 @media (max-width: 900px) { .editorial-content-grid { grid-template-columns: 1fr; } .editorial-sidebar { display: grid; grid-template-columns: 1fr 1fr; align-items: start; } .editorial-newsletter { flex-wrap: wrap; } .editorial-newsletter .editorial-cta { margin-left: 63px; } }
@@ -115,9 +116,8 @@
 @media (max-width: 600px) { .editorial-home { padding: 23px 16px 0; } .editorial-header > nav:first-child { height: 47px; } .editorial-header .editorial-logo img { height: 28px; } .editorial-masthead { align-items: start; flex-direction: column; gap: 15px; } .editorial-kicker { font-size: 8px; letter-spacing: 1px; } .editorial-masthead h1 { font-size: 36px; } .editorial-lead-content { padding: 20px; } .editorial-secondary { gap: 15px; } .editorial-secondary h2 { font-size: 16px; } .editorial-articles { grid-template-columns: 1fr; } .editorial-sidebar { grid-template-columns: 1fr; } .editorial-section-title h2 { font-size: 24px; } .editorial-newsletter { padding: 24px 20px; gap: 15px; } .editorial-newsletter > svg { display: none; } .editorial-newsletter .editorial-cta { margin-left: 0; } .editorial-newsletter h2 { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) { .editorial-cover img { transition: none; } .editorial-hero a:hover img { transform: none; } }
 
-.public-site main .text-brand-600 { color: var(--ed-link); }
 .public-site main :is(.rounded-xl, .rounded-2xl) { border-radius: 0; }
-.dark .public-site main :is(.text-primary-700, .text-primary-600, .text-brand-700) { color: #d7ff00; }
+.dark .public-site main :is(.text-primary-700, .text-primary-600) { color: #d7ff00; }
 .dark .public-site main .bg-primary-50 { background: #242b19; }
 .editorial-header button[aria-controls="menu-mobile"], .editorial-header button[title="Changer de thème"] { background: var(--ed-bg); }
 .editorial-header button[aria-controls="menu-mobile"]:hover, .editorial-header button[title="Changer de thème"]:hover { background: var(--ed-surface); }
@@ -143,7 +143,6 @@
 .scores-teams { grid-row: 2; grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .scores-teams > :nth-child(2) { padding: 1px 7px; background: var(--ed-bg); border: 1px solid var(--ed-line); border-radius: 3px; white-space: nowrap; }
 .scores-status { grid-column: 2; grid-row: 1; color: var(--ed-muted); }
-.public-site [data-scores-strip] .text-brand-400 { color: var(--status-danger); }
 @media (max-width: 600px) { .scores-match-link { min-width: 215px; padding: 9px 12px; } .scores-scroll-button { flex-basis: 28px; } }
 
 .dark .public-site main :is(.text-gray-900, .text-gray-800, .text-gray-700) { color: var(--ed-ink); }

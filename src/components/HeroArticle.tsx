@@ -6,7 +6,7 @@ import { PremiumBadge } from "@/components/PremiumBadge";
 import { formatDate } from "@/lib/formatDate";
 
 export function HeroArticle({ article }: { article: ArticleCardData }) {
-  return <article data-home-hero className="min-w-0 bg-card text-foreground">
+  return <article data-home-hero className="animate-fade-up min-w-0 bg-card text-foreground">
     <Link href={`/article/${article.slug}`} className="group block">
       <div className="relative aspect-[16/10] overflow-hidden bg-background">
         {article.coverImageUrl ? <Image src={article.coverImageUrl} alt="" fill priority fetchPriority="high" sizes="(min-width: 1280px) 550px, (min-width: 1024px) 44vw, (min-width: 768px) 63vw, 94vw" quality={75} className="object-cover transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transition-none" /> : <div className="flex h-full items-center justify-center"><Trophy size={60} aria-hidden="true" /></div>}

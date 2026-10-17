@@ -8,7 +8,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SOCIAL_LINKS } from "@/lib/seo";
  *
  * Trois colonnes : Navigation, À propos (avec les pages légales) et
  * Suivez-nous (flux RSS et réseaux déclarés dans src/lib/seo.ts). Le bloc est
- * pleine largeur et sur fond bleu profond : il ferme la page et se distingue
+ * pleine largeur et sur fond encre (surface éditoriale) : il ferme la page et se distingue
  * nettement du contenu.
  *
  * Le copyright utilise l'année du rendu : les pages publiques sont régénérées
@@ -26,7 +26,7 @@ function socialLabel(url: string): string {
 
 export function Footer() {
   return (
-    <footer className="editorial-footer mt-16 border-t-4 border-t-brand-500 bg-ink-900 text-neutral-300">
+    <footer className="editorial-footer mt-16 border-t-4 border-t-editorial-link bg-foreground text-background">
       <div className="mx-auto max-w-[1280px] px-4 py-12">
         <div className="flex flex-col gap-2 border-b border-white/10 pb-8">
           <p className="text-lg font-extrabold tracking-tight text-white">{SITE_NAME}</p>
@@ -42,29 +42,29 @@ export function Footer() {
               Navigation
             </h2>
             <ul className="mt-4 flex flex-col gap-2.5 text-sm">
-              <li><Link href="/archives" className="transition-colors hover:text-brand-300">Archives</Link></li>
+              <li><Link href="/archives" className="transition-colors hover:text-editorial-link">Archives</Link></li>
               <li>
-                <Link href="/" className="transition-colors hover:text-brand-300">
+                <Link href="/" className="transition-colors hover:text-editorial-link">
                   Accueil
                 </Link>
               </li>
               <li>
-                <Link href="/scores" className="transition-colors hover:text-brand-300">
+                <Link href="/scores" className="transition-colors hover:text-editorial-link">
                   Scores et résultats
                 </Link>
               </li>
               <li>
-                <Link href="/abonnement" className="transition-colors hover:text-brand-300">
+                <Link href="/abonnement" className="transition-colors hover:text-editorial-link">
                   Abonnement
                 </Link>
               </li>
               <li>
-                <Link href="/newsletter" className="transition-colors hover:text-brand-300">
+                <Link href="/newsletter" className="transition-colors hover:text-editorial-link">
                   Newsletter
                 </Link>
               </li>
               <li>
-                <Link href="/mon-compte" className="transition-colors hover:text-brand-300">
+                <Link href="/mon-compte" className="transition-colors hover:text-editorial-link">
                   Mon compte
                 </Link>
               </li>
@@ -82,7 +82,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/mentions-legales"
-                  className="transition-colors hover:text-brand-300"
+                  className="transition-colors hover:text-editorial-link"
                 >
                   Mentions légales
                 </Link>
@@ -90,7 +90,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/confidentialite"
-                  className="transition-colors hover:text-brand-300"
+                  className="transition-colors hover:text-editorial-link"
                 >
                   Politique de confidentialité
                 </Link>
@@ -111,7 +111,7 @@ export function Footer() {
                 <a
                   href="/rss.xml"
                   type="application/rss+xml"
-                  className="inline-flex items-center gap-2 transition-colors hover:text-brand-300"
+                  className="inline-flex items-center gap-2 transition-colors hover:text-editorial-link"
                 >
                   <Rss aria-hidden="true" className="h-4 w-4" />
                   Flux RSS
@@ -123,7 +123,7 @@ export function Footer() {
                     href={url}
                     rel="me noopener noreferrer"
                     target="_blank"
-                    className="transition-colors hover:text-brand-300"
+                    className="transition-colors hover:text-editorial-link"
                   >
                     {socialLabel(url)}
                   </a>

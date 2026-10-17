@@ -1,5 +1,5 @@
 /**
- * Design system — palette et typographie (WP9).
+ * Design system — palette et typographie (WP9, unifiées WP27).
  *
  * Tailwind CSS v4 est installé dans ce projet : il se configure d'abord en CSS
  * (`@theme`), mais il sait toujours lire un fichier de configuration
@@ -7,10 +7,15 @@
  *
  *     @config "../tailwind.config.js";   // dans src/app/globals.css
  *
- * C'est ce qui est fait ici : ce fichier reste la source unique de la palette et
- * des polices, conformément au brief WP9, et `theme.extend` préserve les
- * couleurs par défaut de Tailwind (gray, blue, amber, red…) dont dépendent les
- * espaces /studio et /backoffice, qui ne doivent pas changer d'apparence.
+ * WP27 : les jetons sémantiques (`background`, `foreground`, `muted`, `card`,
+ * `border`, `accent`) portent désormais les valeurs de la peau éditoriale
+ * (voir src/app/globals.css) et constituent la source unique des couleurs du
+ * site, dans les deux thèmes. Les échelles utilitaires restantes (`primary`,
+ * `accent`, `success`, `danger`, `neutral`) couvrent les composants qui n'ont
+ * pas encore migré (studio, backoffice, matchs, paywall). Les échelles
+ * `brand` et `ink`, devenues redondantes, ont été supprimées : leurs rares
+ * usages éditoriaux sont passés aux jetons sémantiques (`editorial-link`,
+ * `foreground`, `border`…).
  */
 
 /** Bleu profond : crédibilité, sérieux éditorial (ancre : #0F172A). */
@@ -88,40 +93,6 @@ const neutral = {
   950: "#030712",
 };
 
-/**
- * Rouge éditorial : accent de l'identité publique (bandeau de une, rubriques,
- * liens actifs, appels à l'abonnement). L'orange `accent` reste employé par les
- * statuts et les messages d'attention.
- */
-const brand = {
-  50: "#fff1f2",
-  100: "#ffe0e3",
-  200: "#ffc7cd",
-  300: "#ff9aa5",
-  400: "#ff5c6e",
-  500: "#df1830",
-  600: "#c8172c",
-  700: "#b81428",
-  800: "#9c1223",
-  900: "#7f0f1d",
-  950: "#45070f",
-};
-
-/** Noirs et gris froids de la mise en page éditoriale (bandeaux, fil info). */
-const ink = {
-  50: "#f7f7f8",
-  100: "#ededee",
-  200: "#dedede",
-  300: "#c8c8cc",
-  400: "#888888",
-  500: "#717171",
-  600: "#626262",
-  700: "#454c57",
-  800: "#202326",
-  900: "#191a1d",
-  950: "#15181d",
-};
-
 /** Pile de repli si la police auto-hébergée n'est pas encore chargée. */
 const fallbackSans = [
   "system-ui",
@@ -177,15 +148,12 @@ module.exports = {
         success,
         danger,
         neutral,
-        brand,
-        ink,
 
         /**
-         * Couleurs sémantiques du thème (WP13a). Elles pointent vers les variables
-         * CSS définies dans src/app/globals.css (`:root` et `.dark`) : les
-         * composants pourront écrire `bg-background`, `text-muted-foreground`,
-         * `border-border`… au lieu de couleurs en dur. Aucune n'est encore
-         * appliquée aux composants existants : ce lot ne pose que le système.
+         * Couleurs sémantiques du thème (WP13a, valeur éditoriale WP27). Elles
+         * pointent vers les variables CSS définies dans src/app/globals.css
+         * (`:root` et `.dark`) : les composants écrivent `bg-background`,
+         * `text-muted-foreground`, `border-border`… au lieu de couleurs en dur.
          */
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
