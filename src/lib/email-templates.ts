@@ -12,7 +12,7 @@ export type ClubDigestEmail = {
 
 export function renderClubDigestEmail(data: ClubDigestEmail): { html: string; text: string } {
   const title = `La semaine de ${data.clubName}`;
-  const sections = [["Prochain match", data.nextMatch], ["Dernier résultat", data.lastResult], ["Buteur du club", data.topScorer], ["Homme du match — vote des lecteurs", data.manOfTheMatch]];
+  const sections = [["Prochain match", data.nextMatch], ["Dernier résultat", data.lastResult], ["Meilleur buteur de la saison", data.topScorer], ["Homme du match — vote des lecteurs", data.manOfTheMatch]];
   const preferences = absoluteUrl("/mon-compte/preferences");
   const contentHtml = sections.map(([heading, value]) => `<h2 style="font-size:18px;margin:24px 0 8px;">${escapeHtml(heading)}</h2><p>${escapeHtml(value)}</p>`).join("")
     + (data.article ? `<h2 style="font-size:18px;">À lire</h2><p><a href="${escapeHtml(absoluteUrl(`/article/${data.article.slug}`))}">${escapeHtml(data.article.title)}</a></p>` : "<p>Aucun nouvel article disponible pour ce club.</p>")

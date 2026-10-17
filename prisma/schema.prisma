@@ -23,6 +23,9 @@ datasource db {
 }
 
 model Author {
+  favoriteClubId String?
+  favoriteClub Team? @relation("PreferredClub", fields: [favoriteClubId], references: [id], onDelete: SetNull)
+  @@index([favoriteClubId])
   digestOptIn Boolean @default(false)
   clubDigests ClubDigestSubscription[]
   manOfTheMatchVotes ManOfTheMatchVote[]
@@ -304,6 +307,8 @@ enum CompetitionFormat {
 }
 
 model Team {
+  preferredReaders Author[] @relation("PreferredClub")
+  rivalClubIds Json @default("[]")
   players Player[]
   followers Author[] @relation("ReaderFollowedTeams")
   id         String  @id @default(cuid())

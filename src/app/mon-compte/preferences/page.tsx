@@ -12,7 +12,7 @@ import {
   EMAIL_NOTIFICATION_TYPES,
   disabledTypes,
 } from "@/lib/notification-email";
-import { toggleClubDigest } from "@/app/match/[id]/actions";
+import { setClubDigest } from "@/app/club/[slug]/actions";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -47,6 +47,7 @@ export default async function NotificationPreferencesPage({
     prisma.author.findUnique({
       where: { id: session.user.id },
       select: {
+        favoriteClubId: true,
         followedTeams: { select: { id: true, name: true }, orderBy: { name: "asc" } },
         clubDigests: { select: { clubId: true, enabled: true } },
         email: true,
@@ -110,7 +111,7 @@ export default async function NotificationPreferencesPage({
           </CardBody>
         </Card>
 
-        <section aria-labelledby="club-digests-heading" className="mt-8 rounded-xl border border-border bg-card p-5"><h2 id="club-digests-heading" className="text-xl font-bold text-foreground">Mes digests clubs</h2><p className="mb-4 mt-2 text-sm text-muted-foreground">Choisissez les clubs de votre résumé hebdomadaire. Les envois automatiques ne sont pas encore activés. Désactivation possible à tout moment.</p>{author.followedTeams.length ? <ul className="space-y-3">{author.followedTeams.map(club => { const enabled = author.clubDigests.some(subscription => subscription.clubId === club.id && subscription.enabled); return <li key={club.id} className="flex flex-wrap items-center justify-between gap-3"><span className="font-medium text-foreground">{club.name}</span><form action={async () => { "use server"; await toggleClubDigest(club.id); redirect("/mon-compte/preferences?enregistre=1"); }}><button className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-bold text-foreground" aria-label={`${enabled ? "Désactiver" : "Activer"} le digest de ${club.name}`}>{enabled ? "Désactiver le digest" : "Activer le digest"}</button></form></li>; })}</ul> : <p className="text-sm text-muted-foreground">Suivez un club pour activer son digest depuis cette page.</p>}</section>
+        <section aria-labelledby="club-digests-heading" className="mt-8 rounded-xl border border-border bg-card p-5"><h2 id="club-digests-heading" className="text-xl font-bold text-foreground">Mes digests clubs</h2><p className="mb-4 mt-2 text-sm text-muted-foreground">Choisissez les clubs de votre résumé hebdomadaire. Envoi le dimanche à partir de 20 h (heure du Nigeria). Désactivation possible à tout moment.</p>{author.followedTeams.length ? <div className="space-y-4">{author.followedTeams.map(club => { const enabled = author.clubDigests.some(subscription => subscription.clubId === club.id && subscription.enabled); return <form key={club.id} action={async (formData: FormData) => { "use server"; await setClubDigest(club.id, formData.get("enabled") === "on"); redirect("/mon-compte/preferences?enregistre=1"); }} className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 last:border-0"><label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-foreground"><input type="checkbox" name="enabled" defaultChecked={enabled} className="h-4 w-4 shrink-0 accent-current"/><span>Recevoir le résumé hebdomadaire de {club.name}{club.id === author.favoriteClubId ? " (mon club préféré)" : ""}</span></label><button className="min-h-11 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-bold text-foreground" aria-label={`Enregistrer le digest de ${club.name}`}>Enregistrer</button></form>; })}</div> : <p className="text-sm text-muted-foreground">Suivez un club pour activer son digest depuis cette page.</p>}</section>
         <p className="mt-6 text-xs text-muted-foreground">
           Un e-mail est envoyé pour chaque notification importante (réponse à un commentaire,
           décision de modération, suspension de compte), dans la limite de 20 messages par heure.

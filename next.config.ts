@@ -93,6 +93,10 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "no-store" }],
       },
       {
+        source: "/api/club/:slug/calendar.ics",
+        headers: [{ key: "Cache-Control", value: "public, max-age=300" }],
+      },
+      {
         // Exception : les logos d'équipes sont publics et durables. La route
         // `/api/logo/[teamId]` pose déjà `public, max-age=86400`, mais la règle
         // `/api/:path*` ci-dessus l'écrase — cette entrée plus spécifique la
