@@ -18,8 +18,8 @@ export async function LiveBanner() {
   if (!matches.length) return null;
   const live = matches.filter(match => match.status === "LIVE");
   const selected = (live.length ? live : matches).slice(0, 5);
-  return <section data-home-today aria-label={live.length ? "Matchs en direct" : "Matchs du jour"} className="order-2 min-w-0 animate-fade-up bg-primary px-4 py-4 text-primary-foreground lg:order-1 lg:col-span-4">
-    {!!live.length && <LiveRefresh intervalMs={30_000} />}
+  return <section data-home-today aria-label={live.length ? "Matchs en direct" : "Matchs du jour"} className="order-2 min-w-0 animate-fade-up bg-primary px-4 py-4 text-primary-foreground dark:bg-muted lg:order-1 lg:col-span-4">
+    <LiveRefresh intervalMs={live.length ? 30_000 : 60_000} />
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-primary-foreground/20 pb-3"><h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest">{live.length ? <><span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-accent motion-reduce:animate-none" />Le sport en direct</> : "Aujourd’hui sur les terrains"}</h2><Link href={live.length ? "/live" : "/scores"} className="text-xs font-semibold underline-offset-4 hover:underline">{live.length ? "Tous les lives" : "Tous les scores"} →</Link></div>
     <ul className={`flex snap-x flex-nowrap gap-3 overflow-x-auto pt-3 ${selected.length === 1 ? "justify-center" : "justify-start lg:justify-center"}`}>
       {selected.map(match => <li key={match.id} className="w-[180px] min-w-[170px] shrink-0 snap-start"><Link href={`/match/${match.id}`} className="block border border-primary-foreground/20 px-3 py-3 transition-colors hover:bg-primary-foreground/10 motion-reduce:transition-none">
