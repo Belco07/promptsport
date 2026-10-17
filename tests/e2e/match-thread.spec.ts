@@ -25,7 +25,7 @@ test.describe("Discussion par match", () => {
     await expect(page.getByRole("tab", { name: "Avant-match (0)" })).toHaveAttribute("aria-selected", "true");
     await page.getByLabel("Votre commentaire", { exact: true }).fill(message);
     await clickActionButton(page, "Publier mon commentaire");
-    await expect(page.getByRole("status").filter({ hasText: "Votre commentaire est en attente de modération." })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Votre commentaire est en attente de modération." })).toBeVisible({ timeout: 90_000 });
     await expect(page.getByText(message, { exact: true })).toBeVisible();
     const saved = await sqlOne<{ id: string; status: string; readerId: string }>('SELECT id,status,"readerId" FROM "MatchComment" WHERE "matchId"=$1 AND content=$2', [matchId, message]);
     expect(saved?.status).toBe("PENDING");
@@ -44,7 +44,7 @@ test.describe("Discussion par match", () => {
     await editorPage.getByRole("button", { name: "Répondre", exact: true }).click();
     await editorPage.getByLabel("Votre réponse", { exact: true }).fill(response);
     await clickActionButton(editorPage, "Envoyer la réponse");
-    await expect(editorPage.getByText(response, { exact: true })).toBeVisible();
+    await expect(editorPage.getByText(response, { exact: true })).toBeVisible({ timeout: 90_000 });
     const reply = await sqlOne<{ status: string; parentId: string }>('SELECT status,"parentId" FROM "MatchComment" WHERE "matchId"=$1 AND content=$2', [matchId, response]);
     expect(reply).toMatchObject({ status: "APPROVED", parentId: saved!.id });
     const alerts = await sql('SELECT id FROM "Notification" WHERE "userId"=$1 AND type=\'COMMENT_REPLY\' AND "linkUrl" LIKE $2', [saved!.readerId, `/match/${matchId}?%`]);

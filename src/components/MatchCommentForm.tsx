@@ -9,7 +9,7 @@ export function MatchCommentForm({ matchId, parentId, onPosted }: { matchId: str
   useEffect(() => {
     if (state.ok && state.savedId) { form.current?.reset(); onPosted?.(); }
   }, [state.ok, state.savedId, onPosted]);
-  const fieldId = `match-comment-${parentId ?? "new"}`;
+  const fieldId = `match-comment-input-${parentId ?? "new"}`;
   return <form ref={form} action={action} className="space-y-3 rounded-xl border border-border bg-card p-4">
     {parentId && <input type="hidden" name="parentId" value={parentId} />}
     <label htmlFor={fieldId} className="block font-semibold text-foreground">{parentId ? "Votre réponse" : "Votre commentaire"}</label>

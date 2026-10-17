@@ -94,7 +94,7 @@ export default async function BackofficeCommentsPage({
       prisma.comment.count({ where: { createdAt: { gte: startOfDay } } }),
       prisma.comment.count(),
       prisma.report.count(),
-      prisma.author.count({ where: { comments: { some: {} } } }),
+      prisma.author.count({ where: { OR: [{ comments: { some: {} } }, { readerMatchComments: { some: {} } }, { authoredMatchComments: { some: {} } }] } }),
       prisma.matchComment.count({ where: { status: "PENDING" } }),
       prisma.matchComment.count({ where: { createdAt: { gte: startOfDay } } }),
       prisma.matchComment.count(),
@@ -264,7 +264,7 @@ export default async function BackofficeCommentsPage({
       />
     );
   } else {
-    const where: Prisma.AuthorWhereInput = { comments: { some: {} } };
+    const where: Prisma.AuthorWhereInput = { OR: [{ comments: { some: {} } }, { readerMatchComments: { some: {} } }, { authoredMatchComments: { some: {} } }] };
 
     const [authors, total, rejectedGroups, flaggedGroups] = await Promise.all([
       prisma.author.findMany({
@@ -278,7 +278,7 @@ export default async function BackofficeCommentsPage({
           email: true,
           bannedUntil: true,
           banReason: true,
-          _count: { select: { comments: true } },
+          _count: { select: { comments: true, readerMatchComments: true, authoredMatchComments: true } },
         },
       }),
       prisma.author.count({ where }),
@@ -303,7 +303,7 @@ export default async function BackofficeCommentsPage({
       email: author.email,
       bannedUntil: author.bannedUntil,
       banReason: author.banReason,
-      comments: author._count.comments,
+      comments: author._count.comments + author._count.readerMatchComments + author._count.authoredMatchComments,
       rejected: rejectedByAuthor.get(author.id) ?? 0,
       flagged: flaggedByAuthor.get(author.id) ?? 0,
     }));

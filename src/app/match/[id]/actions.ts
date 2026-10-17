@@ -35,7 +35,9 @@ export async function createMatchComment(matchId: string, _previous: { ok: boole
     if (approved && recipient && recipient !== user.id) await tx.notification.create({ data: { userId: recipient, type: "COMMENT_REPLY", title: "Nouvelle réponse dans la discussion du match", message: `${user.name} a répondu à votre commentaire.`, linkUrl: `/match/${matchId}?tab=discussion&phase=${comment.phase}#match-comment-${comment.id}` } });
     return { ok: true, message: approved ? "Votre commentaire est publié." : "Votre commentaire est en attente de modération.", savedId: comment.id };
   });
-  if (result.ok) { revalidatePath(`/match/${matchId}`); revalidatePath("/backoffice/comments"); revalidatePath("/mon-compte/notifications"); }
+  // Authenticated moderation/notification pages read fresh data on navigation.
+  // Refresh only the current match, without invalidating unrelated page trees.
+  if (result.ok) revalidatePath(`/match/${matchId}`);
   return result;
 }
 
@@ -44,7 +46,7 @@ export async function deleteMatchComment(matchId: string, commentId: string) {
   if (!session?.user?.id) return { ok: false, message: "Connexion requise." };
   if (typeof matchId !== "string" || typeof commentId !== "string" || matchId.length > 128 || commentId.length > 128) return { ok: false, message: "Commentaire invalide." };
   const result = await prisma.matchComment.updateMany({ where: { id: commentId, matchId, OR: [{ readerId: session.user.id }, { authorId: session.user.id }], status: { not: "DELETED" } }, data: { status: "DELETED" } });
-  revalidatePath(`/match/${matchId}`); revalidatePath("/backoffice/comments");
+  revalidatePath(`/match/${matchId}`);
   return { ok: !!result.count, message: result.count ? "Commentaire supprimé." : "Commentaire indisponible." };
 }
 
