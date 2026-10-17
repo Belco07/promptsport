@@ -4,7 +4,49 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getMatchVoteData } from "@/lib/club-digest";
 import { revalidatePath } from "next/cache";
-import { consumeRateLimit } from "@/lib/rate-limit";
+import { consumeRateLimit, MATCH_COMMENT_RATE_LIMIT } from "@/lib/rate-limit";
+
+export async function createMatchComment(matchId: string, _previous: { ok: boolean; message: string; savedId: string }, form: FormData) {
+  const session = await auth();
+  const fail = (message: string) => ({ ok: false, message, savedId: "" });
+  if (!session?.user?.id) return fail("Connectez-vous pour commenter.");
+  const value = form.get("content"), parentValue = form.get("parentId");
+  if (typeof matchId !== "string" || !matchId || matchId.length > 128 || typeof value !== "string" || !value.trim() || value.trim().length > 1000 || (parentValue !== null && (typeof parentValue !== "string" || parentValue.length > 128))) return fail("Saisissez un commentaire de 1 à 1 000 caractères.");
+  const content = value.trim(), parentId = typeof parentValue === "string" && parentValue ? parentValue : null;
+  const result = await prisma.$transaction(async tx => {
+    // The account lock serializes concurrent submissions across all Vercel instances.
+    await tx.$queryRaw`SELECT id FROM "Author" WHERE id=${session.user.id} FOR UPDATE`;
+    const user = await tx.author.findUnique({ where: { id: session.user.id }, select: { id: true, name: true, role: true, isPremium: true, bannedUntil: true } });
+    if (!user || (user.bannedUntil && user.bannedUntil > new Date())) return fail("Votre compte ne peut pas commenter actuellement.");
+    const match = await tx.match.findUnique({ where: { id: matchId }, select: { status: true } });
+    if (!match) return fail("Match introuvable.");
+    const count = await tx.matchComment.count({ where: { matchId, OR: [{ readerId: user.id }, { authorId: user.id }], createdAt: { gt: new Date(Date.now() - MATCH_COMMENT_RATE_LIMIT.windowMs) } } });
+    if (count >= MATCH_COMMENT_RATE_LIMIT.max) return fail("Vous avez atteint la limite de 10 commentaires par match et par heure.");
+    const parent = parentId ? await tx.matchComment.findUnique({ where: { id: parentId }, select: { matchId: true, parentId: true, status: true, readerId: true, authorId: true } }) : null;
+    if (parentId && (!parent || parent.matchId !== matchId || parent.parentId || parent.status !== "APPROVED")) return fail("Ce commentaire ne peut pas recevoir de réponse.");
+    const subscription = user.isPremium ? true : !!await tx.subscription.findFirst({ where: { userId: user.id, status: { in: ["ACTIVE", "TRIALING"] }, currentPeriodEnd: { gt: new Date() } }, select: { id: true } });
+    const approved = subscription || user.role === "ADMIN" || user.role === "EDITOR";
+    const comment = await tx.matchComment.create({ data: {
+      matchId, content, parentId, readerId: user.role === "READER" ? user.id : null, authorId: user.role === "READER" ? null : user.id,
+      phase: match.status === "LIVE" ? "LIVE" : match.status === "FINISHED" ? "POST_MATCH" : "PRE_MATCH",
+      status: approved ? "APPROVED" : "PENDING",
+    } });
+    const recipient = parent?.readerId ?? parent?.authorId;
+    if (approved && recipient && recipient !== user.id) await tx.notification.create({ data: { userId: recipient, type: "COMMENT_REPLY", title: "Nouvelle réponse dans la discussion du match", message: `${user.name} a répondu à votre commentaire.`, linkUrl: `/match/${matchId}?tab=discussion&phase=${comment.phase}#match-comment-${comment.id}` } });
+    return { ok: true, message: approved ? "Votre commentaire est publié." : "Votre commentaire est en attente de modération.", savedId: comment.id };
+  });
+  if (result.ok) { revalidatePath(`/match/${matchId}`); revalidatePath("/backoffice/comments"); revalidatePath("/mon-compte/notifications"); }
+  return result;
+}
+
+export async function deleteMatchComment(matchId: string, commentId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, message: "Connexion requise." };
+  if (typeof matchId !== "string" || typeof commentId !== "string" || matchId.length > 128 || commentId.length > 128) return { ok: false, message: "Commentaire invalide." };
+  const result = await prisma.matchComment.updateMany({ where: { id: commentId, matchId, OR: [{ readerId: session.user.id }, { authorId: session.user.id }], status: { not: "DELETED" } }, data: { status: "DELETED" } });
+  revalidatePath(`/match/${matchId}`); revalidatePath("/backoffice/comments");
+  return { ok: !!result.count, message: result.count ? "Commentaire supprimé." : "Commentaire indisponible." };
+}
 
 export async function voteForManOfTheMatch(matchId: string, playerId: string) {
   const session = await auth();

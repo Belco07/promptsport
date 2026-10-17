@@ -32,6 +32,28 @@ import { prisma } from "@/lib/prisma";
 
 const ADMIN_PATH = "/backoffice/comments";
 
+export async function moderateMatchComment(commentId: string, formData: FormData): Promise<void> {
+  await requireAdmin();
+  const intent = formData.get("intent");
+  if (intent !== "approve" && intent !== "reject" && intent !== "delete") return;
+  const status = intent === "approve" ? "APPROVED" : intent === "reject" ? "REJECTED" : "DELETED";
+  const matchId = await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "MatchComment" WHERE id=${commentId} FOR UPDATE`;
+    const comment = await tx.matchComment.findUnique({ where: { id: commentId }, include: { parent: true, reader: { select: { name: true } }, author: { select: { name: true } } } });
+    if (!comment || comment.status === "DELETED" || comment.status === status) return null;
+    await tx.matchComment.update({ where: { id: commentId }, data: { status } });
+    const recipient = comment.parent?.readerId ?? comment.parent?.authorId;
+    const owner = comment.readerId ?? comment.authorId;
+    const linkUrl = `/match/${comment.matchId}?tab=discussion&phase=${comment.phase}#match-comment-${comment.id}`;
+    if (status === "APPROVED" && recipient && recipient !== owner && comment.parent?.status === "APPROVED" && !await tx.notification.findFirst({ where: { userId: recipient, type: "COMMENT_REPLY", linkUrl }, select: { id: true } })) {
+      await tx.notification.create({ data: { userId: recipient, type: "COMMENT_REPLY", title: "Nouvelle réponse dans la discussion du match", message: `${comment.reader?.name ?? comment.author?.name ?? "Un participant"} a répondu à votre commentaire.`, linkUrl } });
+    }
+    return comment.matchId;
+  });
+  if (matchId) revalidatePath(`/match/${matchId}`);
+  revalidatePath(ADMIN_PATH); revalidatePath("/mon-compte/notifications");
+}
+
 /** Vérifie la session et le rôle ; redirige sinon (renvoie l'auteur courant). */
 async function requireAdmin(): Promise<{ id: string }> {
   const session = await auth();

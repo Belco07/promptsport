@@ -30,6 +30,9 @@ export const COMMENT_RATE_LIMIT: RateLimitOptions = {
   windowMs: 60 * 60 * 1000,
 };
 
+/** Match threads enforce this sliding window in PostgreSQL under an account lock. */
+export const MATCH_COMMENT_RATE_LIMIT: RateLimitOptions = { max: 10, windowMs: 3_600_000 };
+
 /**
  * Limite demandée par le brief WP11c : 3 inscriptions à la newsletter par heure
  * et par adresse IP. Le formulaire public est la seule porte d'entrée ouverte à

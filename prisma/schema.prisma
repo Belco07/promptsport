@@ -23,6 +23,8 @@ datasource db {
 }
 
 model Author {
+  readerMatchComments MatchComment[] @relation("MatchCommentReader")
+  authoredMatchComments MatchComment[] @relation("MatchCommentAuthor")
   favoriteClubId String?
   favoriteClub Team? @relation("PreferredClub", fields: [favoriteClubId], references: [id], onDelete: SetNull)
   @@index([favoriteClubId])
@@ -392,6 +394,7 @@ model Player {
 }
 
 model Match {
+  comments MatchComment[]
   matchday Int?
   roundName String?
   articles Article[]
@@ -423,6 +426,43 @@ model Match {
   @@index([homeTeamId])
   @@index([awayTeamId])
   @@index([status])
+}
+
+model MatchComment {
+  id String @id @default(cuid())
+  matchId String
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  readerId String?
+  reader Author? @relation("MatchCommentReader", fields: [readerId], references: [id], onDelete: SetNull)
+  authorId String?
+  author Author? @relation("MatchCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  content String @db.VarChar(1000)
+  phase MatchCommentPhase
+  status MatchCommentStatus @default(PENDING)
+  parentId String?
+  parent MatchComment? @relation("MatchThreadReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies MatchComment[] @relation("MatchThreadReplies")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([matchId, phase, status, createdAt])
+  @@index([readerId, matchId, createdAt])
+  @@index([authorId, matchId, createdAt])
+  @@index([parentId])
+  @@index([status, createdAt])
+}
+
+enum MatchCommentPhase {
+  PRE_MATCH
+  LIVE
+  POST_MATCH
+}
+
+enum MatchCommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DELETED
 }
 
 enum MatchStatus {
