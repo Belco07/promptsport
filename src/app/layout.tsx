@@ -22,6 +22,7 @@ import {
 import "./globals.css";
 import "./editorial.css";
 import "./workspace.css";
+import "./motion.css";
 import { PublicShell } from "@/components/PublicShell";
 
 /**

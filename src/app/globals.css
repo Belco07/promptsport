@@ -104,7 +104,7 @@ button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); ou
 
 /* ------------------------------------------------------- thème clair/sombre */
 /**
- * Variables du thème (WP13a).
+ * Variables du thème (WP13a, valeurs éditoriales WP27).
  *
  * Format « shadcn/ui » : triplets HSL sans `hsl()`, consommés par la palette
  * sémantique de tailwind.config.js (`background`, `foreground`, `muted`,
@@ -112,30 +112,34 @@ button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); ou
  * que next-themes pose sur <html> (`darkMode: "class"`), selon le choix de
  * l'utilisateur ou du système.
  *
- * Les couleurs de l'identité éditoriale (brand, ink, primary, accent-500…)
- * gardent leurs valeurs : ce lot pose le système, la migration des composants
- * vers ces jetons fera l'objet des sous-lots suivants.
+ * WP27 : les jetons portent désormais les valeurs de la peau éditoriale
+ * (encre #121212, surface chaude #f3f3f0, trait #deded8, lime #d7ff00) au lieu
+ * du bleu-gris générique d'origine. `editorial.css` en dérive ses jetons
+ * `--ed-*` : une seule source de couleurs pour tout le site.
  */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --muted: 210 20% 96%;
-  --muted-foreground: 215 16% 47%;
-  --border: 214 20% 88%;
+  --background: 0 0% 100%; /* --ed-bg */
+  --foreground: 0 0% 7%; /* --ed-ink #121212 */
+  --muted: 60 11% 95%; /* --ed-surface #f3f3f0 */
+  --muted-foreground: 0 0% 39%; /* --ed-muted #636363 */
+  --border: 60 8% 86%; /* --ed-line #deded8 */
   --card: 0 0% 100%;
-  /* Rouge éditorial (brand-500, #df1830) : l'accent de l'identité publique. */
-  --accent: 353 81% 48%;
+  /* Lime éditorial (--ed-lime #d7ff00) : l'accent de l'identité publique. */
+  --accent: 69.4 100% 50%;
+  /* Lien éditorial (--ed-link) : olive lisible sur fond clair. */
+  --ed-link: #4b5e00;
 }
 
 .dark {
-  --background: 217 16% 10%;
-  --foreground: 240 2% 93%;
-  --muted: 217 15% 16%;
-  --muted-foreground: 215 15% 65%;
-  --border: 217 15% 22%;
-  --card: 218 15% 13%;
-  /* Rouge éclairci : lisible sur fond sombre. */
-  --accent: 353 85% 62%;
+  --background: 120 3% 7%; /* --ed-bg #111211 */
+  --foreground: 60 24% 96%; /* --ed-ink #f7f7f2 */
+  --muted: 90 7% 11%; /* --ed-surface #1c1e1a */
+  --muted-foreground: 82 7% 69%; /* --ed-muted #b1b5aa */
+  --border: 83 8% 20%; /* --ed-line #353830 */
+  --card: 90 7% 11%; /* la carte se détache légèrement du fond */
+  /* Le lime éditorial est identique dans les deux thèmes. */
+  --accent: 69.4 100% 50%;
+  --ed-link: #d7ff00;
 }
 
 /* ------------------------------------------------------------------ base */
@@ -299,10 +303,10 @@ button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); ou
 }
 
 
-/* WP13b: reader-facing tokens; CMS styles retain their original palette. */
+/* WP13b/WP27 : jetons propres à l'audience (action, statuts). Les couleurs de
+   base vivent désormais dans :root/.dark et `editorial.css` en dérive ses
+   jetons `--ed-*` : plus de double définition à maintenir ici. */
 .public-site {
-  --background: 0 0% 100%; --foreground: 0 0% 7%; --card: 0 0% 100%;
-  --muted: 60 11% 95%; --muted-foreground: 0 0% 39%; --border: 60 8% 86%;
   --primary: 222 47% 11%; --destructive: 355 100% 46.5%;
   --status-danger: #ed0014;
   --color-red-500: var(--status-danger); --color-red-600: var(--status-danger); --color-red-700: var(--status-danger);
@@ -312,8 +316,6 @@ button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); ou
   --status-error: #fef2f2; --status-error-foreground: var(--status-danger); --status-error-border: #fecaca;
 }
 .dark .public-site {
-  --background: 120 3% 7%; --foreground: 60 24% 96%; --card: 120 3% 7%;
-  --muted: 90 7% 11%; --muted-foreground: 82 7% 69%; --border: 83 8% 20%;
   --primary: 222 55% 35%;
   --status-danger: #ed0014;
   --status-premium: #352811; --status-premium-foreground: #fcd875; --status-premium-border: #78602b;

@@ -1,0 +1,67 @@
+/* WP27 — Système de motion éditorial.
+ *
+ * Trois animations réutilisables et leurs classes d'application. Tout passe
+ * par `transform` et `opacity` : aucune propriété de mise en page n'est
+ * animée, et `prefers-reduced-motion` neutralise tout.
+ *
+ * `animation-fill-mode: both` (et non `forwards` seul) : les éléments qui
+ * attendent leur délai restent invisibles avant leur tour, sans « flash »
+ * d'apparition.
+ */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes pulse-lime {
+  0%, 100% { box-shadow: 0 0 0 0 #d7ff0088; }
+  50% { box-shadow: 0 0 0 12px #d7ff0000; }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-fade-up { animation: fade-up .4s ease-out both; }
+.animate-pulse-lime { animation: pulse-lime 2s ease-in-out infinite; border-radius: 2px; }
+.animate-slide-in-right { animation: slide-in-right .3s ease-out both; }
+
+/* Décalages d'apparition en cascade (une : secondaires, grilles, fil du match). */
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 60ms; }
+.stagger-3 { animation-delay: 120ms; }
+.stagger-4 { animation-delay: 180ms; }
+.stagger-5 { animation-delay: 240ms; }
+.stagger-6 { animation-delay: 300ms; }
+.stagger-7 { animation-delay: 360ms; }
+.stagger-8 { animation-delay: 420ms; }
+
+/* Colonne secondaire de la une : apparition après l'article de tête. */
+.public-site [data-home-secondary] { animation: fade-up .4s ease-out both; animation-delay: 80ms; }
+.public-site [data-home-secondary]:nth-of-type(2) { animation-delay: 160ms; }
+.public-site [data-home-secondary]:nth-of-type(3) { animation-delay: 240ms; }
+
+/* Grilles de cartes : cascade par position, plafonnée à 420 ms au-delà de 8. */
+.public-site .editorial-card:nth-child(2) { animation-delay: 60ms; }
+.public-site .editorial-card:nth-child(3) { animation-delay: 120ms; }
+.public-site .editorial-card:nth-child(4) { animation-delay: 180ms; }
+.public-site .editorial-card:nth-child(5) { animation-delay: 240ms; }
+.public-site .editorial-card:nth-child(6) { animation-delay: 300ms; }
+.public-site .editorial-card:nth-child(7) { animation-delay: 360ms; }
+.public-site .editorial-card:nth-child(8) { animation-delay: 420ms; }
+.public-site .editorial-card:nth-child(n+9) { animation-delay: 420ms; }
+
+/* Contenus d'onglets : transition douce à l'affichage. */
+.public-site [role="tabpanel"] { animation: fade-up .25s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-pulse-lime,
+  .animate-slide-in-right,
+  .public-site [data-home-secondary],
+  .public-site [role="tabpanel"] {
+    animation: none;
+  }
+}
