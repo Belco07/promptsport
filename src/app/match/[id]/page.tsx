@@ -10,6 +10,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MatchHeader } from "@/components/MatchHeader";
 import { MatchTabs, matchTabs } from "@/components/MatchTabs";
+import { MatchThread } from "@/components/MatchThread";
+import type { Prisma, MatchCommentPhase } from "@/generated/prisma/client";
 import { MatchTimeline } from "@/components/MatchTimeline";
 import { MatchStats } from "@/components/MatchStats";
 import { MatchLineup } from "@/components/MatchLineup";
@@ -25,8 +27,8 @@ import { withStoredMatchClocks } from "@/lib/allsports-sync";
 import { playerProfileKey } from "@/lib/slug";
 import { buildPageMetadata, jsonLdString, sportsEventJsonLd } from "@/lib/seo";
 export const dynamic="force-dynamic";
-type Props={params:Promise<{id:string}>;searchParams:Promise<{tab?:string}>};
-const activeTab = (tab?: string): keyof typeof matchTabs => tab === "compositions" || tab === "statistiques" || tab === "commentaires" ? tab : "resume";
+type Props={params:Promise<{id:string}>;searchParams:Promise<{tab?:string; phase?:string}>};
+const activeTab = (tab?: string): keyof typeof matchTabs => tab === "commentaires" ? "discussion" : tab === "compositions" || tab === "statistiques" || tab === "discussion" ? tab : "resume";
 const getMatch = cache(async (id: string, tab: keyof typeof matchTabs) => {
   const match = await prisma.match.findUnique({
     where: { id },
@@ -70,7 +72,16 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function MatchPage({params,searchParams}:Props){
  const {id}=await params;const query=await searchParams;const active=activeTab(query.tab);const match=await getMatch(id,active);if(!match)notFound();
  const lastUpdate=match.status==="LIVE"?await getLastSportsUpdate("live"):null;
- const session = match.status === "FINISHED" ? await auth() : null;
+ const session = match.status === "FINISHED" || active === "discussion" ? await auth() : null;
+ const currentPhase: MatchCommentPhase = match.status === "LIVE" ? "LIVE" : match.status === "FINISHED" ? "POST_MATCH" : "PRE_MATCH";
+ const phase: MatchCommentPhase = query.phase === "LIVE" || query.phase === "PRE_MATCH" || query.phase === "POST_MATCH" ? query.phase : currentPhase;
+ const userId = session?.user?.id ?? null;
+ const visible: Prisma.MatchCommentWhereInput = { matchId: id, OR: [{ status: "APPROVED" }, ...(userId ? [{ status: "PENDING" as const, OR: [{ readerId: userId }, { authorId: userId }] }] : [])] };
+ const thread = active === "discussion" ? await Promise.all([
+   prisma.matchComment.findMany({ where: { ...visible, phase }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 50, include: { reader: { select: { name: true } }, author: { select: { name: true } }, parent: { select: { status: true, reader: { select: { name: true } }, author: { select: { name: true } } } } } }),
+   prisma.matchComment.groupBy({ by: ["phase"], where: visible, _count: { _all: true } }),
+   userId ? prisma.author.findUnique({ where: { id: userId }, select: { bannedUntil: true } }) : Promise.resolve(null),
+ ]) : null;
  const vote = match.status === "FINISHED" ? await getMatchVoteData(id, session?.user?.id ?? null) : null;
  const teamForms = match.status === "SCHEDULED" ? Object.fromEntries((await getTeamForms([match.homeTeamId, match.awayTeamId])).map(team => [team.teamId, team.form])) : {};
  const hasScore=match.homeScore!=null&&match.awayScore!=null;
@@ -98,10 +109,10 @@ export default async function MatchPage({params,searchParams}:Props){
 
 
  <Link href="/scores" className="mb-6 inline-block text-sm font-bold text-editorial-link">← Tous les scores</Link>
- {match.status==="LIVE"&&<><div className="mb-3"><LiveBadge/></div><LiveScoreRefresher hasLiveMatches={true} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null}/></>}
+ {match.status==="LIVE"&&<><div className="mb-3"><LiveBadge/></div>{active !== "discussion" && <LiveScoreRefresher hasLiveMatches={true} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null}/>}</>}
  <MatchHeader match={match} playerLinks={playerLinks} teamForms={teamForms}/><MatchTabs id={id} active={active}/>
  <section aria-labelledby="match-panel" className="min-h-40"><h2 id="match-panel" className="mb-5 text-2xl font-black uppercase text-foreground">{matchTabs[active]}</h2>
- {active==="resume"||active==="commentaires"?<MatchTimeline playerLinks={playerLinks} commentary={active==="commentaires"} events={match.events} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="statistiques"?<MatchStats statistics={match.statistics} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:<MatchLineup lineups={match.lineups} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>}
+ {active === "discussion" && thread ? <MatchThread matchId={id} live={match.status === "LIVE"} phase={phase} currentPhase={currentPhase} userId={userId} banned={!!thread[2]?.bannedUntil && thread[2].bannedUntil > new Date()} counts={Object.fromEntries(thread[1].map(row => [row.phase, row._count._all]))} comments={thread[0].map(row => ({ id: row.id, content: row.content, status: row.status, createdAt: row.createdAt.toISOString(), name: row.reader?.name ?? row.author?.name ?? "Compte supprimé", ownerId: row.readerId ?? row.authorId, parentId: row.parentId, parentName: row.parent?.status === "APPROVED" ? row.parent.reader?.name ?? row.parent.author?.name ?? "Compte supprimé" : null }))} /> : active==="resume"?<MatchTimeline playerLinks={playerLinks} events={match.events} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:active==="statistiques"?<MatchStats statistics={match.statistics} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>:<MatchLineup lineups={match.lineups} homeTeamId={match.homeTeamId} homeName={match.homeTeam.name} awayName={match.awayTeam.name}/>}
  </section>{vote?.status === "FINISHED" && <section aria-label="Vote homme du match" className="mt-8 rounded-xl border border-border bg-card p-5"><h2 className="text-xl font-bold text-foreground">Homme du match</h2><ManOfTheMatchVote matchId={id} candidates={vote.candidates} choice={vote.choice} signedIn={!!session?.user?.id}/><ManOfTheMatchResults results={vote.results}/></section>}<section aria-labelledby="linked-articles-title" className="mt-12 border-t-2 border-border pt-6"><h2 id="linked-articles-title" className="mb-6 text-2xl font-black uppercase text-foreground">Articles liés au match</h2>{match.articles.length ? <div className="grid gap-5 md:grid-cols-3">{match.articles.map(article => <ArticleCard key={article.slug} article={article} headingLevel={3} />)}</div> : <p className="text-sm text-muted-foreground">Aucun article lié pour le moment.</p>}</section><AdSlotGate><AdSlot className="mt-10"/></AdSlotGate>
  </main><Footer/></>;
 }

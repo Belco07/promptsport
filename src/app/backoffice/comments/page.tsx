@@ -14,6 +14,7 @@ import {
   isReportStatus,
 } from "@/lib/engagement";
 import { prisma } from "@/lib/prisma";
+import { moderateMatchComment } from "./actions";
 
 /**
  * Modération des commentaires (WP10c).
@@ -64,6 +65,7 @@ export default async function BackofficeCommentsPage({
     article?: string;
     author?: string;
     bannir?: string;
+    type?: string;
   }>;
 }) {
   const session = await auth();
@@ -84,7 +86,7 @@ export default async function BackofficeCommentsPage({
   );
 
   /* ------------------------------------------------------------ statistiques */
-  const [pendingComments, openReports, activeBans, commentsToday, commentCount, reportCount, authorCount] =
+  const [pendingComments, openReports, activeBans, commentsToday, commentCount, reportCount, authorCount, pendingMatch, matchToday, matchCount] =
     await Promise.all([
       prisma.comment.count({ where: { status: "PENDING" } }),
       prisma.report.count({ where: { status: "PENDING" } }),
@@ -92,14 +94,17 @@ export default async function BackofficeCommentsPage({
       prisma.comment.count({ where: { createdAt: { gte: startOfDay } } }),
       prisma.comment.count(),
       prisma.report.count(),
-      prisma.author.count({ where: { comments: { some: {} } } }),
+      prisma.author.count({ where: { OR: [{ comments: { some: {} } }, { readerMatchComments: { some: {} } }, { authoredMatchComments: { some: {} } }] } }),
+      prisma.matchComment.count({ where: { status: "PENDING" } }),
+      prisma.matchComment.count({ where: { createdAt: { gte: startOfDay } } }),
+      prisma.matchComment.count(),
     ]);
 
   const stats = [
-    { label: "Commentaires en attente", value: pendingComments },
+    { label: "Commentaires en attente", value: pendingComments + pendingMatch },
     { label: "Signalements ouverts", value: openReports },
     { label: "Utilisateurs bannis", value: activeBans },
-    { label: "Commentaires aujourd'hui", value: commentsToday },
+    { label: "Commentaires aujourd'hui", value: commentsToday + matchToday },
   ];
 
   /* -------------------------------------------------------- onglet actif */
@@ -107,10 +112,34 @@ export default async function BackofficeCommentsPage({
   if (params.status) query.status = params.status;
   if (params.article) query.article = params.article;
   if (params.author) query.author = params.author;
+  if (params.type === "matches") query.type = "matches";
 
   let body: React.ReactNode = null;
 
-  if (tab === "comments") {
+  if (tab === "comments" && params.type === "matches") {
+    const status = params.status === "PENDING" || params.status === "APPROVED" || params.status === "REJECTED" || params.status === "DELETED" ? params.status : undefined;
+    const where: Prisma.MatchCommentWhereInput = { status, ...(params.author ? { OR: [{ reader: { name: { contains: params.author, mode: "insensitive" } } }, { author: { name: { contains: params.author, mode: "insensitive" } } }] } : {}) };
+    const [rows, total] = await Promise.all([
+      prisma.matchComment.findMany({ where, take: PAGE_SIZE, skip, orderBy: [{ createdAt: "desc" }, { id: "desc" }], include: { reader: { select: { name: true } }, author: { select: { name: true } }, match: { select: { homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } } } } }),
+      prisma.matchComment.count({ where }),
+    ]);
+    const href = (target: number) => `${BASE_PATH}?${new URLSearchParams({ ...query, tab: "comments", type: "matches", page: String(target) })}`;
+    body = <div className="mt-6 space-y-4">
+      <form className="flex flex-wrap items-end gap-3" method="get"><input type="hidden" name="type" value="matches" /><input type="hidden" name="tab" value="comments" />
+        <label className="text-sm text-foreground">Statut<select name="status" defaultValue={status ?? ""} className="ml-2 min-h-11 rounded border border-border bg-card p-2"><option value="">Tous</option>{["PENDING", "APPROVED", "REJECTED", "DELETED"].map(value => <option key={value}>{value}</option>)}</select></label>
+        <label className="text-sm text-foreground">Auteur<input name="author" defaultValue={params.author ?? ""} className="ml-2 min-h-11 rounded border border-border bg-card p-2" /></label><button className="min-h-11 rounded border border-border px-4">Filtrer</button>
+      </form>
+      <p className="text-sm text-muted-foreground">{total} commentaire(s) de match</p>
+      {rows.map(row => <article key={row.id} className="rounded-xl border border-border bg-card p-4">
+        <Link href={`/match/${row.matchId}?tab=discussion&phase=${row.phase}#match-comment-${row.id}`} className="font-bold text-editorial-link">{row.match.homeTeam.name} — {row.match.awayTeam.name}</Link>
+        <p className="mt-2 text-sm text-muted-foreground">{row.reader?.name ?? row.author?.name ?? "Compte supprimé"} · {row.phase} · {row.status} · {row.createdAt.toLocaleString("fr-FR", { timeZone: "Africa/Lagos" })}</p>
+        <p className="my-3 whitespace-pre-wrap break-words text-foreground">{row.content}</p>
+        {row.status !== "DELETED" && <form action={moderateMatchComment.bind(null, row.id)} className="flex flex-wrap gap-3">{[{ value: "approve", label: "Approuver" }, { value: "reject", label: "Rejeter" }, { value: "delete", label: "Supprimer" }].map(action => <button key={action.value} name="intent" value={action.value} className="min-h-11 rounded border border-border px-3 text-sm text-foreground">{action.label}</button>)}</form>}
+      </article>)}
+      {!rows.length && <p className="text-muted-foreground">Aucun commentaire de match.</p>}
+      <nav aria-label="Pagination des commentaires de match" className="flex gap-5">{page > 1 && <Link href={href(page - 1)}>Précédent</Link>}{skip + PAGE_SIZE < total && <Link href={href(page + 1)}>Suivant</Link>}</nav>
+    </div>;
+  } else if (tab === "comments") {
     const where: Prisma.CommentWhereInput = {};
     if (params.status && isCommentStatus(params.status)) {
       where.status = params.status;
@@ -235,7 +264,7 @@ export default async function BackofficeCommentsPage({
       />
     );
   } else {
-    const where: Prisma.AuthorWhereInput = { comments: { some: {} } };
+    const where: Prisma.AuthorWhereInput = { OR: [{ comments: { some: {} } }, { readerMatchComments: { some: {} } }, { authoredMatchComments: { some: {} } }] };
 
     const [authors, total, rejectedGroups, flaggedGroups] = await Promise.all([
       prisma.author.findMany({
@@ -249,7 +278,7 @@ export default async function BackofficeCommentsPage({
           email: true,
           bannedUntil: true,
           banReason: true,
-          _count: { select: { comments: true } },
+          _count: { select: { comments: true, readerMatchComments: true, authoredMatchComments: true } },
         },
       }),
       prisma.author.count({ where }),
@@ -274,7 +303,7 @@ export default async function BackofficeCommentsPage({
       email: author.email,
       bannedUntil: author.bannedUntil,
       banReason: author.banReason,
-      comments: author._count.comments,
+      comments: author._count.comments + author._count.readerMatchComments + author._count.authoredMatchComments,
       rejected: rejectedByAuthor.get(author.id) ?? 0,
       flagged: flaggedByAuthor.get(author.id) ?? 0,
     }));
@@ -306,7 +335,7 @@ export default async function BackofficeCommentsPage({
     <div className="px-8 py-10">
       <h1 className="text-3xl font-bold tracking-tight text-foreground">Modération des commentaires</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        {commentCount} commentaire{commentCount > 1 ? "s" : ""} · {reportCount} signalement
+        {commentCount + matchCount} commentaire{commentCount + matchCount > 1 ? "s" : ""} · {reportCount} signalement
         {reportCount > 1 ? "s" : ""} · {authorCount} auteur{authorCount > 1 ? "s" : ""} ayant commenté.
       </p>
 
@@ -325,7 +354,7 @@ export default async function BackofficeCommentsPage({
         {TABS.map((item) => {
           const active = item.key === tab;
           const count =
-            item.key === "comments" ? commentCount : item.key === "reports" ? reportCount : authorCount;
+            item.key === "comments" ? commentCount + matchCount : item.key === "reports" ? reportCount : authorCount;
           return (
             <Link
               key={item.key}
@@ -346,6 +375,7 @@ export default async function BackofficeCommentsPage({
         })}
       </nav>
 
+      {tab === "comments" && <form method="get" className="mt-5 flex items-center gap-3"><input type="hidden" name="tab" value="comments" /><label htmlFor="comment-type" className="font-semibold text-foreground">Type</label><select id="comment-type" name="type" defaultValue={params.type === "matches" ? "matches" : "articles"} className="min-h-11 rounded border border-border bg-card p-2 text-foreground"><option value="articles">Articles</option><option value="matches">Matchs</option></select><button className="min-h-11 rounded border border-border px-4 text-foreground">Afficher</button></form>}
       {body}
 
       {banTarget ? (
