@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { notFound, redirect } from "next/navigation";
 import { CompetitionLiveTab, getCompetitionLiveMatches } from "@/components/CompetitionLiveTab";
 import { LiveScoreRefresher } from "@/components/LiveScoreRefresher";
@@ -70,7 +70,7 @@ export default async function CompetitionPage({params,searchParams}:Props){
         />
 
 
- <Link href="/scores" className="mb-6 inline-block text-sm font-bold text-editorial-link">← Tous les scores</Link>
+ <Breadcrumbs items={[{ label: "Scores", href: "/scores" }, { label: competition.name, href: `/competition/${competition.slug}` }]} />
  <CompetitionHeader competition={competition} action={<FollowButton id={competition.id} kind="competition" name={competition.name} following={follows?.followedCompetitions.some(item => item.id === competition.id) ?? false} signedIn={!!follows} />}/>
  <CompetitionTabs slug={slug} active={active} hasLiveMatches={hasLiveMatches} liveCount={liveCount}/>
  {hasLiveMatches && <LiveScoreRefresher hasLiveMatches={hasLiveMatches} />}

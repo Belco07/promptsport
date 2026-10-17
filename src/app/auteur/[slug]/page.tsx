@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { ArrowLeft, FileText, User } from "lucide-react";
+import { FileText, User } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ArticleCard, type ArticleCardData } from "@/components/ArticleCard";
@@ -135,13 +135,7 @@ export default async function AuthorPage({ params }: Props) {
           }}
         />
 
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
-        >
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-          Retour à l&apos;accueil
-        </Link>
+        <Breadcrumbs items={[{ label: author.name, href: `/auteur/${author.slug ?? slug}` }]} />
 
         <header className="mb-10 border-b border-border pb-8">
           <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">

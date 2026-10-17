@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 import { themeBadgeStyle, themeIcon } from "@/lib/themes";
 
@@ -27,13 +26,7 @@ export function ThemeHeader({
 
   return (
     <header className="mb-8 border-b border-border pb-8">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:underline"
-      >
-        <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-        Retour à l&apos;accueil
-      </Link>
+      <Breadcrumbs items={[{ label: "Thèmes", href: "/themes" }, { label: theme.name, href: `/theme/${theme.slug}` }]} />
 
       <div className="mt-6 flex flex-wrap items-center gap-4">
         <span

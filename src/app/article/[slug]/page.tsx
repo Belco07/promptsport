@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { FormatBadge } from "@/components/FormatBadge";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -344,13 +345,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           }}
         />
 
-        <Link
-          href="/"
-          className="mb-8 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
-        >
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-          Retour à l&apos;accueil
-        </Link>
+        <Breadcrumbs items={[{ label: "Actualités", href: "/archives" }, ...(article.category ? [{ label: article.category.name, href: `/archives?category=${encodeURIComponent(article.category.slug)}` }] : []), { label: article.title, href: `/article/${article.slug}` }]} />
 
         <article>
           {article.match && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(sportsEventJsonLd({

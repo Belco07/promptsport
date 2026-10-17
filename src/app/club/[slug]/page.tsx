@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -75,7 +76,7 @@ export default async function ClubPage({ params, searchParams }: Props) {
   const players = tab === "effectif" ? await prisma.player.findMany({ where: { teamId: club.id }, orderBy: { name: "asc" }, select: { id: true, name: true, slug: true, position: true } }) : [];
   return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({ "@context": "https://schema.org", "@type": "SportsTeam", name: club.name, sport: club.sport, url: absoluteUrl(`/club/${club.slug}`), ...(club.logoUrl ? { logo: club.logoUrl } : {}), ...(club.country ? { location: { "@type": "Country", name: club.country } } : {}) }) }}/>
-    <Link href="/scores" className="mb-6 inline-block text-sm font-bold text-editorial-link">← Tous les scores</Link>
+    <Breadcrumbs items={[{ label: "Scores", href: "/scores" }, { label: club.name, href: `/club/${club.slug}` }]} />
     <ClubHeader club={club} competitions={competitions} signedIn={!!session?.user?.id} following={!!follows?.followedTeams.some(team => team.id === club.id)}/>
     <div className="mt-4 flex flex-wrap items-start gap-4">{session?.user?.id && <FollowClubButton clubId={club.id} preferred={reader?.favoriteClubId === club.id}/>}<a href={`/api/club/${club.slug}/calendar.ics`} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-bold text-foreground hover:bg-secondary">Ajouter à mon agenda</a><Link href="/mon-compte/preferences" className="text-sm font-semibold text-editorial-link">Gérer mon digest hebdomadaire</Link></div>
     <ClubPulse pulse={pulse}/>
