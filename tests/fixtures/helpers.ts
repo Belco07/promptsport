@@ -131,31 +131,48 @@ export async function fillArticleContent(page: Page, text: string): Promise<void
  * « minor » restent journalisés sans bloquer — l'interface a des chantiers
  * d'accessibilité connus hors des parcours critiques, et une suite rouge en
  * permanence ne protégerait plus rien.
+ *
+ * WP27 : l'analyse se fait avec `prefers-reduced-motion: reduce`, que
+ * `motion.css` neutralise. Sans cela, axe peut tomber pendant une animation
+ * d'entrée (`fade-up`, `slide-in-right`) : un texte `--muted-foreground`
+ * (#636363) composé à 75 % d'opacité sur fond blanc est mesuré #8a8a8a →
+ * 3,45:1 et la porte échoue sur un état transitoire (arrivé en CI, où le
+ * serveur de développement injecte le CSS au fil de l'hydratation). Un texte
+ * ne se lit pas « à mi-opacité » : c'est l'état stabilisé qui fait foi, et
+ * c'est aussi la recommandation d'axe-core (pas de mesure fiable pendant une
+ * animation).
  */
 export async function expectNoBlockingA11yViolations(
   page: Page,
   context: string,
 ): Promise<void> {
-  const results = await new AxeBuilder({ page }).analyze();
-  const blocking = results.violations.filter(
-    (violation) =>
-      violation.impact === "critical" || violation.impact === "serious",
-  );
-  for (const violation of results.violations.filter(
-    (v) => v.impact !== "critical" && v.impact !== "serious",
-  )) {
-    console.warn(
-      `[a11y] ${context} — ${violation.impact} : ${violation.id} (${violation.nodes.length} élément(s))`,
-    );
-  }
-  const detail = blocking
-    .map(
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  try {
+    const results = await new AxeBuilder({ page }).analyze();
+    const blocking = results.violations.filter(
       (violation) =>
-        `- [${violation.impact}] ${violation.id} : ${violation.help} (${violation.nodes.length} élément(s))`,
-    )
-    .join("\n");
-  expect(
-    blocking,
-    `Violations d'accessibilité critiques sur « ${context} » :\n${detail}`,
-  ).toEqual([]);
+        violation.impact === "critical" || violation.impact === "serious",
+    );
+    for (const violation of results.violations.filter(
+      (v) => v.impact !== "critical" && v.impact !== "serious",
+    )) {
+      console.warn(
+        `[a11y] ${context} — ${violation.impact} : ${violation.id} (${violation.nodes.length} élément(s))`,
+      );
+    }
+    const detail = blocking
+      .map(
+        (violation) =>
+          `- [${violation.impact}] ${violation.id} : ${violation.help} (${violation.nodes.length} élément(s))`,
+      )
+      .join("\n");
+    expect(
+      blocking,
+      `Violations d'accessibilité critiques sur « ${context} » :\n${detail}`,
+    ).toEqual([]);
+  } finally {
+    // Rend la main au test avec les préférences système, l'émulation ne devant
+    // pas fuiter sur les assertions suivantes de la page.
+    await page.emulateMedia({ reducedMotion: null });
+  }
 }
