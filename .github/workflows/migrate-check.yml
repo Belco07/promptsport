@@ -1,0 +1,45 @@
+# Vérifie que la base de production n'a aucune migration en attente.
+#
+# Vercel n'exécute pas `prisma migrate deploy` au déploiement : sans ce
+# contrôle, une migration oubliée en production ne se verrait qu'à l'exécution
+# de la fonctionnalité concernée. Le job compare `prisma/migrations` avec la
+# table `_prisma_migrations` de la base distante (secret DIRECT_URL, chaîne
+# directe Prisma Postgres) et échoue si une migration n'est pas appliquée.
+name: Migrations
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: migrations-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  etat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # --ignore-scripts : `prisma generate` n'est pas nécessaire pour
+      # `migrate status`, et le hook postinstall lirait DATABASE_URL.
+      - name: Installer les dépendances
+        run: npm ci --ignore-scripts
+
+      - name: Vérifier les migrations en attente (production)
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          if [ -z "$DIRECT_URL" ]; then
+            echo "::error::Secret DIRECT_URL manquant : ajoutez la chaîne directe Prisma Postgres dans Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          npx prisma migrate status

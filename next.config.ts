@@ -96,6 +96,14 @@ const nextConfig: NextConfig = {
         source: "/api/club/:slug/calendar.ics",
         headers: [{ key: "Cache-Control", value: "public, max-age=300" }],
       },
+      {
+        // Exception : les logos d'équipes sont publics et durables. La route
+        // `/api/logo/[teamId]` pose déjà `public, max-age=86400`, mais la règle
+        // `/api/:path*` ci-dessus l'écrase — cette entrée plus spécifique la
+        // rétablit (WP30). Pour un même en-tête, la dernière règle qui matche gagne.
+        source: "/api/logo/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400" }],
+      },
       ...[
         "/",
         "/scores",

@@ -79,6 +79,9 @@ export function CommentReactions({
         const count = optimistic.counts[type] ?? 0;
         const active = optimistic.mine === type;
         return (
+          // Compteur sans parenthèses : axe retire le contenu parenthésé des
+          // noms accessibles, le chiffre visible ne serait plus inclus
+          // (label-content-name-mismatch, WP30).
           <button
             key={type}
             type="button"
@@ -86,7 +89,7 @@ export function CommentReactions({
             disabled={!canReact || isPending}
             title={canReact ? REACTION_LABELS[type] : disabledReason}
             aria-pressed={active}
-            aria-label={`${REACTION_LABELS[type]} (${count})`}
+            aria-label={`${REACTION_LABELS[type]} ${count}`}
             className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               active
                 ? "border-editorial-link bg-secondary text-editorial-link"
