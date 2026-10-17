@@ -3,9 +3,10 @@ import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { Prisma } from "@/generated/prisma/client";
 import { ArticleCard, type ArticleCardData } from "@/components/ArticleCard";
-import { HeroArticle } from "@/components/HeroArticle";
-import { SecondaryArticle } from "@/components/SecondaryArticle";
-import { TodayMatchesBar } from "@/components/TodayMatchesBar";
+import { HeroSection } from "@/components/home/HeroSection";
+import { EditionSection } from "@/components/home/EditionSection";
+import { EssentialsSidebar } from "@/components/home/EssentialsSidebar";
+import { LiveBanner } from "@/components/home/LiveBanner";
 import { CompetitionsGrid } from "@/components/CompetitionsGrid";
 import { MostReadList } from "@/components/MostReadList";
 import { SectionBlock } from "@/components/SectionBlock";
@@ -114,8 +115,6 @@ const getLatest = unstable_cache(async (page: number, section: string) => prisma
 function ArticleGrid({ articles }: { articles: ArticleCardData[] }) {
   return articles.length ? <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">{articles.map(article => <ArticleCard key={article.slug} article={article} headingLevel={3} />)}</div> : <p className="py-6 text-sm text-muted-foreground">Les prochaines publications apparaîtront ici.</p>;
 }
-const wireDate = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Africa/Lagos" });
-const wireTime = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
 export default async function Home({ searchParams }: { searchParams: Promise<{ page?: string; rubrique?: string }> }) {
   const params = await searchParams;
   const page = /^\d{1,4}$/.test(params.page ?? "") ? Math.max(1, Number(params.page)) : 1;
@@ -128,33 +127,25 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   const themeTabs = groupThemeTabs(cached.themeTabs);
   const latest = restoreDates(cachedLatest);
   const [lead, ...secondary] = editorial.featured;
+  const unique = (articles: ArticleCardData[]) => [...new Map(articles.map(article => [article.slug, article])).values()];
+  const essentials = unique([...secondary, ...editorial.wire]).filter(article => article.slug !== lead?.slug).slice(0, 3);
+  const headlines = unique([...secondary, ...editorial.wire.filter(article => article.format === "NEWS"), ...latest.filter(article => article.format === "NEWS")]).filter(article => article.slug !== lead?.slug).slice(0, 3);
+  const briefs = [...editorial.wire].sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0)).slice(0, 5);
+  const kicker = cached.themeTabs.find(row => row.id === lead?.id)?.themeName;
+  const editionDate = new Date();
   const pageHref = (value: number) => `/?page=${value}${section ? `&rubrique=${section}` : ""}#derniers-articles`;
-  return <><main id="contenu" className="mx-auto max-w-[1280px] space-y-9 px-4 pb-10 pt-4">
+  return <><main id="contenu" className="mx-auto max-w-[1280px] space-y-10 px-4 pb-10 pt-6 sm:px-6">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organizationJsonLd()) }} />
-    <TodayMatchesBar />
-    <div className="grid gap-x-8 gap-y-9 lg:grid-cols-[minmax(0,1fr)_280px]">
-      <section aria-label="À la une" data-home-hero className="order-2 min-w-0 md:order-1 lg:col-start-1">
-        <p className="mb-4 text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Le sport. Sans détour.</p>
-        {lead ? <div className="grid gap-5 md:grid-cols-[2fr_1fr]"><HeroArticle article={lead} /><div className="space-y-5">{secondary.map(article => <SecondaryArticle key={article.slug} article={article} />)}</div></div> : <h1 className="text-3xl font-black text-foreground">L’actualité sportive arrive bientôt.</h1>}
-      </section>
-      <aside aria-labelledby="fil-info" data-home-wire className="order-1 min-w-0 md:order-2 lg:col-start-2 lg:row-span-3 lg:row-start-1">
-        <div className="border-t-2 border-border bg-card p-4 lg:sticky lg:top-40">
-          <h2 id="fil-info" className="mb-4 text-xl font-black uppercase text-foreground">Le fil info</h2>
-          <ol aria-label="Actualités chronologiques" tabIndex={0} className="max-h-72 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:max-h-[65vh]">{editorial.wire.map(article => <li key={article.slug} className="flex gap-3 border-t border-border py-4"><time dateTime={article.publishedAt?.toISOString()} className="shrink-0 text-xs font-bold text-muted-foreground">{article.publishedAt && <>{wireTime.format(article.publishedAt)}<span className="mt-1 block text-[10px] font-normal">{wireDate.format(article.publishedAt)}</span></>}</time><Link href={`/article/${article.slug}`} className="text-foreground hover:underline"><span className="text-[10px] font-bold uppercase text-muted-foreground">{article.format === "FLASH" ? "FLASH" : "ACTU"} · {article.category?.name}</span><h3 className="mt-1 text-sm font-bold leading-snug">{article.title}</h3></Link></li>)}</ol>
-          <a href="#derniers-articles" className="mt-4 block text-xs font-bold text-foreground hover:underline">Toutes les dernières infos →</a>
-        </div>
-      </aside>
-      <div className="order-3 min-w-0 lg:col-start-1">
-        <SectionBlock id="themes" title="Thèmes" description="Mercato, tactique, interviews : les sujets qui traversent tous les sports.">
-          <ThemeTabs themes={themeTabs} />
-          <p className="mt-6">
-            <Link href="/themes" className="text-sm font-bold text-foreground hover:underline">Tous les thèmes →</Link>
-          </p>
-        </SectionBlock>
-      </div>
-      <div className="order-4 min-w-0 lg:col-start-1"><SectionBlock id="mercato" title="Mercato" href="/theme/mercato" linkLabel="Voir tout le Mercato"><ArticleGrid articles={editorial.mercato} /></SectionBlock></div>
-      <div className="order-5 min-w-0 lg:col-start-1"><SectionBlock id="analyses" title="Analyses" href="/theme/tactique" linkLabel="Voir toutes les analyses"><ArticleGrid articles={editorial.analyses} /></SectionBlock></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-foreground pb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground"><p>Le sport. Sans détour.</p><p className="flex flex-wrap gap-x-4 gap-y-1"><span className="text-editorial-link">Édition du jour</span><time dateTime={editionDate.toISOString()}>{editionDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" })}</time></p></div>
+    <div className="grid grid-cols-1 gap-x-7 gap-y-10 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,.95fr)]">
+      <HeroSection article={lead} kicker={kicker} />
+      <LiveBanner />
+      <EssentialsSidebar essentials={essentials} wire={briefs} />
+      <EditionSection id="analyses" title="Analyses" articles={editorial.analyses.slice(0, 2)} href="/?rubrique=analyses#derniers-articles" />
+      <EditionSection id="mercato" title="Mercato" articles={editorial.mercato.slice(0, 3)} href="/theme/mercato" />
+      <EditionSection id="une" title="À la Une" articles={headlines} href="/#derniers-articles" />
     </div>
+    <SectionBlock id="themes" title="Thèmes" description="Mercato, tactique, interviews : les sujets qui traversent tous les sports."><ThemeTabs themes={themeTabs} /><p className="mt-6"><Link href="/themes" className="text-sm font-bold text-foreground hover:underline">Tous les thèmes →</Link></p></SectionBlock>
     <AdSlotGate><AdSlot /></AdSlotGate>
     <SectionBlock id="competitions" title="Compétitions" href="/scores"><CompetitionsGrid competitions={editorial.competitions} /></SectionBlock>
     <div className="grid gap-8 lg:grid-cols-[2fr_1fr]"><SectionBlock id="plus-lus" title="Les plus lus" description="Les articles les plus consultés ces 7 derniers jours"><MostReadList articles={editorial.popular} /></SectionBlock><aside className="space-y-6"><section className="border border-border bg-card p-6 text-foreground"><p className="text-xs font-bold uppercase">PromptSport +</p><h2 className="my-3 text-3xl font-black">La passion va plus loin.</h2><p className="mb-5 text-sm text-muted-foreground">Analyses, décryptages et articles premium. Vivez le sport avec un temps d’avance.</p><Link href="/abonnement" className="font-bold underline underline-offset-4">Découvrir les offres →</Link></section><AdSlotGate><AdSlot format="rectangle" /></AdSlotGate></aside></div>
