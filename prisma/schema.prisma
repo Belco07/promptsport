@@ -300,6 +300,8 @@ model Competition {
   externalId String?  @unique
   /// Couleur d'accent de la compétition (WP34) : ex. #e30613 pour la Ligue 1.
   color      String?
+  /// URL du logo de la compétition (WP34), affichée dans l'en-tête de page.
+  logoUrl    String?
 
   matches Match[]
 
