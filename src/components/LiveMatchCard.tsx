@@ -12,7 +12,7 @@ type LiveMatch = {
 };
 
 export function LiveMatchCard({ match }: { match: LiveMatch }) {
-  return <Link href={`/match/${match.id}`} aria-label={`${match.homeTeam.name} contre ${match.awayTeam.name}, ${match.homeScore ?? "—"} à ${match.awayScore ?? "—"}, en direct`} className="block rounded-lg border border-border bg-card p-4 text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-editorial-link sm:p-6">
+  return <Link href={`/match/${match.id}`} className="block rounded-lg border border-border bg-card p-4 text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-editorial-link sm:p-6">
     <div className="mb-5 flex items-center justify-center gap-3"><LiveBadge /><span className="rounded-md bg-red-600 px-2 py-0.5 text-xs font-bold text-white">{match.minute ? <LiveMinute minute={match.minute} observedAt={match.minuteObservedAt} periodEnd={match.minutePeriodEnd} /> : "En cours"}</span></div>
     <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
       <Team team={match.homeTeam} />

@@ -9,7 +9,7 @@ export type MatchThreadComment = {
   name: string; ownerId: string | null; parentId: string | null;
   parentName: string | null;
 };
-export function MatchCommentItem({ comment, matchId, userId }: { comment: MatchThreadComment; matchId: string; userId: string | null }) {
+export function MatchCommentItem({ comment, matchId, userId, canReply = true }: { canReply?: boolean; comment: MatchThreadComment; matchId: string; userId: string | null }) {
   const [reply, setReply] = useState(false);
   const [message, setMessage] = useState("");
   const [pending, start] = useTransition();
@@ -19,10 +19,10 @@ export function MatchCommentItem({ comment, matchId, userId }: { comment: MatchT
     {comment.status === "PENDING" && <p className="mt-2 text-xs text-muted-foreground">En attente de modération · visible uniquement par vous</p>}
     <p className="mt-3 whitespace-pre-wrap break-words text-foreground">{comment.content}</p>
     <div className="mt-2 flex gap-4">
-      {userId && comment.status === "APPROVED" && !comment.parentId && <button type="button" aria-expanded={reply} onClick={() => setReply(!reply)} className="min-h-11 text-sm font-semibold text-editorial-link">{reply ? "Annuler la réponse" : "Répondre"}</button>}
+      {canReply && userId && comment.status === "APPROVED" && !comment.parentId && <button type="button" aria-expanded={reply} onClick={() => setReply(!reply)} className="min-h-11 text-sm font-semibold text-editorial-link">{reply ? "Annuler la réponse" : "Répondre"}</button>}
       {userId === comment.ownerId && <button disabled={pending} onClick={() => start(async () => { const result = await deleteMatchComment(matchId, comment.id); setMessage(result.message); })} className="min-h-11 text-sm text-muted-foreground">Supprimer mon commentaire</button>}
     </div>
     {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
-    {reply && <MatchCommentForm matchId={matchId} parentId={comment.id} />}
+    {canReply && reply && <MatchCommentForm matchId={matchId} parentId={comment.id} />}
   </article>;
 }
