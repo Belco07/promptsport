@@ -21,18 +21,18 @@ test('LiveDrawer ouvre les directs et un match rejoint sa fiche',async({page,spo
   await expect(async () => {
     await trigger.click();
     try {
-      await expect(drawer.locator('a[href="/match/'+s.matchId+'"]')).toBeVisible({timeout:2000});
+      await expect(drawer.locator('a[aria-label][href="/match/'+s.matchId+'"]')).toBeVisible({timeout:2000});
     } catch (error) {
       await page.keyboard.press('Escape');
       throw error;
     }
   }).toPass({timeout:90000,intervals:[5000]});
   await expect(drawer).toBeVisible();
-  await expect(drawer.locator('a[href="/match/'+s.matchId+'"]')).toBeVisible();
+  await expect(drawer.locator('a[aria-label][href="/match/'+s.matchId+'"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(drawer).not.toBeVisible();
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await drawer.locator('a[href="/match/'+s.matchId+'"]').click();
+  await drawer.locator('a[aria-label][href="/match/'+s.matchId+'"]').click();
   await expect(page).toHaveURL(new RegExp('/match/'+s.matchId));
 });
