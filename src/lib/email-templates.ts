@@ -1,5 +1,24 @@
 import { absoluteUrl } from "@/lib/seo";
 
+export type ClubAlertEmail = {
+  name: string;
+  clubs: string[];
+  articles: { title: string; slug: string }[];
+  matches: { id: string; label: string; details: string }[];
+};
+
+export function renderClubAlertEmail(data: ClubAlertEmail): { html: string; text: string } {
+  const title = "Du nouveau pour vos clubs";
+  const preferences = absoluteUrl("/mon-compte/preferences");
+  const intro = `Bonjour ${data.name}, voici les nouveautés des dernières 24 heures pour ${data.clubs.join(", ")}.`;
+  const articleHtml = data.articles.length ? `<h2 style="font-size:18px;">À lire</h2><ul>${data.articles.map(article => `<li style="margin:12px 0;"><a href="${escapeHtml(absoluteUrl(`/article/${article.slug}`))}">${escapeHtml(article.title)}</a></li>`).join("")}</ul>` : "";
+  const matchHtml = data.matches.length ? `<h2 style="font-size:18px;">Nouveaux matchs au calendrier</h2><ul>${data.matches.map(match => `<li style="margin:12px 0;"><a href="${escapeHtml(absoluteUrl(`/match/${match.id}`))}">${escapeHtml(match.label)}</a><br/>${escapeHtml(match.details)}</li>`).join("")}</ul>` : "";
+  return {
+    html: layout({ title, previewText: title, contentHtml: `<p>${escapeHtml(intro)}</p>${articleHtml}${matchHtml}${button(preferences, "Gérer mes alertes")}`, footerHtml: `Vous avez activé les alertes pour vos clubs suivis. Un récapitulatif au maximum par période de 24 heures, sans pixel de suivi. <a href="${escapeHtml(preferences)}">Désactiver mes alertes</a>.` }),
+    text: `${title}\n\n${intro}\n\n${data.articles.map(article => `${article.title}\n${absoluteUrl(`/article/${article.slug}`)}`).join("\n\n")}\n\n${data.matches.map(match => `${match.label}\n${match.details}\n${absoluteUrl(`/match/${match.id}`)}`).join("\n\n")}\n\nDésactiver mes alertes : ${preferences}`,
+  };
+}
+
 export type ClubDigestEmail = {
   clubName: string;
   clubSlug: string;

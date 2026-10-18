@@ -23,6 +23,8 @@ datasource db {
 }
 
 model Author {
+  alertsEnabled Boolean @default(false)
+  clubAlertDeliveries ClubAlertDelivery[]
   readerMatchComments MatchComment[] @relation("MatchCommentReader")
   authoredMatchComments MatchComment[] @relation("MatchCommentAuthor")
   favoriteClubId String?
@@ -368,6 +370,19 @@ model ClubDigestDelivery {
   createdAt DateTime @default(now())
   sentAt DateTime?
   @@unique([subscriptionId, week])
+}
+
+model ClubAlertDelivery {
+  id String @id @default(cuid())
+  readerId String
+  reader Author @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  // An ambiguous provider response must not cause an automatic second email.
+  status String @default("RESERVED")
+  providerMessageId String?
+  error String?
+  createdAt DateTime @default(now())
+  sentAt DateTime?
+  @@index([readerId, createdAt])
 }
 
 model ClubRivalry {

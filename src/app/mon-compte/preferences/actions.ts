@@ -22,6 +22,17 @@ import { prisma } from "@/lib/prisma";
 
 const PREFERENCES_PATH = "/mon-compte/preferences";
 
+export async function updateClubAlerts(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  await prisma.author.update({
+    where: { id: session.user.id },
+    data: { alertsEnabled: formData.get("alertsEnabled") === "on" },
+  });
+  revalidatePath(PREFERENCES_PATH);
+  redirect(`${PREFERENCES_PATH}?enregistre=1`);
+}
+
 export async function updateNotificationPreferences(
   _previousState: string | undefined,
   formData: FormData,

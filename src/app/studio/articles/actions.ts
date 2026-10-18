@@ -11,7 +11,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { notifyArticleFollowers } from "@/lib/follows";
+import { notifyArticleFollowers } from "@/lib/notifications";
 import { resolveSlug } from "@/lib/slug";
 import { isArticleStatus, type ArticleStatus } from "@/lib/articleStatus";
 import {

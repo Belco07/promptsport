@@ -1,7 +1,72 @@
-import type { NotificationType } from "@/generated/prisma/client";
+import { Prisma, type NotificationType } from "@/generated/prisma/client";
 import { commentExcerpt } from "@/lib/engagement";
 import { sendNotificationEmail, shouldSendEmail } from "@/lib/notification-email";
 import { prisma } from "@/lib/prisma";
+
+function clubText(text: string): string {
+  return ` ${text.replace(/<[^>]*>/g, " ").toLocaleLowerCase("fr").replace(/[^\p{L}\p{N}]+/gu, " ").trim()} `;
+}
+
+/** Publication callbacks share a lock and never send individual alert emails. */
+export async function notifyArticleFollowers(articleId: string): Promise<void> {
+  try {
+    await prisma.$transaction(async db => {
+      await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`article-follow:${articleId}`}))`;
+      const article = await db.article.findUnique({ where: { id: articleId }, select: { title: true, content: true, slug: true, status: true, publishedAt: true, authorId: true, match: { select: { homeTeamId: true, awayTeamId: true } } } });
+      if (!article || article.status !== "PUBLISHED" || !article.publishedAt || article.publishedAt > new Date()) return;
+      const clubs = await db.team.findMany({ select: { id: true, name: true, shortName: true } });
+      const text = clubText(`${article.title} ${article.content}`);
+      const ids = clubs.filter(club => club.id === article.match?.homeTeamId || club.id === article.match?.awayTeamId || [club.name, club.shortName].some(term => term && clubText(term).trim().length >= 3 && text.includes(clubText(term)))).map(club => club.id);
+      if (!ids.length) return;
+      const linkUrl = `/article/${article.slug}`;
+      const readers = await db.author.findMany({ where: {
+        alertsEnabled: true, id: { not: article.authorId },
+        OR: [{ followedTeams: { some: { id: { in: ids } } } }, { favoriteClubId: { in: ids } }],
+        notifications: { none: { type: "ARTICLE_PUBLISHED", linkUrl } },
+      }, select: { id: true } });
+      if (readers.length) await db.notification.createMany({ data: readers.map(reader => ({ userId: reader.id, type: "ARTICLE_PUBLISHED", title: "Du nouveau sur vos clubs", message: article.title.slice(0, 300), linkUrl })) });
+    });
+  } catch (error) {
+    console.warn("[club-alerts] Notification impossible", error instanceof Error ? error.message : "Erreur inconnue");
+  }
+}
+
+export const CLUB_ALERT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Whole phrases: Inter must not match Interview. No premium content leaves SQL. */
+export async function getClubAlertContent(clubIds: string[], now = new Date(), db: Pick<Prisma.TransactionClient, "$queryRaw" | "match"> = prisma) {
+  if (!clubIds.length) return { articles: [], matches: [] };
+  const cutoff = new Date(now.getTime() - CLUB_ALERT_WINDOW_MS);
+  const articles = await db.$queryRaw<{ id: string; title: string; slug: string }[]>(Prisma.sql`
+    SELECT a.id, a.title, a.slug FROM "Article" a
+    LEFT JOIN "Match" m ON m.id = a."matchId"
+    WHERE a.status = 'PUBLISHED' AND a."publishedAt" >= ${cutoff} AND a."publishedAt" <= ${now}
+      AND (m."homeTeamId" IN (${Prisma.join(clubIds)}) OR m."awayTeamId" IN (${Prisma.join(clubIds)})
+        OR EXISTS (SELECT 1 FROM "Team" t
+          CROSS JOIN LATERAL (VALUES(t.name), (t."shortName")) term(value)
+          WHERE t.id IN (${Prisma.join(clubIds)}) AND length(trim(term.value)) >= 3
+            AND strpos(' ' || trim(regexp_replace(lower(regexp_replace(a.title || ' ' || a.content, '<[^>]*>', ' ', 'g')), '[^[:alnum:]]+', ' ', 'g')) || ' ',
+              ' ' || trim(regexp_replace(lower(term.value), '[^[:alnum:]]+', ' ', 'g')) || ' ') > 0))
+    ORDER BY a."publishedAt" DESC, a.id DESC LIMIT 5
+  `);
+  const matches = await db.match.findMany({ where: { createdAt: { gte: cutoff, lte: now }, OR: [{ homeTeamId: { in: clubIds } }, { awayTeamId: { in: clubIds } }], status: { not: "CANCELLED" } }, select: { id: true, status: true, scheduledAt: true, homeScore: true, awayScore: true, homeTeam: { select: { name: true } }, awayTeam: { select: { name: true } } }, orderBy: [{ scheduledAt: "asc" }, { id: "asc" }], take: 5 });
+  return { articles, matches };
+}
+
+/** Serializes concurrent CLI runs; failed/uncertain sends also consume the slot. */
+export async function reserveClubAlert(readerId: string, now = new Date()) {
+  return prisma.$transaction(async db => {
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`club-alert:${readerId}`}))`;
+    const reader = await db.author.findUnique({ where: { id: readerId }, select: { id: true, name: true, email: true, alertsEnabled: true, emailNotificationsEnabled: true, bannedUntil: true, followedTeams: { select: { id: true, name: true } }, favoriteClub: { select: { id: true, name: true } } } });
+    if (!reader?.alertsEnabled || !reader.emailNotificationsEnabled || (reader.bannedUntil && reader.bannedUntil > now)) return null;
+    if (await db.clubAlertDelivery.findFirst({ where: { readerId, createdAt: { gt: new Date(now.getTime() - CLUB_ALERT_WINDOW_MS) } }, select: { id: true } })) return null;
+    const clubs = [...new Map([...reader.followedTeams, ...(reader.favoriteClub ? [reader.favoriteClub] : [])].map(club => [club.id, club])).values()];
+    const content = await getClubAlertContent(clubs.map(club => club.id), now, db);
+    if (!content.articles.length && !content.matches.length) return null;
+    const delivery = await db.clubAlertDelivery.create({ data: { readerId, createdAt: now }, select: { id: true } });
+    return { deliveryId: delivery.id, reader, clubs, ...content };
+  });
+}
 
 /**
  * Notifications in-app (WP10d), doublées d'un e-mail depuis le WP11e.
