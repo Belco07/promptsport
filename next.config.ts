@@ -50,6 +50,8 @@ const imageConfig: ImageConfig = {
     { protocol: "https", hostname: "media.api-sports.io" },
     // Logos des équipes servis par l'API football-data.org.
     { protocol: "https", hostname: "crests.football-data.org" },
+    // Logos de compétitions depuis Wikimedia Commons (WP34).
+    { protocol: "https", hostname: "upload.wikimedia.org" },
     // Couvertures d'articles stockées dans Vercel Blob en production : l'URL
     // renvoyée par put() est de la forme
     // https://<store>.public.blob.vercel-storage.com/uploads/<uuid>.jpg, et
