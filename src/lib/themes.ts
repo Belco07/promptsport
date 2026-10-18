@@ -84,7 +84,12 @@ function relativeLuminance(hex: string): number {
 /** Texte lisible sur une couleur de thème : noir sur fond clair, blanc sur fond sombre. */
 export function themeTextColor(color?: string | null): string {
   const normalised = normaliseThemeColor(color) ?? THEME_FALLBACK_COLOR;
-  return relativeLuminance(normalised) > 0.45 ? "#111211" : "#ffffff";
+  const luminance = relativeLuminance(normalised);
+  const darkContrast = (luminance + 0.05) / (relativeLuminance("#111211") + 0.05);
+  const lightContrast = 1.05 / (luminance + 0.05);
+  if (darkContrast >= 4.5) return "#111211";
+  if (lightContrast >= 4.5) return "#ffffff";
+  return "#000000";
 }
 
 /**

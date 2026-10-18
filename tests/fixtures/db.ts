@@ -44,6 +44,8 @@ function resolveDatabaseUrl(): string {
       "DATABASE_URL est introuvable : renseignez .env (voir .env.example) ou l'environnement du workflow E2E.",
     );
   }
+  const target = new URL(url);
+  if (!["localhost", "127.0.0.1"].includes(target.hostname) || (target.port && target.port !== "5432")) throw new Error("E2E interdit hors PostgreSQL Docker local : localhost:5432.");
   return url;
 }
 

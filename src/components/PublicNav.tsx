@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Menu, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { NavSearch } from "@/components/NavSearch";
 import Image from "next/image";
 import Link from "next/link";
@@ -15,14 +15,17 @@ import { useMounted } from "@/lib/use-mounted";
  * Barre de navigation publique (WP9, identité éditoriale « news »).
  *
  * Logo à gauche, rubriques au centre (dont un menu déroulant Compétitions) et
- * bandeau « À suivre » des compétitions ; compte utilisateur à droite. Sous
- * 768 px, les rubriques et le compte sont repliés dans un panneau ouvert par le
- * bouton burger.
+ * bandeau « À suivre » des compétitions ; compte utilisateur à droite.
  *
- * Ce composant reste le seul composant client du chrome public : il n'existe
- * pas d'alternative serveur pour un menu déroulant et un panneau mobile. Les
- * compétitions lui sont fournies par le layout (composant serveur) : aucun
- * chargement différé, aucun appel réseau supplémentaire.
+ * WP33 : la barre est masquée sous 768 px (`hidden md:block`) — la navigation
+ * mobile vit désormais dans `BottomNav` (barre fixe en bas d'écran) et dans le
+ * tiroir « EN DIRECT », pour éviter les doublons. Le bouton burger et son
+ * panneau, devenus inatteignables, ont été retirés.
+ *
+ * Ce composant reste le seul composant client du chrome public (desktop) : il
+ * n'existe pas d'alternative serveur pour un menu déroulant. Les compétitions
+ * lui sont fournies par le layout (composant serveur) : aucun chargement
+ * différé, aucun appel réseau supplémentaire.
  *
  * Le layout racine enveloppe aussi /studio, /backoffice et /login : on masque
  * donc la barre sur ces routes pour ne pas polluer les espaces d'administration
@@ -34,12 +37,6 @@ import { useMounted } from "@/lib/use-mounted";
  */
 
 export type NavCompetition = { slug: string; name: string };
-
-const NAV_LINKS = [
-  { href: "/", label: "Accueil" },
-  { href: "/scores", label: "Scores" },
-  { href: "/abonnement", label: "Abonnement" },
-];
 
 export function PublicNav({
   competitions = [],
@@ -67,20 +64,17 @@ export function PublicNav({
   // l'hydratation (erreur « Hydration failed » observée, qui laissait ensuite
   // les interactions de la page inertes).
   const mounted = useMounted();
-  const [burgerOpen, setBurgerOpen] = useState(false);
   const [competitionsOpen, setCompetitionsOpen] = useState(false);
-  const burgerButtonRef = useRef<HTMLButtonElement>(null);
   const competitionsRef = useRef<HTMLDivElement>(null);
 
-  // Referme les panneaux à chaque changement de page.
+  // Referme le menu déroulant à chaque changement de page.
   useEffect(() => {
-    setBurgerOpen(false);
     setCompetitionsOpen(false);
   }, [pathname]);
 
   // Menu déroulant : fermeture au clic extérieur et sur Échap.
   useEffect(() => {
-    if (!competitionsOpen && !burgerOpen) return;
+    if (!competitionsOpen) return;
     function handlePointerDown(event: MouseEvent) {
       if (competitionsRef.current && !competitionsRef.current.contains(event.target as Node)) {
         setCompetitionsOpen(false);
@@ -89,8 +83,6 @@ export function PublicNav({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setCompetitionsOpen(false);
-        setBurgerOpen(false);
-        if (burgerOpen) burgerButtonRef.current?.focus();
       }
     }
     document.addEventListener("mousedown", handlePointerDown);
@@ -99,7 +91,7 @@ export function PublicNav({
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [competitionsOpen, burgerOpen]);
+  }, [competitionsOpen]);
 
   const isAdminOrLogin =
     pathname === "/login" ||
@@ -133,7 +125,9 @@ export function PublicNav({
           barre sur /login, /studio et /backoffice). */}
       {scoresBar}
 
-      <header className="editorial-header sticky top-0 z-30 border-b border-border border-t-4 border-t-editorial-link bg-background/95 backdrop-blur">
+      {/* WP33 : la barre est réservée au desktop — le mobile utilise la barre
+          fixe `BottomNav` et le tiroir « EN DIRECT ». */}
+      <header className="editorial-header sticky top-0 z-30 hidden border-b border-border border-t-4 border-t-editorial-link bg-background/95 backdrop-blur md:block">
       <nav
         aria-label="Navigation principale"
         className="relative mx-auto flex h-[55px] max-w-[1280px] items-center justify-between gap-4 px-4 max-[600px]:h-[44px]"
@@ -231,26 +225,8 @@ export function PublicNav({
           {/* Sélecteur de thème (WP13a), à côté du compte. */}
           <ThemeToggle />
 
-          {/* Compte : sur mobile, il est replié dans le panneau burger. */}
-          <div className="hidden md:block">
-            <UserMenu showSportLink={false} />
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex items-center justify-center border border-border p-2 text-foreground transition-colors hover:bg-muted md:hidden"
-            aria-expanded={burgerOpen}
-            ref={burgerButtonRef}
-            aria-controls="menu-mobile"
-            aria-label={burgerOpen ? "Fermer le menu" : "Ouvrir le menu"}
-            onClick={() => setBurgerOpen((open) => !open)}
-          >
-            {burgerOpen ? (
-              <X aria-hidden="true" className="h-5 w-5" />
-            ) : (
-              <Menu aria-hidden="true" className="h-5 w-5" />
-            )}
-          </button>
+          {/* Compte utilisateur (desktop : la barre est masquée sur mobile). */}
+          <UserMenu showSportLink={false} />
         </div>
       </nav>
 
@@ -276,58 +252,6 @@ export function PublicNav({
         </nav>
       ) : null}
 
-      {burgerOpen ? (
-        <div
-          id="menu-mobile"
-          className="animate-fade-up border-t border-border bg-background px-4 pb-5 pt-3 md:hidden"
-        >
-          <ul className="flex flex-col gap-1">
-            {NAV_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  aria-current={isActive(link.href) ? "page" : undefined}
-                  className={`block px-3 py-2.5 text-base font-semibold ${
-                    isActive(link.href)
-                      ? "bg-muted text-editorial-link"
-                      : "text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-
-          <p className="mt-4 px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Compétitions
-          </p>
-          <ul className="mt-1 flex flex-col">
-            {competitions.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-muted-foreground">Aucune compétition suivie.</li>
-            ) : (
-              competitions.map((competition) => (
-                <li key={competition.slug}>
-                  <Link
-                    href={`/competition/${competition.slug}`}
-                    className="block px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
-                  >
-                    {competition.name}
-                  </Link>
-                </li>
-              ))
-            )}
-          </ul>
-
-          <div className="mt-4 border-t border-border pt-4">
-            <UserMenu />
-          </div>
-
-          <div className="mt-3">
-            <ThemeToggle />
-          </div>
-        </div>
-      ) : null}
       </header>
     </>
   );

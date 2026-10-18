@@ -98,11 +98,11 @@ test.describe("Fiche match (scores + timeline)", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: `${homeName} contre ${awayName}` }),
     ).toBeVisible();
-    await expect(page.getByText("2 – 1", { exact: true })).toBeVisible();
+    await expect(page.locator("main header p").filter({ hasText: /^2\s*–\s*1$/ })).toBeVisible();
     await expect(page.getByText("Stade E2E")).toBeVisible();
 
     // 3. Timeline (onglet Résumé par défaut) : buts, carton, remplacement.
-    await expect(page.getByRole("heading", { name: "Résumé" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Le Résumé" })).toBeVisible();
     await expect(page.getByText(/But · A\. Etoile/)).toBeVisible();
     await expect(page.getByText(/But · B\. Comete/)).toBeVisible();
     await expect(page.getByText(/Carton jaune · C\. Rocher/)).toBeVisible();

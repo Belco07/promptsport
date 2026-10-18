@@ -128,6 +128,10 @@ button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); ou
   --accent: 69.4 100% 50%;
   /* Lien éditorial (--ed-link) : olive lisible sur fond clair. */
   --ed-link: #4b5e00;
+  /* Hauteur de la barre de navigation mobile (WP33) : la barre fixe, le bouton
+     flottant « EN DIRECT » et la réserve d'espace en fin de page s'y adossent.
+     La zone sûre iOS est incluse (viewport-fit=cover l'expose via env()). */
+  --mobile-nav-height: calc(4.75rem + env(safe-area-inset-bottom));
 }
 
 .dark {

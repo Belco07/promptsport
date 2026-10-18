@@ -20,15 +20,17 @@ export async function createMatchComment(matchId: string, _previous: { ok: boole
     if (!user || (user.bannedUntil && user.bannedUntil > new Date())) return fail("Votre compte ne peut pas commenter actuellement.");
     const match = await tx.match.findUnique({ where: { id: matchId }, select: { status: true } });
     if (!match) return fail("Match introuvable.");
+    const phase = match.status === "LIVE" ? "LIVE" : match.status === "FINISHED" ? "POST_MATCH" : "PRE_MATCH";
+    if (form.get("phase") && form.get("phase") !== phase) return fail("La phase du match a changé. Actualisez la page avant de commenter.");
     const count = await tx.matchComment.count({ where: { matchId, OR: [{ readerId: user.id }, { authorId: user.id }], createdAt: { gt: new Date(Date.now() - MATCH_COMMENT_RATE_LIMIT.windowMs) } } });
     if (count >= MATCH_COMMENT_RATE_LIMIT.max) return fail("Vous avez atteint la limite de 10 commentaires par match et par heure.");
-    const parent = parentId ? await tx.matchComment.findUnique({ where: { id: parentId }, select: { matchId: true, parentId: true, status: true, readerId: true, authorId: true } }) : null;
-    if (parentId && (!parent || parent.matchId !== matchId || parent.parentId || parent.status !== "APPROVED")) return fail("Ce commentaire ne peut pas recevoir de réponse.");
+    const parent = parentId ? await tx.matchComment.findUnique({ where: { id: parentId }, select: { phase: true, matchId: true, parentId: true, status: true, readerId: true, authorId: true } }) : null;
+    if (parentId && (!parent || parent.matchId !== matchId || parent.parentId || parent.status !== "APPROVED" || parent.phase !== phase)) return fail("Ce commentaire ne peut pas recevoir de réponse.");
     const subscription = user.isPremium ? true : !!await tx.subscription.findFirst({ where: { userId: user.id, status: { in: ["ACTIVE", "TRIALING"] }, currentPeriodEnd: { gt: new Date() } }, select: { id: true } });
     const approved = subscription || user.role === "ADMIN" || user.role === "EDITOR";
     const comment = await tx.matchComment.create({ data: {
       matchId, content, parentId, readerId: user.role === "READER" ? user.id : null, authorId: user.role === "READER" ? null : user.id,
-      phase: match.status === "LIVE" ? "LIVE" : match.status === "FINISHED" ? "POST_MATCH" : "PRE_MATCH",
+      phase,
       status: approved ? "APPROVED" : "PENDING",
     } });
     const recipient = parent?.readerId ?? parent?.authorId;

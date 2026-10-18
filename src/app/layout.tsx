@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { unstable_cache } from "next/cache";
 import localFont from "next/font/local";
 
@@ -8,6 +8,9 @@ import { AdSlotGate } from "@/components/AdSlotGate";
 import { PublicNav, type NavCompetition } from "@/components/PublicNav";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { UrgentBanner } from "@/components/UrgentBanner";
+import { BottomNav } from "@/components/mobile/BottomNav";
+import { LiveDrawer, type LiveDrawerMatch } from "@/components/mobile/LiveDrawer";
+import { withStoredMatchClocks } from "@/lib/allsports-sync";
 import { getUrgentArticle } from "@/lib/featured";
 import { prisma } from "@/lib/prisma";
 import {
@@ -96,6 +99,14 @@ export const metadata: Metadata = {
 };
 
 /**
+ * Fenêtre d'affichage (WP33) : `viewport-fit=cover` expose les zones sûres iOS
+ * (`env(safe-area-inset-*)`) auxquelles s'adosse le chrome mobile (barre de
+ * navigation, tiroir « EN DIRECT »). Next complète l'entrée par défaut
+ * (`width=device-width, initial-scale=1`).
+ */
+export const viewport: Viewport = { viewportFit: "cover" };
+
+/**
  * Compétitions du menu déroulant de la barre publique (WP9).
  *
  * La requête est mise en cache cinq minutes : le menu est identique sur toutes
@@ -136,14 +147,93 @@ const getCachedUrgentArticle = unstable_cache(
 );
 
 
+/**
+ * Matchs en direct du tiroir mobile (WP33).
+ *
+ * Requête volontairement légère (20 matchs maximum, champs d'affichage
+ * seulement, logos servis par le proxy WP30) et mise en cache 30 s : le layout
+ * est rendu sur toutes les pages publiques. Le tiroir la relit via une Server
+ * Action à l'ouverture et se contente de cette relecture — pas de WebSocket.
+ *
+ * La minute affichée vient de la dernière horloge connue des synchronisations
+ * (`withStoredMatchClocks`), sinon du dernier événement du match.
+ */
+const getLiveMatches = unstable_cache(
+  async (): Promise<LiveDrawerMatch[]> => {
+    try {
+      const matches = await prisma.match.findMany({
+        where: { status: "LIVE" },
+        orderBy: { scheduledAt: "asc" },
+        take: 20,
+        select: {
+          id: true,
+          status: true,
+          scheduledAt: true,
+          homeScore: true,
+          awayScore: true,
+          events: {
+            orderBy: [{ minute: "desc" }, { extraMinute: "desc" }],
+            take: 1,
+            select: { minute: true, extraMinute: true, createdAt: true },
+          },
+          competition: { select: { name: true } },
+          homeTeam: { select: { name: true, slug: true, shortName: true, logoUrl: true } },
+          awayTeam: { select: { name: true, slug: true, shortName: true, logoUrl: true } },
+        },
+      });
+      const withClocks = await withStoredMatchClocks(
+        matches.map((match) => {
+          const last = match.events[0];
+          return {
+            ...match,
+            minute: last
+              ? `${last.minute}${last.extraMinute ? `+${last.extraMinute}` : ""}′`
+              : null,
+            minuteObservedAt: last ? last.createdAt.toISOString() : null,
+          };
+        }),
+      );
+      return withClocks.map((match) => ({
+        id: match.id,
+        status: match.status,
+        scheduledAt: match.scheduledAt,
+        homeScore: match.homeScore,
+        awayScore: match.awayScore,
+        minute: match.minute,
+        minuteObservedAt: match.minuteObservedAt,
+        minutePeriodEnd: match.minutePeriodEnd,
+        competition: match.competition,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+      }));
+    } catch (error) {
+      console.warn("[mobile] matchs en direct indisponibles :", error);
+      return [];
+    }
+  },
+  ["mobile-live-matches"],
+  { revalidate: 30 },
+);
+
+/**
+ * Relecture du tiroir (WP33) : Server Action légère appelée à l'ouverture et
+ * par la relecture silencieuse du composant — jamais de flux permanent.
+ */
+async function getLiveMatchesAction(): Promise<LiveDrawerMatch[]> {
+  "use server";
+  return getLiveMatches();
+}
+
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [competitions, urgent] = await Promise.all([
+  const [competitions, urgent, liveMatches] = await Promise.all([
     getNavCompetitions(),
     getCachedUrgentArticle().catch(() => null),
+    getLiveMatches(),
   ]);
 
   return (
@@ -179,6 +269,11 @@ export default async function RootLayout({
             scoresBar={<AdSlotGate><div className="border-b border-border bg-background px-3 py-3"><AdSlot format="leaderboard" /></div></AdSlotGate>}
           />}>
           {children}
+          {/* Chrome mobile (WP33) : barre de navigation fixe et tiroir
+              « EN DIRECT », masqués à partir de 768 px et sur les pages
+              techniques (chacun porte ses propres exclusions). */}
+          <BottomNav />
+          <LiveDrawer initialMatches={liveMatches} refreshAction={getLiveMatchesAction} />
           {/* Collecte analytics first-party (WP8d) : un beacon après `load`. */}
           <Analytics />
           </PublicShell>
