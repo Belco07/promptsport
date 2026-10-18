@@ -11,6 +11,9 @@ export const test = base.extend<{ sports: Sports }>({
     const user = { email: `${readerId}@example.test`, password: "E2e-Wp36-2026!", name: readerId };
     try {
       await page.setExtraHTTPHeaders({ "x-forwarded-for": readerId });
+      // Telemetry is outside these sports journeys. Do not let a late beacon
+      // recreate analytics rows while the test's reader is being removed.
+      await page.route("**/api/analytics/track", route => route.fulfill({ status: 204 }));
       await sql('INSERT INTO "Author"(id,name,email,"passwordHash",role,"createdAt") VALUES($1,$2,$3,$4,\'READER\',NOW())', [readerId, user.name, user.email, await hash(user.password, 10)]);
       await sql('INSERT INTO "Competition"(id,name,slug,sport,"createdAt","updatedAt") VALUES($1,\'Compétition WP36\',$1,\'football\',NOW(),NOW())', [competitionId]);
       await sql('INSERT INTO "Team"(id,name,slug,sport,"createdAt","updatedAt") VALUES($1,$2,$1,\'football\',NOW(),NOW()),($3,$4,$3,\'football\',NOW(),NOW())', [homeId, homeName, awayId, awayName]);
