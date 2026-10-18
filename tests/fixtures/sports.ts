@@ -21,9 +21,10 @@ export const test = base.extend<{ sports: Sports }>({
     } finally {
       try {
         // Stop late client beacons before removing their reader and owned data.
+        const visitorId = (await page.context().cookies()).find(cookie => cookie.name === "ps_vid")?.value ?? null;
         if (!page.isClosed()) await page.close();
-        await sql('DELETE FROM "AnalyticsPageView" WHERE "visitorId" IN (SELECT "visitorId" FROM "AnalyticsVisitor" WHERE "userId"=$1)', [readerId]);
-        await sql('DELETE FROM "AnalyticsVisitor" WHERE "userId"=$1', [readerId]);
+        await sql('DELETE FROM "AnalyticsPageView" WHERE "visitorId"=$2 OR "visitorId" IN (SELECT "visitorId" FROM "AnalyticsVisitor" WHERE "userId"=$1)', [readerId, visitorId]);
+        await sql('DELETE FROM "AnalyticsVisitor" WHERE "userId"=$1 OR "visitorId"=$2', [readerId, visitorId]);
         await sql('DELETE FROM "ManOfTheMatchVote" WHERE "matchId"=$1', [matchId]);
         await sql('DELETE FROM "Match" WHERE id=$1', [matchId]);
         await sql('DELETE FROM "Author" WHERE id=$1', [readerId]);
