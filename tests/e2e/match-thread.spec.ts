@@ -54,6 +54,8 @@ test.describe("Discussion par match", () => {
     await clickActionButton(page, "Supprimer mon commentaire");
     await expect(page.getByText(message, { exact: true })).toHaveCount(0);
     expect((await sqlOne<{ status: string }>('SELECT status FROM "MatchComment" WHERE id=$1', [saved!.id]))?.status).toBe("DELETED");
+    await page.reload();
+    await expect(page.getByText(message, { exact: true })).toHaveCount(0);
   });
   test("phase active selon le statut et sous-onglets accessibles au clavier", async ({ page }) => {
     for (const [status, label] of [["SCHEDULED", "Avant-match"], ["LIVE", "En direct"], ["FINISHED", "Après-match"]]) {
@@ -61,6 +63,8 @@ test.describe("Discussion par match", () => {
       await page.goto(`/match/${matchId}?tab=discussion`);
       await expect(page.getByRole("tab", { name: new RegExp(`^${label}`) })).toHaveAttribute("aria-selected", "true");
     }
+    // Keyboard handlers are available only after the server-rendered tabs hydrate.
+    await expect(page.getByRole("tablist", { name: "Phases de la discussion" })).toHaveAttribute("aria-busy", "false");
     await page.getByRole("tab", { name: /^Après-match/ }).focus();
     await page.keyboard.press("Home");
     await expect(page.getByRole("tab", { name: /^Avant-match/ })).toHaveAttribute("aria-selected", "true");

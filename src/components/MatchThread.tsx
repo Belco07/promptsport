@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LiveCommentFeed } from "@/components/LiveCommentFeed";
 import { MatchCommentForm } from "@/components/MatchCommentForm";
 import { MatchCommentItem, type MatchThreadComment } from "@/components/MatchCommentItem";
@@ -11,13 +12,16 @@ export function MatchThread({ matchId, live, phase, counts, comments, userId, ba
   matchId: string; live: boolean; phase: string; counts: Record<string, number>; comments: MatchThreadComment[];
   userId: string | null; banned: boolean; currentPhase: string;
 }) {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(true); }, []);
   const tabs = useRef<Array<HTMLAnchorElement | null>>([]);
   return <div id="discussion" className="space-y-5">
     <LiveCommentFeed live={live} />
-    <div role="tablist" aria-label="Phases de la discussion" className="flex gap-2 overflow-x-auto border-b border-border">
-      {phases.map((item, index) => <Link key={item.key} ref={node => { tabs.current[index] = node; }} role="tab" id={`phase-${item.key}`} aria-selected={phase === item.key} aria-controls="thread-panel" tabIndex={phase === item.key ? 0 : -1} href={`/match/${matchId}?tab=discussion&phase=${item.key}#discussion`} onKeyDown={event => {
+    <div role="tablist" aria-busy={!ready} aria-label="Phases de la discussion" className="flex gap-2 overflow-x-auto border-b border-border">
+      {phases.map((item, index) => <Link scroll={false} key={item.key} ref={node => { tabs.current[index] = node; }} role="tab" id={`phase-${item.key}`} aria-selected={phase === item.key} aria-controls="thread-panel" tabIndex={phase === item.key ? 0 : -1} href={`/match/${matchId}?tab=discussion&phase=${item.key}`} onKeyDown={event => {
         const next = event.key === "ArrowRight" ? (index + 1) % 3 : event.key === "ArrowLeft" ? (index + 2) % 3 : event.key === "Home" ? 0 : event.key === "End" ? 2 : null;
-        if (next !== null) { event.preventDefault(); tabs.current[next]?.focus(); tabs.current[next]?.click(); }
+        if (next !== null) { event.preventDefault(); tabs.current[next]?.focus(); router.push(`/match/${matchId}?tab=discussion&phase=${phases[next].key}`, { scroll: false }); }
       }} className={`min-h-11 shrink-0 border-b-2 px-3 py-3 text-sm font-bold ${phase === item.key ? "border-editorial-link text-editorial-link" : "border-transparent text-muted-foreground"}`}>{item.label} ({counts[item.key] ?? 0})</Link>)}
     </div>
     <div id="thread-panel" role="tabpanel" aria-labelledby={`phase-${phase}`} tabIndex={0} className="space-y-4">
