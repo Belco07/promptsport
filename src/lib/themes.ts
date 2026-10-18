@@ -87,7 +87,9 @@ export function themeTextColor(color?: string | null): string {
   const luminance = relativeLuminance(normalised);
   const darkContrast = (luminance + 0.05) / (relativeLuminance("#111211") + 0.05);
   const lightContrast = 1.05 / (luminance + 0.05);
-  return darkContrast >= lightContrast ? "#111211" : "#ffffff";
+  if (darkContrast >= 4.5) return "#111211";
+  if (lightContrast >= 4.5) return "#ffffff";
+  return "#000000";
 }
 
 /**

@@ -15,8 +15,18 @@ test('LiveDrawer ouvre les directs et un match rejoint sa fiche',async({page,spo
   await page.goto('/competition/'+s.competitionId+'?tab=live');
   const trigger=page.getByRole('button',{name:'Ouvrir les matchs en direct',exact:true});
   await expect(trigger).toBeVisible({timeout:90000});
-  await trigger.click();
   const drawer=page.getByRole('dialog',{name:'Matchs en direct',exact:true});
+  // WP33 caches the shared list for 30s. Reopening refreshes it, including
+  // when another parallel test populated the cache before our fixture existed.
+  await expect(async () => {
+    await trigger.click();
+    try {
+      await expect(drawer.locator('a[href="/match/'+s.matchId+'"]')).toBeVisible({timeout:2000});
+    } catch (error) {
+      await page.keyboard.press('Escape');
+      throw error;
+    }
+  }).toPass({timeout:90000,intervals:[5000]});
   await expect(drawer).toBeVisible();
   await expect(drawer.locator('a[href="/match/'+s.matchId+'"]')).toBeVisible();
   await page.keyboard.press('Escape');
