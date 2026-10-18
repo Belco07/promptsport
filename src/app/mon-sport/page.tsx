@@ -9,7 +9,7 @@ import { StandingsLegend } from "@/components/StandingsLegend";
 import { ArticleCard } from "@/components/ArticleCard";
 import { MatchCard } from "@/components/MatchCard";
 import { StandingsTable } from "@/components/StandingsTable";
-import { FollowButton } from "@/components/FollowButton";
+import { FollowPill } from "@/components/ui/FollowPill";
 import { Footer } from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
@@ -46,11 +46,11 @@ export default async function MySportPage() {
     </section>}
 
     {(teamIds.length > 0 || competitionIds.length > 0) && <section aria-labelledby="my-favorites">
-      <h2 id="my-favorites" className="mb-4 text-2xl font-bold">Mes favoris</h2>
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {follows.followedTeams.map(team => <li key={team.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-4"><span className="font-semibold">{team.name}</span><FollowButton id={team.id} kind="team" name={team.name} following signedIn /></li>)}
-        {follows.followedCompetitions.map(competition => <li key={competition.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-4"><Link href={`/competition/${competition.slug}`} className="font-semibold hover:text-editorial-link">{competition.name}</Link><FollowButton id={competition.id} kind="competition" name={competition.name} following signedIn /></li>)}
-      </ul>
+      <h2 id="my-favorites" className="mb-6 text-2xl font-black uppercase text-foreground">Mes favoris</h2>
+      <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        {follows.followedTeams.map(team => <FollowPill key={team.id} id={team.id} kind="team" name={team.name} logoUrl={null} slug={team.slug} following signedIn />)}
+        {follows.followedCompetitions.map(competition => <FollowPill key={competition.id} id={competition.id} kind="competition" name={competition.name} logoUrl={null} slug={competition.slug} following signedIn />)}
+      </div>
     </section>}
 
     <section aria-labelledby="my-news">
@@ -81,11 +81,8 @@ export default async function MySportPage() {
     </section>
 
     <section id="decouvrir" className="scroll-mt-32 border-t border-border pt-8" aria-labelledby="discover-sports">
-      <h2 id="discover-sports" className="mb-5 text-2xl font-bold">Découvrir les clubs et compétitions</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{discover.map(competition => <div key={competition.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card p-4">
-        <div><Link href={`/competition/${competition.slug}#clubs`} className="font-bold text-editorial-link hover:underline">{competition.name}</Link><p className="mt-1 text-sm text-muted-foreground">{competition.country} · Voir les clubs</p></div>
-        <FollowButton id={competition.id} kind="competition" name={competition.name} following={competitionIds.includes(competition.id)} signedIn />
-      </div>)}</div>
+      <h2 id="discover-sports" className="mb-6 text-2xl font-black uppercase text-foreground">Découvrir les clubs et compétitions</h2>
+      <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">{discover.map(competition => <FollowPill key={competition.id} id={competition.id} kind="competition" name={competition.name} logoUrl={null} slug={competition.slug} following={competitionIds.includes(competition.id)} signedIn />)}</div>
       {!discover.length && <p className="text-muted-foreground">Les compétitions seront bientôt disponibles.</p>}
     </section>
   </main><Footer /></>;

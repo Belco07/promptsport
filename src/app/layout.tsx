@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { unstable_cache } from "next/cache";
 import localFont from "next/font/local";
+import { Sora } from "next/font/google";
 
 import { Analytics } from "@/components/Analytics";
 import { AdSlot } from "@/components/AdSlot";
@@ -49,6 +50,23 @@ const inter = localFont({
   adjustFontFallback: false,
   display: "swap",
   variable: "--font-inter",
+});
+
+/**
+ * Police d'affichage pour les gros titres (WP34).
+ *
+ * Sora est chargée depuis Google Fonts et auto-hébergée au build par Next.js :
+ * aucun appel réseau à l'exécution, et `display: "swap"` évite un texte
+ * invisible pendant le téléchargement. La variable `--font-sora` est consommée
+ * par tailwind.config.js (fontFamily.display) et appliquée aux h1/h2 dans
+ * src/app/globals.css.
+ */
+const sora = Sora({
+  weight: ["200", "800"],
+  style: "normal",
+  display: "swap",
+  variable: "--font-sora",
+  subsets: ["latin"],
 });
 
 /**
@@ -237,7 +255,7 @@ export default async function RootLayout({
   ]);
 
   return (
-    <html lang="fr" className={inter.variable} suppressHydrationWarning>
+    <html lang="fr" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <head>
         {/* Découverte automatique du flux RSS (WP8b). Déclarée ici plutôt que
             dans `metadata.alternates` : chaque page publique remplace

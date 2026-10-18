@@ -118,10 +118,10 @@ export function MatchCard({
   const pending = match.status === "SCHEDULED" && match.scheduledAt <= new Date();
   const scoreLabel = showScore ? (hasScore ? `${match.homeScore} - ${match.awayScore}` : "—") : match.status === "SCHEDULED" && !pending ? match.scheduledAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }) : "—";
 
-  if (compact) return <article className="col-span-full overflow-hidden rounded-lg border border-border bg-card"><p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{match.competition?.name}</p><ScoreRow match={{ ...match, homeTeam: { ...match.homeTeam, logoUrl: match.homeTeam.logoUrl ? teamLogoSource(match.homeTeam.logoUrl) : null }, awayTeam: { ...match.awayTeam, logoUrl: match.awayTeam.logoUrl ? teamLogoSource(match.awayTeam.logoUrl) : null } }}/></article>;
+  if (compact) return <article className="col-span-full overflow-hidden rounded-2xl border border-border bg-card shadow-sm"><p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{match.competition?.name}</p><ScoreRow match={{ ...match, homeTeam: { ...match.homeTeam, logoUrl: match.homeTeam.logoUrl ? teamLogoSource(match.homeTeam.logoUrl) : null }, awayTeam: { ...match.awayTeam, logoUrl: match.awayTeam.logoUrl ? teamLogoSource(match.awayTeam.logoUrl) : null } }}/></article>;
   return (
     <Card as="article" interactive>
-      <div className="block rounded-xl p-4">
+      <div className="block rounded-2xl p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="truncate text-xs font-semibold uppercase tracking-wide text-neutral-500 [.public-site_&]:text-muted-foreground">
             {match.competition?.name ?? "Match"}

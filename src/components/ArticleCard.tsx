@@ -46,7 +46,7 @@ export function ArticleCard({
     <Card
       as="article"
       interactive
-      className="editorial-card animate-fade-up flex flex-col overflow-hidden rounded-none border-x-0 border-t-0 border-b border-b-border shadow-none hover:shadow-none"
+      className="editorial-card animate-fade-up flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm hover:shadow-card-hover transition-shadow duration-200"
     >
       <Link
         href={href}

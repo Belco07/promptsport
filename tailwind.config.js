@@ -171,8 +171,8 @@ module.exports = {
       fontFamily: {
         // `--font-inter` est posé par next/font dans src/app/layout.tsx.
         sans: ["var(--font-inter)", ...fallbackSans],
-        // Titres : même famille, graisses plus fortes (700/800).
-        display: ["var(--font-inter)", ...fallbackSans],
+        // Titres : police d'affichage Sora (WP34), graisses plus fortes (700/800).
+        display: ["var(--font-sora)", ...fallbackSans],
       },
 
       /**

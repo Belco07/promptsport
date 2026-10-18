@@ -170,9 +170,15 @@ button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); ou
     line-height: 1.6;
   }
 
-  /* Titres : graisse forte et interlettrage resserré (hiérarchie éditoriale). */
+  /* Titres : police d'affichage Sora (WP34), graisse forte et interlettrage resserré (hiérarchie éditoriale). */
   h1,
-  h2,
+  h2 {
+    font-family: var(--font-sora);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
   h3,
   h4 {
     font-weight: 700;

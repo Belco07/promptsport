@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { buildPageMetadata, itemListJsonLd, jsonLdString } from "@/lib/seo";
 import { ScoreRow } from "@/components/ScoreRow";
 import { ScoresControls } from "@/components/ScoresControls";
+import { FollowPill } from "@/components/ui/FollowPill";
 import { AdSlot } from "@/components/AdSlot";
 import { Footer } from "@/components/Footer";
 import { auth } from "@/lib/auth";
@@ -30,7 +31,7 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
   };
   const [storedMatches,competitions,session,lastUpdate]=await Promise.all([
     prisma.match.findMany({where,orderBy:{scheduledAt:view==="finished"?"desc":"asc"},...(view!=="day"?{take:100}:{}),include:{homeTeam:true,awayTeam:true,competition:true,events:{orderBy:[{minute:"desc"},{extraMinute:"desc"}],take:1,select:{minute:true,extraMinute:true,createdAt:true}}}}),
-    prisma.competition.findMany({orderBy:{name:"asc"},select:{slug:true,name:true,sport:true}}),auth(),getLastSportsUpdate(),
+    prisma.competition.findMany({orderBy:{name:"asc"},select:{slug:true,name:true,sport:true,id:true}}),auth(),getLastSportsUpdate(),
   ]);
   const snapshots=await withLocalFootballLive(await withStoredMatchClocks(storedMatches));
   const matches=view==="live"?snapshots.filter(match=>match.status==="LIVE"):view==="upcoming"?snapshots.filter(match=>match.status==="SCHEDULED"):snapshots;
@@ -46,6 +47,10 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
       <ScoresControls date={date} sports={[...new Set(competitions.map(c=>c.sport))]} competitions={competitions}/>
       {view !== "live" && <nav aria-label="Dates des matchs" className="my-6 grid grid-cols-7 overflow-hidden rounded-md bg-muted">{Array.from({length:7},(_,i)=>{const d=new Date(`${date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+i-3);const key=d.toISOString().slice(0,10);return <Link key={key} href={href(key)} aria-current={key===date?"date":undefined} className={`border-r border-border py-3 text-center last:border-r-0 ${key===date?"bg-foreground text-background":"hover:bg-card"}`}><span className="block text-[10px] font-semibold sm:text-xs">{key===today?"Auj.":d.toLocaleDateString("fr-FR",{weekday:"short",timeZone:"UTC"})}</span><span className="my-1 block text-lg font-black">{d.getUTCDate()}</span><span className="block text-[10px]">{d.toLocaleDateString("fr-FR",{month:"short",timeZone:"UTC"})}</span></Link>;})}</nav>}
       <div className="mb-6 flex items-center justify-between gap-3 text-sm"><p role="status">{matches.length} match{matches.length!==1?"s":""}{view!=="day"&&matches.length===100?" (100 premiers)":""}</p><Link href="/mon-compte/favoris" className="font-semibold text-editorial-link">★ Mes favoris</Link></div>
+      <section className="mb-8" aria-labelledby="scores-follow">
+        <h2 id="scores-follow" className="mb-4 text-2xl font-black uppercase text-foreground">Compétitions à suivre</h2>
+        <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">{competitions.map((c) => <FollowPill key={c.id} id={c.id} kind="competition" name={c.name} logoUrl={null} slug={c.slug} following={false} signedIn={!!session?.user?.id} />)}</div>
+      </section>
       {!matches.length&&<p className="rounded-md bg-muted p-6 text-center text-muted-foreground">Aucun match pour cette sélection. Choisissez une autre date ou modifiez les filtres.</p>}
       <div className="space-y-7">{[...groups.values()].map(rows=><section key={rows[0].competitionId}>
         {view==="live"&&!premium&&<AdSlot format="banner" className="mb-6"/>}

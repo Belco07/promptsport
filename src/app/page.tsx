@@ -11,6 +11,7 @@ import { CompetitionsGrid } from "@/components/CompetitionsGrid";
 import { MostReadList } from "@/components/MostReadList";
 import { SectionBlock } from "@/components/SectionBlock";
 import { ThemeTabs, type ThemeTab } from "@/components/ThemeTabs";
+import { FollowPill } from "@/components/ui/FollowPill";
 import { AdSlot } from "@/components/AdSlot";
 import { AdSlotGate } from "@/components/AdSlotGate";
 import { Footer } from "@/components/Footer";
@@ -120,6 +121,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   const page = /^\d{1,4}$/.test(params.page ?? "") ? Math.max(1, Number(params.page)) : 1;
   const section = ["mercato", "analyses"].includes(params.rubrique ?? "") ? params.rubrique! : "";
   const [cached, cachedLatest] = await Promise.all([getEditorial(), getLatest(page, section)]);
+  const popularClubs = await prisma.team.findMany({
+    select: { id: true, name: true, slug: true, logoUrl: true },
+    take: 6,
+    orderBy: { name: "asc" },
+  });
   // The persistent cache serializes Dates as strings; restore them before rendering.
   const restoreDates = <T extends ArticleCardData,>(articles: T[]): T[] => articles.map(article => ({ ...article, publishedAt: article.publishedAt ? new Date(article.publishedAt) : null }));
   const editorial = { ...cached, featured: restoreDates(cached.featured), wire: restoreDates(cached.wire), mercato: restoreDates(cached.mercato), analyses: restoreDates(cached.analyses), popular: restoreDates(cached.popular) };
@@ -148,6 +154,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
     <SectionBlock id="themes" title="Thèmes" description="Mercato, tactique, interviews : les sujets qui traversent tous les sports."><ThemeTabs themes={themeTabs} /><p className="mt-6"><Link href="/themes" className="text-sm font-bold text-foreground hover:underline">Tous les thèmes →</Link></p></SectionBlock>
     <AdSlotGate><AdSlot /></AdSlotGate>
     <SectionBlock id="competitions" title="Compétitions" href="/scores"><CompetitionsGrid competitions={editorial.competitions} /></SectionBlock>
+    <SectionBlock id="clubs-populaires" title="Clubs populaires à suivre" href="/scores">
+      <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">{popularClubs.map((club) => <FollowPill key={club.id} id={club.id} kind="team" name={club.name} logoUrl={club.logoUrl} slug={club.slug} following={false} signedIn={false} />)}</div>
+    </SectionBlock>
     <div className="grid gap-8 lg:grid-cols-[2fr_1fr]"><SectionBlock id="plus-lus" title="Les plus lus" description="Les articles les plus consultés ces 7 derniers jours"><MostReadList articles={editorial.popular} /></SectionBlock><aside className="space-y-6"><section className="border border-border bg-card p-6 text-foreground"><p className="text-xs font-bold uppercase">PromptSport +</p><h2 className="my-3 text-3xl font-black">La passion va plus loin.</h2><p className="mb-5 text-sm text-muted-foreground">Analyses, décryptages et articles premium. Vivez le sport avec un temps d’avance.</p><Link href="/abonnement" className="font-bold underline underline-offset-4">Découvrir les offres →</Link></section><AdSlotGate><AdSlot format="rectangle" /></AdSlotGate></aside></div>
     <SectionBlock id="derniers-articles" title={section ? `Derniers articles · ${section}` : "Derniers articles"}>
       <div data-latest-page={page}><ArticleGrid articles={latest.slice(0,12)} /></div>

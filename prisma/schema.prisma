@@ -296,6 +296,8 @@ model Competition {
   sport      String
   season     String?
   externalId String?  @unique
+  /// Couleur d'accent de la compétition (WP34) : ex. #e30613 pour la Ligue 1.
+  color      String?
 
   matches Match[]
 

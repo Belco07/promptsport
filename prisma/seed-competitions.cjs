@@ -5,13 +5,13 @@ const defaults = require("./default-competitions.cjs");
 
 async function seedCompetitions(client) {
   for (const competition of defaults) {
-    const { slug, name, country, externalId, uclSpots, uelSpots, ueclSpots, relegationSpots, relegationPlayoffSpots, format } = competition;
+    const { slug, name, country, externalId, color, uclSpots, uelSpots, ueclSpots, relegationSpots, relegationPlayoffSpots, format } = competition;
     // Slug is stable across provider migrations. Existing metadata, identifiers,
     // seasons, teams and matches are never replaced by this rules seed.
-    await client.query(`INSERT INTO "Competition" (id, name, slug, country, sport, "externalId", "uclSpots", "uelSpots", "ueclSpots", "relegationSpots", "relegationPlayoffSpots", format, "createdAt", "updatedAt")
-      VALUES ($1,$2,$3,$4,'football',$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
-      ON CONFLICT (slug) DO UPDATE SET "uclSpots"=EXCLUDED."uclSpots", "uelSpots"=EXCLUDED."uelSpots", "ueclSpots"=EXCLUDED."ueclSpots", "relegationSpots"=EXCLUDED."relegationSpots", "relegationPlayoffSpots"=EXCLUDED."relegationPlayoffSpots", format=EXCLUDED.format, "updatedAt"=NOW()`,
-    [randomUUID(),name,slug,country,externalId,uclSpots,uelSpots,ueclSpots,relegationSpots,relegationPlayoffSpots,format]);
+    await client.query(`INSERT INTO "Competition" (id, name, slug, country, sport, "externalId", color, "uclSpots", "uelSpots", "ueclSpots", "relegationSpots", "relegationPlayoffSpots", format, "createdAt", "updatedAt")
+      VALUES ($1,$2,$3,$4,'football',$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
+      ON CONFLICT (slug) DO UPDATE SET "uclSpots"=EXCLUDED."uclSpots", "uelSpots"=EXCLUDED."uelSpots", "ueclSpots"=EXCLUDED."ueclSpots", "relegationSpots"=EXCLUDED."relegationSpots", "relegationPlayoffSpots"=EXCLUDED."relegationPlayoffSpots", format=EXCLUDED.format, color=EXCLUDED.color, "updatedAt"=NOW()`,
+    [randomUUID(),name,slug,country,externalId,color,uclSpots,uelSpots,ueclSpots,relegationSpots,relegationPlayoffSpots,format]);
   }
 }
 
