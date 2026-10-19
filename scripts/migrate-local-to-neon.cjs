@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Migration de la base PostgreSQL locale (conteneur Docker) vers Neon — WP35.
+ * Migration de la base PostgreSQL locale (conteneur Docker) vers Neon.
  *
  * La base de développement vit dans le conteneur `promptsport-pg`. Neon
  * n'expose pas de copie de fichier : la bascule se fait en trois temps, tous
@@ -12,14 +12,15 @@
  *   3. injection du dump avec `psql --single-transaction`, puis vérification
  *      table par table des comptages source et cible.
  *
- * Sécurité — la cible n'est **jamais** déduite de `DIRECT_URL` : ce fichier
- * `.env` pointe vers Prisma Postgres (db.prisma.io) sur ce poste. La cible
- * vient obligatoirement de `--target` ou de `NEON_DIRECT_URL`. Le script est
- * en **simulation par défaut** : sans `--confirm`, il se contente de vérifier
- * la source, la cible et d'afficher le plan. Une cible locale (localhost) est
- * refusée, sauf `--allow-local-target` pour une répétition sur une base de
- * test ; une URL Neon « pooled » (`-pooler`) est refusée, car les migrations
- * ont besoin de la chaîne directe.
+ * Sécurité — la cible n'est **jamais** déduite de `DIRECT_URL` ou de
+ * `DATABASE_URL` : ces variables visent la base de développement (ou une base
+ * distante déjà configurée), et une confusion écraserait la mauvaise base. La
+ * cible vient obligatoirement de `--target` ou de `NEON_DIRECT_URL`. Le script
+ * est en **simulation par défaut** : sans `--confirm`, il se contente de
+ * vérifier la source, la cible et d'afficher le plan. Une cible locale
+ * (localhost) est refusée, sauf `--allow-local-target` pour une répétition sur
+ * une base de test ; une URL Neon « pooled » (`-pooler`) est refusée, car les
+ * migrations ont besoin de la chaîne directe.
  *
  * Le dump exclut `_prisma_migrations` : la table de suivi est écrite par
  * `prisma migrate deploy`, pas recopiée depuis le poste. `--inserts` produit
