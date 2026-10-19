@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth";
 import {
@@ -361,4 +363,61 @@ export async function reportComment(
   }
 
   return { ok: true };
+}
+
+
+/** WP39: public metadata only; authentication and publication are checked server-side. */
+export async function getBookmarkStates(slugs: string[]) {
+  const session = await auth();
+  if (!session?.user?.id) return { signedIn: false, articles: [] as { id: string; slug: string; saved: boolean }[] };
+  if (!Array.isArray(slugs) || slugs.length > 100 || slugs.some(slug => typeof slug !== "string" || !slug || slug.length > 300)) {
+    return { signedIn: true, articles: [] as { id: string; slug: string; saved: boolean }[] };
+  }
+  const articles = await prisma.article.findMany({
+    where: { OR: [{ slug: { in: [...new Set(slugs)] } }, { id: { in: [...new Set(slugs)] } }], status: "PUBLISHED", publishedAt: { lte: new Date() } },
+    select: { id: true, slug: true, bookmarks: { where: { readerId: session.user.id }, select: { id: true } } },
+  });
+  return { signedIn: true, articles: articles.map(article => ({ id: article.id, slug: article.slug, saved: article.bookmarks.length > 0 })) };
+}
+
+export async function toggleBookmark(articleId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false as const, message: "Connectez-vous pour sauvegarder un article." };
+  if (typeof articleId !== "string" || !articleId || articleId.length > 128) return { ok: false as const, message: "Article invalide." };
+  const readerId = session.user.id;
+  const result = await prisma.$transaction(async tx => {
+    const readers = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Author" WHERE id=${readerId} FOR UPDATE`;
+    if (!readers.length) return { ok: false as const, message: "Connexion requise." };
+    const article = await tx.article.findFirst({ where: { id: articleId, status: "PUBLISHED", publishedAt: { lte: new Date() } }, select: { id: true } });
+    if (!article) return { ok: false as const, message: "Article indisponible." };
+    const existing = await tx.bookmark.findUnique({ where: { readerId_articleId: { readerId, articleId } }, select: { id: true } });
+    if (existing) await tx.bookmark.delete({ where: { id: existing.id } });
+    else await tx.bookmark.create({ data: { readerId, articleId } });
+    // The previous private reaction is no longer the source of truth.
+    await tx.articleReaction.deleteMany({ where: { authorId: readerId, articleId, type: "BOOKMARK" } });
+    return { ok: true as const, saved: !existing, message: existing ? "Article retiré des favoris" : "Article sauvegardé" };
+  });
+  if (result.ok) revalidatePath("/mon-compte/favoris");
+  return result;
+}
+
+/** No write blocks the response; the authenticated identity is captured before after(). */
+export async function recordView(articleId: string) {
+  const requestHeaders = await headers();
+  if (requestHeaders.get("next-router-prefetch") === "1" || requestHeaders.has("next-router-segment-prefetch") || requestHeaders.get("purpose") === "prefetch" || requestHeaders.get("sec-purpose")?.includes("prefetch")) return;
+  const session = await auth();
+  if (!session?.user?.id || typeof articleId !== "string" || !articleId || articleId.length > 128) return;
+  const readerId = session.user.id;
+  const readAt = new Date();
+  after(async () => {
+    try {
+      // INSERT ... SELECT also handles an article/account disappearing before the callback.
+      await prisma.$executeRaw`
+        INSERT INTO "ReadingHistory" (id,"readerId","articleId","readAt")
+        SELECT ${crypto.randomUUID()},r.id,a.id,${readAt} FROM "Author" r CROSS JOIN "Article" a
+        WHERE r.id=${readerId} AND a.id=${articleId} AND a.status='PUBLISHED' AND a."publishedAt"<=NOW()
+        ON CONFLICT ("readerId","articleId") DO UPDATE SET "readAt"=GREATEST("ReadingHistory"."readAt",EXCLUDED."readAt")
+      `;
+    } catch { console.warn("[reading-history] La lecture n’a pas pu être enregistrée."); }
+  });
 }

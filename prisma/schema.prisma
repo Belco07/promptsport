@@ -23,6 +23,8 @@ datasource db {
 }
 
 model Author {
+  bookmarks Bookmark[]
+  readingHistory ReadingHistory[]
   alertsEnabled Boolean @default(false)
   clubAlertDeliveries ClubAlertDelivery[]
   readerMatchComments MatchComment[] @relation("MatchCommentReader")
@@ -120,6 +122,8 @@ enum ArticleFormat {
 }
 
 model Article {
+  bookmarks Bookmark[]
+  readingHistory ReadingHistory[]
   matchId       String?
   match         Match? @relation(fields: [matchId], references: [id], onDelete: SetNull)
   featuredSlots FeaturedSlot[]
@@ -1030,4 +1034,31 @@ enum SyncStatus {
   SUCCESS
   PARTIAL
   FAILED
+}
+
+
+/// Private articles saved by an authenticated reader (accounts live in Author).
+model Bookmark {
+  id String @id @default(cuid())
+  readerId String
+  reader Author @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  articleId String
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([readerId, articleId])
+  @@index([readerId, createdAt])
+}
+
+/// One entry per article: only the most recent reading time is retained.
+model ReadingHistory {
+  id String @id @default(cuid())
+  readerId String
+  reader Author @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  articleId String
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  readAt DateTime @default(now())
+
+  @@unique([readerId, articleId])
+  @@index([readerId, readAt])
 }

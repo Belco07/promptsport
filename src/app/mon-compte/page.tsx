@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -100,6 +101,11 @@ export default async function AccountPage({
             {errorMessage}
           </p>
         ) : null}
+
+        <nav aria-label="Mes lectures" className="mb-10 flex flex-wrap gap-4 text-sm font-semibold text-editorial-link">
+          <Link href="/mon-compte/favoris" className="min-h-11 rounded-full border border-border bg-card px-5 py-3 hover:bg-muted">Favoris</Link>
+          <Link href="/mon-compte/historique" className="min-h-11 rounded-full border border-border bg-card px-5 py-3 hover:bg-muted">Historique</Link>
+        </nav>
 
         {/* ---------------------------------------------------------- Profil */}
         <section>

@@ -1,3 +1,4 @@
+import { BookmarkButton } from "@/components/BookmarkButton";
 import { Clock } from "lucide-react";
 import { FormatBadge, type ArticleFormat } from "@/components/FormatBadge";
 import Image from "next/image";
@@ -32,11 +33,13 @@ export function ArticleCard({
   /** Variante éditoriale : la une affiche une image et un titre plus grands. */
   featured = false,
   headingLevel = 2,
+  bookmark,
 }: {
   article: ArticleCardData;
   priority?: boolean;
   featured?: boolean;
   headingLevel?: 2 | 3;
+  bookmark?: { articleId: string; saved: boolean; showLabel?: boolean };
 }) {
   const Heading = headingLevel === 3 ? "h3" : "h2";
   const href = `/article/${article.slug}`;
@@ -128,6 +131,7 @@ export function ArticleCard({
               {formatDate(article.publishedAt)}
             </time>
           </span>
+          <span className="ml-auto"><BookmarkButton articleSlug={article.slug} initial={bookmark ? { id: bookmark.articleId, slug: article.slug, saved: bookmark.saved } : undefined} showLabel={bookmark?.showLabel} /></span>
         </div>
       </CardBody>
     </Card>

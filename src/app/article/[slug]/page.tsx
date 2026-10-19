@@ -1,3 +1,5 @@
+import { BookmarkButton } from "@/components/BookmarkButton";
+import { recordView } from "./actions";
 import type { Metadata } from "next";
 import { FormatBadge } from "@/components/FormatBadge";
 import { ArrowLeft } from "lucide-react";
@@ -301,6 +303,8 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   // État de bannissement de la personne connectée : sert à afficher le message
   // de refus à côté du formulaire, la Server Action le vérifiant de son côté.
   const session = await auth();
+  if (session?.user?.id) await recordView(article.id);
+  const bookmark = session?.user?.id ? await prisma.bookmark.findUnique({ where: { readerId_articleId: { readerId: session.user.id, articleId: article.id } }, select: { id: true } }) : null;
   const ban = session?.user?.id
     ? await prisma.author.findUnique({
         where: { id: session.user.id },
@@ -360,7 +364,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             competitionName: article.match.competition.name, status: article.match.status,
             description: article.match.homeScore !== null && article.match.awayScore !== null ? `${article.match.homeTeam.name} ${article.match.homeScore} - ${article.match.awayScore} ${article.match.awayTeam.name}` : undefined,
           })) }} />}
-          <div className="mb-3"><FormatBadge format={article.format} /></div>
+          <div className="mb-3 flex items-center justify-between gap-3"><FormatBadge format={article.format} /><BookmarkButton articleId={article.id} articleSlug={article.slug} initial={session?.user?.id ? { id: article.id, slug: article.slug, saved: !!bookmark } : null} showLabel /></div>
           <ArticleHero title={article.title} image={article.coverImageUrl} premium={article.isPremium} />
           <div className={`mt-8 ${session?.user?.isPremium === true ? "mx-auto max-w-[720px]" : "lg:grid lg:grid-cols-[minmax(0,720px)_300px] lg:justify-between lg:gap-10"}`}>
           <div className="w-full min-w-0 max-w-[720px]">
