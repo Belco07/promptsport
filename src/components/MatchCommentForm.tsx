@@ -1,14 +1,25 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { createMatchComment } from "@/app/match/[id]/actions";
+import type { MatchThreadComment } from "@/components/MatchCommentItem";
 
-export function MatchCommentForm({ matchId, parentId, onPosted }: { matchId: string; parentId?: string; onPosted?: () => void }) {
-  const [state, action, pending] = useActionState(createMatchComment.bind(null, matchId), { ok: false, message: "", savedId: "" });
+export type PostedMatchComment = MatchThreadComment & { phase: string };
+
+export function MatchCommentForm({ matchId, parentId, onPosted }: { matchId: string; parentId?: string; onPosted?: (comment: PostedMatchComment) => void }) {
+  const router = useRouter();
+  const [state, action, pending] = useActionState(createMatchComment.bind(null, matchId), { ok: false, message: "", savedId: "", comment: null });
   const form = useRef<HTMLFormElement>(null);
+  const refreshedId = useRef("");
   useEffect(() => {
-    if (state.ok && state.savedId) { form.current?.reset(); onPosted?.(); }
-  }, [state.ok, state.savedId, onPosted]);
+    if (!pending && state.ok && state.comment && refreshedId.current !== state.savedId) {
+      refreshedId.current = state.savedId;
+      form.current?.reset();
+      if (onPosted) onPosted(state.comment);
+      else router.refresh();
+    }
+  }, [pending, state.ok, state.savedId, state.comment, onPosted, router]);
   const fieldId = `match-comment-input-${parentId ?? "new"}`;
   return <form ref={form} action={action} className="space-y-3 rounded-xl border border-border bg-card p-4">
     {parentId && <input type="hidden" name="parentId" value={parentId} />}

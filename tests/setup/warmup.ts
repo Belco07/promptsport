@@ -32,6 +32,7 @@ const ROUTES = [
 export default async function warmup(): Promise<void> {
   const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3002";
   const context = await request.newContext({ baseURL });
+  const scripts = new Set<string>();
   try {
     for (const route of ROUTES) {
       // Une route qui échoue (redirection, contenu vide) n'empêche pas le
@@ -42,7 +43,25 @@ export default async function warmup(): Promise<void> {
       console.log(
         `[warmup] ${route} — ${response ? response.status() : "échec (ignoré)"}`,
       );
+      if (response?.headers()["content-type"]?.includes("text/html")) {
+        const html = await response.text();
+        for (const match of html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)) {
+          if (match[1].startsWith("/_next/static/")) scripts.add(match[1]);
+        }
+      }
     }
+    // An old `next start` can render HTML from a build whose chunks were replaced.
+    // HTTP 200 on the page alone then hides failed hydration and stuck actions.
+    for (const script of scripts) {
+      const response = await context.get(script);
+      if (response.status() !== 200 || !response.headers()["content-type"]?.includes("javascript")) {
+        throw new Error(
+          `Build Next.js incohérent : ${script} retourne ${response.status()}. ` +
+          "Arrêtez le serveur de test, terminez le build puis redémarrez-le avant de relancer Playwright.",
+        );
+      }
+    }
+    console.log(`[warmup] ${scripts.size} ressources JavaScript vérifiées`);
   } finally {
     await context.dispose();
   }

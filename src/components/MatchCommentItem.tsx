@@ -3,14 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteMatchComment } from "@/app/match/[id]/actions";
-import { MatchCommentForm } from "@/components/MatchCommentForm";
+import { MatchCommentForm, type PostedMatchComment } from "@/components/MatchCommentForm";
 
 export type MatchThreadComment = {
   id: string; content: string; createdAt: string; status: string;
   name: string; ownerId: string | null; parentId: string | null;
   parentName: string | null;
 };
-export function MatchCommentItem({ comment, matchId, userId }: { comment: MatchThreadComment; matchId: string; userId: string | null }) {
+export function MatchCommentItem({ comment, matchId, userId, onPosted }: { comment: MatchThreadComment; matchId: string; userId: string | null; onPosted?: (comment: PostedMatchComment) => void }) {
   const router = useRouter();
   const [reply, setReply] = useState(false);
   const [message, setMessage] = useState("");
@@ -27,6 +27,6 @@ export function MatchCommentItem({ comment, matchId, userId }: { comment: MatchT
       {userId === comment.ownerId && <button disabled={pending} onClick={() => start(async () => { const result = await deleteMatchComment(matchId, comment.id); setMessage(result.message); if (result.ok) { setDeleted(true); router.refresh(); } })} className="min-h-11 text-sm text-muted-foreground">Supprimer mon commentaire</button>}
     </div>
     {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
-    {reply && <MatchCommentForm matchId={matchId} parentId={comment.id} />}
+    {reply && <MatchCommentForm matchId={matchId} parentId={comment.id} onPosted={onPosted} />}
   </article>;
 }

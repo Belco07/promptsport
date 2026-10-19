@@ -43,8 +43,14 @@ test.describe("Discussion par match", () => {
     await editorPage.goto(`/match/${matchId}?tab=discussion`);
     await editorPage.getByRole("button", { name: "Répondre", exact: true }).click();
     await editorPage.getByLabel("Votre réponse", { exact: true }).fill(response);
+    // A posted request alone does not establish that the Server Action succeeded.
+    const actionResponse = editorPage.waitForResponse(result =>
+      result.request().method() === "POST" && !!result.request().headers()["next-action"],
+    );
     await clickActionButton(editorPage, "Envoyer la réponse");
-    await expect(editorPage.getByText(response, { exact: true })).toBeVisible({ timeout: 90_000 });
+    expect((await actionResponse).status()).toBe(200);
+    await expect(editorPage.getByRole("status").filter({ hasText: "Votre commentaire est publié." })).toBeVisible();
+    await expect(editorPage.getByText(response, { exact: true })).toBeVisible();
     const reply = await sqlOne<{ status: string; parentId: string }>('SELECT status,"parentId" FROM "MatchComment" WHERE "matchId"=$1 AND content=$2', [matchId, response]);
     expect(reply).toMatchObject({ status: "APPROVED", parentId: saved!.id });
     const alerts = await sql('SELECT id FROM "Notification" WHERE "userId"=$1 AND type=\'COMMENT_REPLY\' AND "linkUrl" LIKE $2', [saved!.readerId, `/match/${matchId}?%`]);
@@ -65,8 +71,9 @@ test.describe("Discussion par match", () => {
     }
     // Keyboard handlers are available only after the server-rendered tabs hydrate.
     await expect(page.getByRole("tablist", { name: "Phases de la discussion" })).toHaveAttribute("aria-busy", "false");
-    await page.getByRole("tab", { name: /^Après-match/ }).focus();
-    await page.keyboard.press("Home");
+    await page.getByRole("tab", { name: /^Après-match/ }).press("Home");
     await expect(page.getByRole("tab", { name: /^Avant-match/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page).toHaveURL(/phase=PRE_MATCH/);
+    await expect(page.getByRole("tabpanel")).toHaveAttribute("aria-busy", "false");
   });
 });

@@ -6,9 +6,24 @@ import { getMatchVoteData } from "@/lib/club-digest";
 import { revalidatePath } from "next/cache";
 import { consumeRateLimit, MATCH_COMMENT_RATE_LIMIT } from "@/lib/rate-limit";
 
+export async function getMatchDiscussion(matchId: string, phase: string) {
+  if (typeof matchId !== "string" || !matchId || matchId.length > 128 || !["PRE_MATCH", "LIVE", "POST_MATCH"].includes(phase)) throw new Error("Discussion invalide.");
+  const selectedPhase = phase as "PRE_MATCH" | "LIVE" | "POST_MATCH";
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const visible = { matchId, OR: [{ status: "APPROVED" as const }, ...(userId ? [{ status: "PENDING" as const, OR: [{ readerId: userId }, { authorId: userId }] }] : [])] };
+  const [comments, counts, reader] = await Promise.all([
+    prisma.matchComment.findMany({ where: { ...visible, phase: selectedPhase }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 50, include: { reader: { select: { name: true } }, author: { select: { name: true } }, parent: { select: { status: true, reader: { select: { name: true } }, author: { select: { name: true } } } } } }),
+    prisma.matchComment.groupBy({ by: ["phase"], where: visible, _count: { _all: true } }),
+    userId ? prisma.author.findUnique({ where: { id: userId }, select: { bannedUntil: true } }) : Promise.resolve(null),
+  ]);
+  return { phase: selectedPhase, userId, banned: !!reader?.bannedUntil && reader.bannedUntil > new Date(), counts: Object.fromEntries(counts.map(row => [row.phase, row._count._all])),
+    comments: comments.map(row => ({ id: row.id, content: row.content, status: row.status, createdAt: row.createdAt.toISOString(), name: row.reader?.name ?? row.author?.name ?? "Compte supprimé", ownerId: row.readerId ?? row.authorId, parentId: row.parentId, parentName: row.parent?.status === "APPROVED" ? row.parent.reader?.name ?? row.parent.author?.name ?? "Compte supprimé" : null })) };
+}
+
 export async function createMatchComment(matchId: string, _previous: { ok: boolean; message: string; savedId: string }, form: FormData) {
   const session = await auth();
-  const fail = (message: string) => ({ ok: false, message, savedId: "" });
+  const fail = (message: string) => ({ ok: false, message, savedId: "", comment: null });
   if (!session?.user?.id) return fail("Connectez-vous pour commenter.");
   const value = form.get("content"), parentValue = form.get("parentId");
   if (typeof matchId !== "string" || !matchId || matchId.length > 128 || typeof value !== "string" || !value.trim() || value.trim().length > 1000 || (parentValue !== null && (typeof parentValue !== "string" || parentValue.length > 128))) return fail("Saisissez un commentaire de 1 à 1 000 caractères.");
@@ -22,7 +37,7 @@ export async function createMatchComment(matchId: string, _previous: { ok: boole
     if (!match) return fail("Match introuvable.");
     const count = await tx.matchComment.count({ where: { matchId, OR: [{ readerId: user.id }, { authorId: user.id }], createdAt: { gt: new Date(Date.now() - MATCH_COMMENT_RATE_LIMIT.windowMs) } } });
     if (count >= MATCH_COMMENT_RATE_LIMIT.max) return fail("Vous avez atteint la limite de 10 commentaires par match et par heure.");
-    const parent = parentId ? await tx.matchComment.findUnique({ where: { id: parentId }, select: { matchId: true, parentId: true, status: true, readerId: true, authorId: true } }) : null;
+    const parent = parentId ? await tx.matchComment.findUnique({ where: { id: parentId }, select: { matchId: true, parentId: true, status: true, readerId: true, authorId: true, reader: { select: { name: true } }, author: { select: { name: true } } } }) : null;
     if (parentId && (!parent || parent.matchId !== matchId || parent.parentId || parent.status !== "APPROVED")) return fail("Ce commentaire ne peut pas recevoir de réponse.");
     const subscription = user.isPremium ? true : !!await tx.subscription.findFirst({ where: { userId: user.id, status: { in: ["ACTIVE", "TRIALING"] }, currentPeriodEnd: { gt: new Date() } }, select: { id: true } });
     const approved = subscription || user.role === "ADMIN" || user.role === "EDITOR";
@@ -33,11 +48,11 @@ export async function createMatchComment(matchId: string, _previous: { ok: boole
     } });
     const recipient = parent?.readerId ?? parent?.authorId;
     if (approved && recipient && recipient !== user.id) await tx.notification.create({ data: { userId: recipient, type: "COMMENT_REPLY", title: "Nouvelle réponse dans la discussion du match", message: `${user.name} a répondu à votre commentaire.`, linkUrl: `/match/${matchId}?tab=discussion&phase=${comment.phase}#match-comment-${comment.id}` } });
-    return { ok: true, message: approved ? "Votre commentaire est publié." : "Votre commentaire est en attente de modération.", savedId: comment.id };
+    return { ok: true, message: approved ? "Votre commentaire est publié." : "Votre commentaire est en attente de modération.", savedId: comment.id,
+      comment: { id: comment.id, content: comment.content, status: comment.status, phase: comment.phase, createdAt: comment.createdAt.toISOString(), name: user.name, ownerId: user.id, parentId: comment.parentId, parentName: parent?.reader?.name ?? parent?.author?.name ?? null } };
   });
-  // Authenticated moderation/notification pages read fresh data on navigation.
-  // Refresh only the current match, without invalidating unrelated page trees.
-  if (result.ok) revalidatePath(`/match/${matchId}`);
+  // Return the confirmed comment instead of coupling mutation success to a
+  // revalidated RSC tree. The thread merges it with subsequent server renders.
   return result;
 }
 
