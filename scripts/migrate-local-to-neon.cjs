@@ -396,7 +396,8 @@ async function targetTriggerTables(client) {
   return rows.map((row) => row.table_name);
 }
 
-async function targetMigrationNames(client) {  try {
+async function targetMigrationNames(client) {
+  try {
     const { rows } = await client.query(
       `SELECT migration_name FROM "_prisma_migrations"
        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
