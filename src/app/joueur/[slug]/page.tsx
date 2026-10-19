@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { cache } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { playerProfileKey } from "@/lib/slug";
@@ -31,7 +31,7 @@ export default async function PlayerPage({ params }: Props) {
   const ownEvents = matches.flatMap(match => match.events.filter(event => sameName(event.playerName)));
   return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({ "@context": "https://schema.org", "@type": "Person", name: player.name, url: absoluteUrl(`/joueur/${player.slug}`), ...(player.position ? { jobTitle: player.position } : {}), memberOf: { "@type": "SportsTeam", name: player.team.name, url: absoluteUrl(`/club/${player.team.slug}`) } }) }}/>
-    <Link href={`/club/${player.team.slug}?tab=effectif`} className="mb-6 inline-block text-sm font-bold text-editorial-link">← Joueurs de {player.team.name}</Link>
+    <Breadcrumbs items={[{ label: "Scores", href: "/scores" }, { label: player.team.name, href: `/club/${player.team.slug}` }, { label: player.name, href: `/joueur/${player.slug}` }]} />
     <PlayerHeader player={player}/>
     <PlayerStats goals={ownEvents.filter(event => event.type === "GOAL").length} yellowCards={ownEvents.filter(event => event.type === "YELLOW_CARD").length} redCards={ownEvents.filter(event => event.type === "RED_CARD").length} played={matches.length}/>
     <section aria-labelledby="player-matches"><h2 id="player-matches" className="mb-5 text-2xl font-black">Derniers matchs documentés</h2>{matches.length ? <div className="space-y-3">{matches.slice(0, 10).map(match => <MatchCard key={match.id} match={match} compact/>)}</div> : <p className="text-muted-foreground">Aucun match documenté pour ce joueur.</p>}</section>

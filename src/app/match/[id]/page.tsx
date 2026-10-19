@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { auth } from "@/lib/auth";
 import { getMatchVoteData, getTeamForms } from "@/lib/club-digest";
 import { ManOfTheMatchVote } from "@/components/club/ManOfTheMatchVote";
@@ -6,7 +7,6 @@ import { ManOfTheMatchResults } from "@/components/club/ManOfTheMatchResults";
 import { cache } from "react";
 import { LiveScoreRefresher } from "@/components/LiveScoreRefresher";
 import { LiveBadge } from "@/components/LiveBadge";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MatchHeader } from "@/components/MatchHeader";
 import { MatchTabs, matchTabs } from "@/components/MatchTabs";
@@ -112,7 +112,7 @@ export default async function MatchPage({params,searchParams}:Props){
         />
 
 
- <Link href="/scores" className="mb-6 inline-block text-sm font-bold text-editorial-link">← Tous les scores</Link>
+ <Breadcrumbs items={[{ label: "Scores", href: "/scores" }, { label: match.competition.name, href: `/competition/${match.competition.slug}` }, { label: `${match.homeTeam.name} — ${match.awayTeam.name}`, href: `/match/${match.id}` }]} />
  {match.status==="LIVE"&&<><div className="mb-3"><LiveBadge/></div>{active !== "discussion" && <LiveScoreRefresher hasLiveMatches={true} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null}/>}</>}
  <MatchHeader match={match} playerLinks={playerLinks} teamForms={teamForms}/><MatchTabs id={id} active={active}/>
  <section aria-labelledby="match-panel" className="min-h-40"><h2 id="match-panel" className="mb-5 text-2xl font-black uppercase text-foreground">{matchTabs[active]}</h2>
