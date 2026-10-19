@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 import { StudioNav } from "./StudioNav";
 import { logout } from "./logout-action";
@@ -22,6 +23,11 @@ export default async function StudioLayout({
 
   if (!["ADMIN", "EDITOR", "JOURNALIST"].includes(session.user.role)) redirect("/mon-compte");
 
+  const liveMatch = await prisma.match.findFirst({
+    where: { status: "LIVE" },
+    select: { id: true },
+  });
+
   const displayName = session.user.name ?? session.user.email ?? "auteur";
 
   return (
@@ -31,7 +37,7 @@ export default async function StudioLayout({
           <p className="mb-6 px-3 text-sm font-bold uppercase tracking-wide text-foreground">
             Rédaction
           </p>
-          <StudioNav />
+          <StudioNav liveMatchId={liveMatch?.id} />
         </div>
 
         <div className="space-y-2 border-t border-border pt-4">

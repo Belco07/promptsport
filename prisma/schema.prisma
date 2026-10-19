@@ -80,6 +80,8 @@ model Author {
 
   /// Notifications in-app reçues (WP10d).
   notifications Notification[]
+  /// Interventions éditoriales en direct (WP38).
+  liveUpdates MatchLiveUpdate[] @relation("MatchLiveUpdateAuthor")
 
   /// Newsletter (WP11a) : abonnement éventuel de ce compte et campagnes créées.
   newsletterSubscriber NewsletterSubscriber?
@@ -422,6 +424,7 @@ model Match {
   roundName String?
   articles Article[]
   events MatchEvent[]
+  liveUpdates MatchLiveUpdate[]
   statistics MatchStatistics[]
   lineups MatchLineup[]
   id            String      @id @default(cuid())
@@ -516,6 +519,34 @@ model MatchEvent {
   extraMinute Int?
   createdAt DateTime @default(now())
   @@index([matchId, minute])
+}
+
+/// Intervention éditoriale en direct d'un journaliste sur un match (WP38).
+/// S'affiche sur la fiche match publique, fusionnée avec les événements auto.
+model MatchLiveUpdate {
+  id        String   @id @default(cuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    Author   @relation("MatchLiveUpdateAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  /// Minute de la rencontre, laissée vide quand l'intervention n'est pas chronométrée.
+  minute    Int?
+  /// 500 caractères maximum, contrôlé en base et par la Server Action.
+  content   String   @db.VarChar(500)
+  type      LiveUpdateType @default(TEXT)
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([matchId, minute])
+  @@index([matchId, createdAt])
+}
+
+enum LiveUpdateType {
+  TEXT
+  GOAL
+  CARD
+  SUB
+  KEY_MOMENT
 }
 
 model MatchStatistics {

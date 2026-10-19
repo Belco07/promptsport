@@ -20,7 +20,7 @@ const LINKS = [
  * identiques, ce qui évite les erreurs d'hydratation lorsque l'URL change
  * pendant le chargement de la page.
  */
-export function StudioNav() {
+export function StudioNav({ liveMatchId }: { liveMatchId?: string }) {
   const pathname = usePathname();
   const mounted = useMounted();
   const [canManageFeatured, setCanManageFeatured] = useState(false);
@@ -34,6 +34,19 @@ export function StudioNav() {
 
   return (
     <nav className="space-y-1">
+      {liveMatchId && (
+        <Link
+          href={`/studio/live/${liveMatchId}`}
+          aria-current={pathname === `/studio/live/${liveMatchId}` ? "page" : undefined}
+          className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+            pathname === `/studio/live/${liveMatchId}`
+              ? "bg-primary font-medium text-white"
+              : "text-foreground hover:bg-muted"
+          }`}
+        >
+          Studio Live
+        </Link>
+      )}
       {LINKS.map((link) => {
         if (link.href === "/studio/une" && !canManageFeatured) return null;
         const isActive =
