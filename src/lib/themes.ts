@@ -81,10 +81,19 @@ function relativeLuminance(hex: string): number {
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
 
-/** Texte lisible sur une couleur de thème : noir sur fond clair, blanc sur fond sombre. */
+/**
+ * Texte lisible sur une couleur de thème : on retient la couleur qui offre le
+ * meilleur contraste, en visant au moins 4.5:1 (WCAG AA, petit texte). Un
+ * simple seuil de luminance laissait passer des couples à 3.7:1–4.2:1.
+ */
 export function themeTextColor(color?: string | null): string {
   const normalised = normaliseThemeColor(color) ?? THEME_FALLBACK_COLOR;
-  return relativeLuminance(normalised) > 0.45 ? "#111211" : "#ffffff";
+  const luminance = relativeLuminance(normalised);
+  const darkContrast = (luminance + 0.05) / (relativeLuminance("#111211") + 0.05);
+  const lightContrast = 1.05 / (luminance + 0.05);
+  if (darkContrast >= 4.5) return "#111211";
+  if (lightContrast >= 4.5) return "#ffffff";
+  return "#000000";
 }
 
 /**
