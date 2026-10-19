@@ -9,7 +9,7 @@
  *   1. `pg_dump --data-only --inserts` de la base locale (via `docker exec`) ;
  *   2. `prisma migrate deploy` sur la cible (le schéma doit exister avant les
  *      données) ;
- *   3. injection du dump avec `psql --single-transaction`, puis vérification
+ *   3. injection du dump avec psql en autocommit, puis vérification
  *      table par table des comptages source et cible.
  *
  * Sécurité — la cible n'est **jamais** déduite de `DIRECT_URL` ou de
@@ -52,8 +52,8 @@
  * psql y sont présents), `node_modules` installé (CLI Prisma et paquet `pg`).
  * Le conteneur doit pouvoir joindre Neon (sortie HTTPS/5432 autorisée).
  *
- * En cas d'échec de l'injection, la transaction psql est annulée : la cible
- * reste dans l'état laissé par les migrations. Corriger puis relancer avec
+ * En cas d'échec, les lignes déjà importées restent présentes. Les triggers
+ * utilisateur sont réactivés avant de sortir. Corriger puis relancer avec
  * `--truncate` (les migrations déjà appliquées sont ignorées par Prisma).
  */
 
@@ -195,6 +195,8 @@ function pgEnv(raw) {
 
   const sslmode = url.searchParams.get("sslmode");
   if (sslmode) env.PGSSLMODE = sslmode;
+  const connectTimeout = url.searchParams.get("connect_timeout");
+  if (connectTimeout) env.PGCONNECT_TIMEOUT = connectTimeout;
 
   return env;
 }
@@ -364,7 +366,13 @@ async function connectTarget(target) {
   const client = new Client({
     connectionString: target.toString(),
     application_name: "promptsport-migrate-neon",
+    connectionTimeoutMillis: 30_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 30_000,
   });
+  // A serverless endpoint may close this inspection connection during the dump.
+  // Reconnect before verification rather than crashing on an idle client error.
+  client.on("error", () => {});
   await client.connect();
   return client;
 }
@@ -518,8 +526,8 @@ async function runPrismaMigrate(target) {
  *  - `article_search_vector_trigger` et `reader_competition_follows_update`
  *    recalculeraient des colonnes déjà présentes dans le dump.
  *
- * Les triggers sont réactivés avant le COMMIT : le rollback les rétablit aussi
- * en cas d'échec. `statement_timeout = 0` évite qu'un dump volumineux dépasse
+ * Les triggers sont réactivés en fin d'import et dans le chemin d'erreur.
+ * `statement_timeout = 0` évite qu'un dump volumineux dépasse
  * la limite par défaut de Neon.
  */
 function injectionPreamble(triggerTables) {
@@ -554,9 +562,12 @@ function injectDump({ container, target, dumpPath, triggerTables }) {
         container,
         "psql",
         "--no-psqlrc",
+        // libpq defaults still come from PGHOST/PGDATABASE/PGPASSWORD. These
+        // non-secret options must be passed explicitly: pgEnv splits the URL.
+        "--dbname",
+        "keepalives=1 keepalives_idle=30 connect_timeout=30",
         "--set",
         "ON_ERROR_STOP=1",
-        "--single-transaction",
         "--quiet",
         "--output",
         "/dev/null",
@@ -570,6 +581,10 @@ function injectDump({ container, target, dumpPath, triggerTables }) {
     child.stdin.write(injectionPreamble(triggerTables));
 
     const input = fs.createReadStream(dumpPath);
+    child.stdin.on("error", (error) => {
+      input.destroy();
+      reject(error);
+    });
     input.on("error", (error) => {
       child.kill();
       reject(error);
@@ -581,11 +596,12 @@ function injectDump({ container, target, dumpPath, triggerTables }) {
 
     child.on("error", reject);
     child.on("close", (code) => {
+      input.destroy();
       if (code !== 0) {
         reject(
           new Error(
-            `psql a échoué (code ${code}). La transaction a été annulée : ` +
-              "la cible n'a reçu aucune ligne.",
+            `psql a échoué (code ${code}). L'import est partiel : ` +
+              "les lignes déjà validées restent présentes. Relancer sur une cible vide ou avec --truncate.",
           ),
         );
         return;
@@ -626,6 +642,10 @@ async function main() {
 
   const source = parsePostgresUrl(options.source, "--source");
   const target = parsePostgresUrl(options.target, "--target");
+  target.searchParams.set("keepalives", "1");
+  target.searchParams.set("keepalives_idle", "30");
+  target.searchParams.set("connect_timeout", "30");
+  options.target = target.toString();
 
   if (target.hostname.includes("-pooler")) {
     fail(
@@ -760,19 +780,25 @@ async function main() {
       console.log("3/4 — Cible vide : aucun vidage nécessaire.");
     }
 
-    console.log("4/4 — Injection des données (transaction unique)…");
+    console.log("4/4 — Injection des données (autocommit, sans transaction globale)…");
     const triggerTables = await targetTriggerTables(client);
     if (triggerTables.length > 0) {
       console.log(
         `      triggers utilisateur suspendus : ${triggerTables.join(", ")}`,
       );
     }
-    await injectDump({
-      container: options.container,
-      target: options.target,
-      dumpPath,
-      triggerTables,
-    });
+    try {
+      await injectDump({ container: options.container, target: options.target, dumpPath, triggerTables });
+    } catch (error) {
+      const cleanup = await connectTarget(options.target);
+      try {
+        for (const table of triggerTables) await cleanup.query(`ALTER TABLE ${qualifiedName(table)} ENABLE TRIGGER USER`);
+      } finally { await cleanup.end(); }
+      throw error;
+    }
+
+    await client.end().catch(() => {});
+    client = await connectTarget(options.target);
 
     console.log("");
     console.log("Vérification des comptages…");
