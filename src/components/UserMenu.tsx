@@ -63,7 +63,7 @@ export function UserMenu({ showSportLink = true }: { showSportLink?: boolean }) 
   if (user === undefined) return <span aria-hidden="true" className="inline-block h-9 w-9 shrink-0 rounded-full border border-border bg-muted" />;
 
   if (!user) {
-    return <Link href="/login" className="inline-flex min-h-11 items-center gap-2 px-2 py-1.5 text-sm font-bold text-foreground hover:text-editorial-link"><span aria-hidden="true" className={AVATAR_CLASS}><UserRound className="h-5 w-5" /></span>Se connecter</Link>;
+    return <Link href="/login" aria-label="Se connecter" title="Se connecter" className="inline-flex min-h-11 items-center px-2 py-1.5 text-sm font-bold text-foreground hover:text-editorial-link"><span aria-hidden="true" className={AVATAR_CLASS}><UserRound className="h-5 w-5" /></span></Link>;
   }
 
   const label = user.name?.trim() || user.email?.trim() || "Mon compte";

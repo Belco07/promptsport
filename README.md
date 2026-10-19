@@ -184,6 +184,7 @@ npm run start -p 3003
 - `src/lib` — accès Prisma, authentification, SEO, analytique, engagement
 - `prisma/schema.prisma` + `prisma/migrations` — base **PostgreSQL**
 - `scripts/check-*.cjs` — suites de vérification (à lancer avec `PORT=3002`)
+- `scripts/migrate-local-to-neon.cjs` — migration des données Docker → Neon
 - `scripts/lib/pg-sync.cjs` — passerelle synchrone vers PostgreSQL pour les suites
 
 ## Base de données (WP12a — PostgreSQL)
@@ -278,11 +279,24 @@ better-sqlite3 et s'appuyaient sur son dialecte. Elles passent désormais par
 PORT=3002 node scripts/check-wp11a.cjs
 ```
 
-## Déploiement (WP12b — Vercel + Prisma Postgres)
+## Déploiement (Vercel + Neon)
 
-Le site se déploie sur **Vercel**, avec la base **Prisma Postgres** (PostgreSQL managé).
-La configuration versionnée vit dans `vercel.json` ; la marche à suivre complète
-(avec cases à cocher) est dans [`scripts/deploy-checklist.md`](scripts/deploy-checklist.md).
+Le site se déploie sur **Vercel**, avec une base **Neon** (PostgreSQL managé,
+offre gratuite suffisante pour ce projet). La configuration versionnée vit dans
+`vercel.json` ; la marche à suivre historique, avec cases à cocher, reste dans
+[`scripts/deploy-checklist.md`](scripts/deploy-checklist.md) — elle mentionne
+encore Prisma Postgres par endroits, la procédure ci-dessous fait foi.
+
+Neon expose deux chaînes de connexion, à ne pas confondre :
+
+| Chaîne | Usage | Variable |
+| --- | --- | --- |
+| **Pooled** (`ep-…-pooler.…neon.tech`) | l'application sur Vercel : beaucoup de connexions courtes, multiplexées par PgBouncer | `DATABASE_URL` |
+| **Directe** (`ep-….neon.tech`) | migrations, seed des thèmes, Prisma Studio, script de migration | `DIRECT_URL` |
+
+Les deux exigent `?sslmode=require`. La chaîne directe est obligatoire pour
+`prisma migrate deploy` : un pooler en mode transaction ne conserve pas l'état de
+session (verrous, `SET`, requêtes préparées).
 
 ### 1. Dépôt GitHub
 
@@ -309,13 +323,17 @@ git check-ignore -v .env                          # doit confirmer l'exclusion
 
 1. Créer un compte sur <https://vercel.com/signup> et lier le compte GitHub.
 2. **Add New Project** → importer le dépôt.
-3. Framework Preset : **Next.js** ; Root Directory : `.` ; Output Directory :
-   `.next` (défauts). La commande de construction est lue dans `vercel.json` :
-   `prisma generate && next build`.
+3. Framework Preset : **Next.js** ; Root Directory : `.`. La commande de
+   construction et le dossier de sortie sont lus dans `vercel.json` :
+   `prisma generate && next build`, `outputDirectory: .next-production`
+   (aligné sur `next.config.ts`, qui déplace le build de production dans ce
+   dossier).
    *(Le build local utilise `next build --turbopack` ; la commande Vercel est
    volontairement sans Turbopack pour rester sur le chemin de build standard.)*
 4. Déployer. Le premier déploiement peut échouer : les variables d'environnement
-   ne sont pas encore définies, c'est attendu.
+   ne sont pas encore définies, c'est attendu. Pour une première mise en
+   production complète, suivre plutôt §3 bis (base Neon remplie avant le
+   déploiement).
 
 ### 3. Variables d'environnement Vercel
 
@@ -323,21 +341,118 @@ Settings → Environment Variables, en cochant **Production** et **Preview**.
 
 | Variable | Valeur |
 | --- | --- |
-| `DATABASE_URL` | chaîne **pooled** de Prisma Postgres (`pooled.db.prisma.io`), avec `?sslmode=require` |
-| `DIRECT_URL` | chaîne **directe** de Prisma Postgres (`db.prisma.io`), pour les migrations, le seed des thèmes et Prisma Studio |
+| `DATABASE_URL` | chaîne **pooled** Neon (`ep-…-pooler.…neon.tech`), avec `?sslmode=require` |
+| `DIRECT_URL` | chaîne **directe** Neon (`ep-….neon.tech`), pour les migrations, le seed des thèmes et Prisma Studio |
 | `AUTH_SECRET` | secret de signature des JWT (`openssl rand -base64 32`) |
 | `NEXT_PUBLIC_SITE_URL` | `https://<projet>.vercel.app` (sans barre oblique finale) |
 | `CRON_SECRET` | secret du cron (`openssl rand -base64 32`) |
 | `ALLSPORTS_API_KEY` | clé RapidAPI AllSportsApi utilisée par les synchronisations |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | identifiants OAuth Google, facultatifs |
 | `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET` | identifiants OAuth Facebook, facultatifs |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | clés Stripe (test ou live) |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | clés Stripe (test ou live) ; le paiement passe par Stripe Checkout côté serveur, aucune clé publique n'est nécessaire |
 | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME` | envoi des e-mails |
+| `BLOB_READ_WRITE_TOKEN` | stockage des images de couverture (Vercel Blob, store public) |
 
 Deux remarques sur les noms : le code lit `AUTH_SECRET` (Auth.js v5 accepte
 `NEXTAUTH_SECRET` comme ancien nom, sans que ce projet en dépende) et
 `ALLSPORTS_API_KEY` pour le fournisseur sportif actif. `AUTH_URL` / `NEXTAUTH_URL`
 sont inutiles ici : `trustHost: true` déduit l'URL de la requête.
+
+### 3 bis. Première mise en production : Neon → Vercel
+
+La base locale (conteneur Docker) contient les articles, les 1 403 matchs et les
+9 thèmes. Neon ne reçoit pas de copie de fichier : on applique d'abord le schéma
+avec les migrations, puis on injecte les données avec le script dédié. Le
+`.env` local n'est **pas** modifié au passage — il continue de viser Docker.
+
+**1. Créer la base Neon.** Sur <https://console.neon.tech>, créer un projet
+(région la plus proche des utilisateurs). Dans **Dashboard → Connect**, copier
+les deux chaînes :
+
+- **Pooled connection** → `DATABASE_URL` sur Vercel ;
+- **Direct connection** → `DIRECT_URL` sur Vercel, et cible du script.
+
+Vérifier que l'URL directe ne contient pas `-pooler` et se termine par
+`?sslmode=require`.
+
+**2. Répéter la migration à blanc.** Le script est en simulation par défaut : il
+se contente de vérifier le conteneur, la source, la cible et les migrations en
+attente. Il ne lit jamais `DIRECT_URL` ni `DATABASE_URL` du `.env` (qui visent
+la base de développement) : la cible doit être passée explicitement.
+
+```bash
+node scripts/migrate-local-to-neon.cjs --target "postgresql://…@ep-….neon.tech/neondb?sslmode=require"
+```
+
+**3. Appliquer.** Le script enchaîne : `pg_dump --data-only --inserts` de la
+base Docker, `prisma migrate deploy` sur Neon, injection du dump dans une
+transaction unique (`psql --single-transaction`), puis comparaison table par
+table des comptages source et cible.
+
+```bash
+node scripts/migrate-local-to-neon.cjs --target "postgresql://…" --confirm
+```
+
+Options utiles :
+
+| Option | Effet |
+| --- | --- |
+| `--target <url>` | cible Neon ; à défaut, `NEON_DIRECT_URL` est lue |
+| `--source <url>` | base locale (défaut : `promptsport` sur `localhost:5432`) |
+| `--container <nom>` | conteneur Docker (défaut : `promptsport-pg`) |
+| `--dump <chemin>` | fichier SQL de sortie (défaut : `backups/neon-data-<date>.sql`) |
+| `--confirm` | exécute réellement (sans lui : simulation) |
+| `--truncate` | vide les tables de la cible avant l'injection (relance) |
+| `--skip-migrations` | n'exécute pas `prisma migrate deploy` |
+| `--allow-local-target` | autorise une cible `localhost` (répétition seulement) |
+| `--overwrite` | remplace un dump existant |
+
+Le dump exclut `_prisma_migrations` (écrite par Prisma sur la cible) et suspend
+les triggers utilisateur pendant le chargement : `sync_club_rivalries` exigerait
+que les clubs rivaux existent déjà, ce que l'ordre de `pg_dump` ne garantit pas.
+Les clés étrangères restent vérifiées, les triggers sont réactivés avant le
+`COMMIT`. En cas d'échec, la transaction est annulée : la cible reste dans
+l'état laissé par les migrations, et le dump produit est conservé.
+
+Prérequis : Docker en marche, conteneur `promptsport-pg` démarré (il fournit
+`pg_dump` et `psql`, absents de l'hôte Windows), `npm install` effectué.
+
+**4. Thèmes.** Les migrations créent la table `Theme` sans son contenu. Sur le
+poste, viser Neon avec la chaîne directe :
+
+```bash
+DIRECT_URL="postgresql://…@ep-….neon.tech/neondb?sslmode=require" npm run db:seed:themes
+```
+
+Résultat attendu : `9 thème(s) en base, 8 actif(s)` (« Transferts » inactif).
+Le seed est idempotent.
+
+**5. Préflight.** Contrôler la cible avant de basculer le trafic :
+
+```bash
+node scripts/check-prisma-postgres.cjs "postgresql://…@ep-….neon.tech/neondb?sslmode=require"
+```
+
+Il vérifie la connexion, TLS, les migrations appliquées et en attente, les
+thèmes et la disponibilité de `pg_trgm` (création testée puis annulée).
+
+**6. Vercel.** Renseigner `DATABASE_URL` (pooled) et `DIRECT_URL` (directe) dans
+Settings → Environment Variables (Production + Preview), avec les autres
+variables du tableau §3, puis redéployer. `vercel.json` impose déjà
+`prisma generate && next build` et `outputDirectory: .next-production`.
+
+**7. Vérifier.** Après déploiement, contrôler `/`, `/scores`, `/themes`, un
+article, une page match et le studio. Relancé **sans** `--confirm`, le script
+affiche le nombre de lignes déjà présentes sur la cible : c'est un contrôle
+rapide que la base n'est pas vide.
+
+**8. Revenir en arrière.** Les données de production vivent uniquement sur
+Neon. En cas de problème, deux leviers : redéployer le commit précédent
+(Vercel → Deployments → Promote) si la cause est applicative, ou restaurer une
+sauvegarde Neon (console → **Backups**, restauration ponctuelle) si la cause est
+une écriture. Le dump local produit par le script reste une copie de la base de
+départ, pas une sauvegarde continue : activer les sauvegardes Neon avant
+d'ouvrir le site au public.
 
 ### 4. Migrations en production
 
@@ -360,7 +475,9 @@ l'extension `pg_trgm`.
 Le même garde-fou existe en automatique : à chaque pull request et à chaque
 push sur `main`, le workflow « Migrations » compare `prisma/migrations` à la
 production et échoue si une migration est en attente ; `npm run db:check` fait
-ce contrôle à la demande, localement (même cible que `db:deploy`).
+ce contrôle à la demande, localement (même cible que `db:deploy`). Le secret
+GitHub `DIRECT_URL` doit contenir la chaîne directe Neon (Settings → Secrets and
+variables → Actions), et être mis à jour lors d'un changement de projet Neon.
 
 `postinstall: prisma generate` régénère le client Prisma à chaque installation :
 c'est indispensable sur Vercel, où `src/generated/` n'est pas versionné.
@@ -395,7 +512,7 @@ npm run db:seed:themes
 
 Résultat attendu : `9 thème(s) en base, 8 actif(s)` (« Transferts » inactif).
 
-### 4 ter. Préflight Prisma Postgres
+### 4 ter. Préflight base distante
 
 À lancer **avant** `db:deploy` : une migration qui échoue en production laisse
 une entrée « failed » dans `_prisma_migrations`, à rattraper à la main
