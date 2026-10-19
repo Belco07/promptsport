@@ -240,32 +240,6 @@ function dockerExecSync(container, args, options = {}) {
   );
 }
 
-function dockerExecAsync(container, args, options = {}) {
-  const env = options.env ?? {};
-  const argsWithEnv = [];
-  for (const key of Object.keys(env)) {
-    argsWithEnv.push("-e", key);
-  }
-
-  return new Promise((resolve, reject) => {
-    const child = spawn("docker", ["exec", ...argsWithEnv, container, ...args], {
-      env: { ...process.env, ...env },
-      stdio: options.stdio ?? ["ignore", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-    child.stdout?.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ code, stdout, stderr }));
-  });
-}
-
 function checkDocker(container) {
   const inspect = runSync("docker", ["inspect", "-f", "{{.State.Running}}", container]);
   if (inspect.status !== 0) {
