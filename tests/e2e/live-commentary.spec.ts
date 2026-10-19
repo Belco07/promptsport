@@ -15,7 +15,7 @@ import { TEST_EDITOR } from "../fixtures/users";
  * doit apparaître immédiatement sur la fiche match publique, fusionnée avec
  * les événements automatiques de la timeline (onglet Résumé).
  *
- * Le compte éditeur est créé (ou réinitialisé) à la volée pour que ce parcours
+ * Un compte éditeur isolé est créé à la volée pour que ce parcours
  * reste indépendant du script `seed-test-users.cjs` ; seuls les objets créés
  * pour ce test sont supprimés en fin de suite.
  */
@@ -27,6 +27,7 @@ const homeName = `Nice E2E ${runId}`;
 const awayName = `Monaco E2E ${runId}`;
 
 const authorId = e2eId("author");
+const editor = { ...TEST_EDITOR, email: `${authorId}@example.test` };
 const competitionId = e2eId("comp");
 const homeTeamId = e2eId("team");
 const awayTeamId = e2eId("team");
@@ -35,14 +36,17 @@ const matchId = e2eId("match");
 const editorialContent = `Analyse tactique E2E ${runId} : bloc bas et transitions rapides.`;
 
 test.describe("Commentaire éditorial en direct (Studio Live)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/analytics/track", route => route.fulfill({ status: 204 }));
+  });
   test.beforeAll(async () => {
     const passwordHash = await bcrypt.hash(TEST_EDITOR.password, 10);
     await sql(
-      `INSERT INTO "Author" (id, name, email, passwordHash, role, "createdAt")
+      `INSERT INTO "Author" (id, name, email, "passwordHash", role, "createdAt")
        VALUES ($1, $2, $3, $4, 'EDITOR', NOW())
        ON CONFLICT (email) DO UPDATE
-       SET name = EXCLUDED.name, passwordHash = EXCLUDED.passwordHash, role = EXCLUDED.role`,
-      [authorId, TEST_EDITOR.name, TEST_EDITOR.email, passwordHash],
+       SET name = EXCLUDED.name, "passwordHash" = EXCLUDED."passwordHash", role = EXCLUDED.role`,
+      [authorId, editor.name, editor.email, passwordHash],
     );
     await sql(
       `INSERT INTO "Competition" (id, name, slug, country, sport, "createdAt", "updatedAt")
@@ -78,13 +82,14 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
     await sql(`DELETE FROM "Match" WHERE id = $1`, [matchId]);
     await sql(`DELETE FROM "Team" WHERE id IN ($1, $2)`, [homeTeamId, awayTeamId]);
     await sql(`DELETE FROM "Competition" WHERE id = $1`, [competitionId]);
+    await sql(`DELETE FROM "Author" WHERE id = $1`, [authorId]);
     await closeDb();
   });
 
   test("le journaliste publie une intervention qui apparaît sur le studio et la fiche match", async ({
     page,
   }) => {
-    await login(page, TEST_EDITOR);
+    await login(page, editor);
 
     // Le lien « Studio Live » est proposé depuis le tableau de rédaction.
     await page.goto("/studio");
@@ -95,15 +100,15 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
     await expect(page.getByRole("heading", { name: /Studio Live/ })).toBeVisible();
     await expect(page.getByText(/Match en direct/)).toBeVisible();
     await expect(page.getByLabel("Commentaire en direct")).toBeVisible();
-    await expect(page.getByLabel("Type d'événement")).toHaveValue("TEXT");
+    await expect(page.getByLabel(/Type d.?événement/)).toHaveValue("TEXT");
 
     await page.getByLabel("Commentaire en direct").fill(editorialContent);
     await page.getByLabel("Minute").fill("23");
-    await page.getByLabel("Type d'événement").selectOption("Éditorial");
+    await page.getByLabel(/Type d.?événement/).selectOption("TEXT");
 
     await clickActionButton(page, "Publier");
     await expect(
-      page.getByRole("status", { name: /Intervention publiée en direct/ }),
+      page.getByRole("status").filter({ hasText: /Intervention publiée en direct/ }),
     ).toBeVisible();
     await expect(page.getByText(editorialContent)).toBeVisible();
     await expect(page.getByText("23′")).toBeVisible();
@@ -112,7 +117,7 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
     // 2. Fiche match publique : l'intervention apparaît dans le Résumé,
     //    fusionnée avec l'événement automatique (but à la 12ᵉ).
     await page.goto(`/match/${matchId}`);
-    await expect(page.getByRole("heading", { name: "Résumé" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^(?:Le )?Résumé$/ })).toBeVisible();
     await expect(page.getByText(/But · A\. Etoile/)).toBeVisible();
     await expect(page.getByText(editorialContent)).toBeVisible();
     await expect(page.getByText(/23′/)).toBeVisible();
@@ -136,7 +141,9 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
   }) => {
     await page.goto(`/match/${matchId}`);
     await expectNoBlockingA11yViolations(page, `/match/${matchId}`);
+    await login(page, editor);
     await page.goto(`/studio/live/${matchId}`);
+    await expect(page.getByRole("heading", { level: 1, name: /Studio Live/ })).toBeVisible();
     await expectNoBlockingA11yViolations(page, `/studio/live/${matchId}`);
   });
 });

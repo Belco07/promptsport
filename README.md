@@ -144,14 +144,14 @@ maison respectueuse de la vie privée.
 
 ## Démarrer
 
-Prérequis : Node 20+, et une base **PostgreSQL** (voir « Base de données » plus
-bas pour le conteneur Docker de développement).
+Prérequis : Node.js **22+ ou 24 LTS** (WebSocket natif), et une base **Neon**.
+Docker PostgreSQL reste disponible avec la passerelle locale décrite plus bas.
 
 ```bash
-cp .env.example .env        # À FAIRE AVANT npm install (voir la note ci-dessous)
+cp .env.example .env        # renseigner les deux URLs Neon avant npm install
 npm install
 npm run db:deploy           # applique les migrations sur PostgreSQL
-npm run dev -- -p 3002      # http://localhost:3002
+npm run dev -- --port 3012 # http://localhost:3012
 ```
 
 > **Ordre important** : `npm install` déclenche `postinstall: prisma generate`
@@ -162,13 +162,13 @@ npm run dev -- -p 3002      # http://localhost:3002
 > créé). Sur Vercel, les variables sont déjà présentes pendant l'installation :
 > ce cas ne s'y produit pas.
 
-Le port 3000 est occupé par un autre projet ; promptsport tourne sur **3002**.
+Le port **3000 est réservé à ClipMagic** ; PromptSport tourne sur **3012**.
 
 Production locale :
 
 ```bash
 npm run build
-npm run start -p 3003
+npm run start -- --port 3013
 ```
 
 ## Structure
@@ -187,10 +187,40 @@ npm run start -p 3003
 - `scripts/migrate-local-to-neon.cjs` — migration des données Docker → Neon
 - `scripts/lib/pg-sync.cjs` — passerelle synchrone vers PostgreSQL pour les suites
 
-## Base de données (WP12a — PostgreSQL)
+## Base de données (WP35 — Neon)
 
-La base est **PostgreSQL**, en développement comme en production. Le passage
-depuis SQLite a laissé trois particularités à connaître.
+L'application utilise `PrismaNeon` (`@prisma/adapter-neon` 7.10.1), aligné sur
+`prisma` et `@prisma/client` 7.10.1, avec `@neondatabase/serverless` 1.2.0.
+L'ancien adaptateur `@prisma/adapter-pg` est retiré. La dépendance `pg` reste
+nécessaire aux scripts SQL, aux seeds et aux fixtures E2E.
+
+### Application et CLI : deux connexions distinctes
+
+Dans `.env` et dans Vercel, copier les deux chaînes de la console Neon :
+
+```dotenv
+# Application : hôte avec -pooler ; connexion WebSocket sécurisée du pilote Neon.
+DATABASE_URL="postgresql://user:password@ep-example-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+# CLI Prisma : hôte sans -pooler ; migrations / introspection / Studio via TCP.
+DIRECT_URL="postgresql://user:password@ep-example.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+APP_DATABASE_URL=""
+NEON_WS_PROXY=""
+```
+
+Les exemples ne contiennent pas de vrais identifiants. `src/lib/prisma.ts`
+prend `APP_DATABASE_URL` si elle est renseignée, sinon `DATABASE_URL` : effacer
+un ancien override lors de la bascule Neon. La CLI ne lit jamais cet override ;
+`prisma.config.ts` prend **DIRECT_URL en priorité**, avec un repli DATABASE_URL
+pour les environnements locaux/CI ne fournissant qu'une connexion directe.
+Changer les variables exige un redémarrage du serveur (singleton Prisma).
+
+Le passage d'adaptateur ne copie aucune donnée et n'applique aucune migration.
+La migration de données Docker → Neon reste une opération séparée, décrite
+plus bas. Ne pas lancer `db:deploy` sans vérifier la destination DIRECT_URL.
+
+Références : [Prisma sur Neon](https://neon.com/docs/guides/prisma) et
+[configuration Prisma 7](https://www.prisma.io/docs/orm/v7/reference/prisma-config-reference).
+
 
 ### Conteneur de développement
 
@@ -204,6 +234,31 @@ docker start promptsport-pg     # aux démarrages suivants
 
 `DATABASE_URL` correspond alors à
 `postgresql://promptsport:promptsport@localhost:5432/promptsport?schema=public`.
+Pour migrer cette base locale, DIRECT_URL doit également viser Docker.
+
+`PrismaNeon` utilise WebSocket, pas une connexion TCP directe à Docker.
+Une petite passerelle de test, **limitée à la boucle locale**, est disponible
+sans dépendance supplémentaire dans le script WP19e autorisé :
+
+```powershell
+# Terminal 1 : DATABASE_URL doit viser Docker localhost:5432.
+node scripts/check-wp19e.cjs --ws-proxy
+# Terminal 2 : configuration du processus Next.js uniquement.
+$env:NEON_WS_PROXY="127.0.0.1:5443"
+npm run dev -- --port 3012
+```
+
+La passerelle n'ouvre que `127.0.0.1:5443` et refuse les origines Web distantes.
+Elle ne modifie ni les volumes ni les données et s'arrête avec Ctrl+C.
+`NEON_WS_PROXY` ne doit pas être défini sur Vercel/Neon : les connexions Neon
+conservent leur WebSocket sécurisé. Le singleton refuse d'utiliser cette option
+avec un hôte PostgreSQL ou un proxy non local.
+
+`node scripts/check-wp19e.cjs` démarre sa propre passerelle temporaire, crée une
+base Docker isolée, exécute les contrôles PrismaNeon et la supprime en fin de
+suite. Les suites Playwright utilisant Docker nécessitent la passerelle sur
+5443 et NEON_WS_PROXY dans l'environnement du **serveur** testé.
+
 
 ### Migration de données depuis l'ancienne base SQLite
 
@@ -220,7 +275,7 @@ convertissant les booléens SQLite (0/1) et les colonnes JSON. Il affiche un
 tableau de comptage SQLite/PostgreSQL et sort en erreur si les totaux diffèrent.
 Les horodatages sont des `TIMESTAMP(3)` **naïfs contenant de l'UTC** : les
 décalages de fuseau sont conservés à l'identique, et Prisma écrit comme il lit en
-UTC (`@prisma/adapter-pg` convertit les `Date` avec leurs composants UTC).
+UTC. Les contrôles d’horodatage restent exécutés avec le nouvel adaptateur Neon.
 
 ### Migrations et dérive de schéma
 
@@ -242,22 +297,12 @@ chaque pull request et à chaque push sur `main`, avec le secret `DIRECT_URL` :
 il échoue si une migration n'est pas appliquée. C'est le garde-fou qui
 manquait — Vercel ne joue pas `prisma migrate deploy` au déploiement.
 
-### Piège à connaître : l'import de l'adaptateur PostgreSQL
+### Chargement de l'adaptateur côté serveur
 
-`@prisma/adapter-pg` (et donc `pg`) **doit être chargé paresseusement** dans
-`src/lib/prisma.ts` :
-
-```ts
-const { PrismaPg } = require("@prisma/adapter-pg") as typeof import("@prisma/adapter-pg");
-```
-
-Un `import` statique fait évaluer `pg` dans toutes les couches du bundle, y
-compris celle qui charge les modules de Server Actions référencés par un
-composant client. L'évaluation y échoue et **toutes** les Server Actions de la
-page répondent alors 500 avec
-`TypeError: Cannot read properties of undefined (reading 'bind')`, alors que les
-pages en lecture (GET) fonctionnent normalement. Le chargement paresseux
-n'évalue `pg` qu'à la création réelle du client, côté serveur.
+`PrismaNeon` et `neonConfig` sont chargés paresseusement dans
+`src/lib/prisma.ts`, à la création du singleton. Cette frontière conserve le
+pilote côté serveur lorsque des composants clients référencent des Server
+Actions ; le navigateur ne reçoit ni le pilote ni les URLs de connexion.
 
 ### Suites de vérification
 
@@ -934,8 +979,8 @@ node scripts/backfill-author-slugs.cjs   # idempotent
 
 ## Points d'exploitation
 
-- **La base PostgreSQL doit tourner** : si le conteneur `promptsport-pg` est
-  arrêté, toute page qui lit la base répond 500 (`ECONNREFUSED`) et les suites
+- **En mode Docker, PostgreSQL et sa passerelle doivent tourner** : si `promptsport-pg` est
+  arrêté, ou si la passerelle WebSocket locale est absente, les pages et suites
   échouent dès leur première requête. `docker start promptsport-pg`, puis attendre
   la ligne `database system is ready to accept connections` dans
   `docker logs promptsport-pg`.
@@ -943,16 +988,15 @@ node scripts/backfill-author-slugs.cjs   # idempotent
   l'adaptateur Prisma sont PostgreSQL (`prisma/dev.db` n'est plus qu'une source de
   migration ponctuelle). `npx prisma migrate deploy` échouerait sur un fichier
   SQLite.
-- **`@prisma/adapter-pg` en import paresseux** : un import statique dans
-  `src/lib/prisma.ts` casse toutes les Server Actions (500
-  `Cannot read properties of undefined (reading 'bind')`). Voir la section
-  « Base de données ».
-- **Ne jamais lancer `next build` pendant que `next dev` tourne** : le build
-  écrase le dossier `.next` utilisé par le serveur de développement, qui se met
-  alors à répondre 500 (manifestes manquants) ou meurt en cours de route. Après
-  un build, arrêter puis relancer le serveur de dev — et vérifier qu'aucune
-  instance orpheline n'occupe déjà le port (`netstat -ano | findstr :3002`), sans
-  quoi le nouveau serveur échoue avec `EADDRINUSE`.
+- **`PrismaNeon` en import paresseux** : le pilote reste chargé côté serveur,
+  y compris pour les Server Actions appelées depuis des composants clients.
+  Voir la section « Base de données ».
+- **Build et serveurs locaux** : `next dev` écrit dans `.next` et le build
+  de production dans `.next-production`. Un nouveau build remplace cependant
+  les fichiers utilisés par un ancien `next start` : redémarrer ce dernier
+  après compilation. Redémarrer aussi le serveur après un changement d'URL ou
+  d'adaptateur Prisma pour renouveler le singleton. Le port 3012 est celui de
+  PromptSport ; le port 3000 reste réservé à ClipMagic.
 - **Middleware** : il doit vivre dans `src/middleware.ts`, au même niveau que le
   dossier `app/`. Un `middleware.ts` placé à la racine du projet est compilé mais
   **jamais exécuté** (aucune erreur, aucun avertissement) : la protection des
@@ -1031,7 +1075,7 @@ La page historique /backoffice/sports/sync a été supprimée (WP30), avec le bo
 
 ### Audit des dépendances WP23 — 16 octobre 2026
 
-Les correctifs ont été isolés dans codex/wp23-dependency-fixes puis intégrés à la branche de finalisation. npm audit fix met à jour les dépendances compatibles ; les versions exactes ont été relevées vers Next.js / eslint-config-next 15.5.28 et Prisma / @prisma/client / @prisma/adapter-pg 7.10.1. L’override ciblé next@15.5.28 → postcss 8.5.30 corrige PostCSS sans migration majeure de Next.js. package-lock.json est versionné avec package.json.
+Les correctifs ont été isolés dans codex/wp23-dependency-fixes puis intégrés à la branche de finalisation. npm audit fix met à jour les dépendances compatibles ; les versions exactes ont été relevées vers Next.js / eslint-config-next 15.5.28 et Prisma / @prisma/client / @prisma/adapter-pg 7.10.1 (adaptateur remplacé par @prisma/adapter-neon dans WP35). L’override ciblé next@15.5.28 → postcss 8.5.30 corrige PostCSS sans migration majeure de Next.js. package-lock.json est versionné avec package.json.
 
 Résultat de npm audit --package-lock-only --omit=dev : **0 vulnérabilité de production**, dont 0 high et 0 critical. L’audit complet garde **5 alertes high**, 0 moderate et 0 critical, sur la chaîne de développement eslint-config-next → @next/eslint-plugin-next → fast-glob → micromatch → braces. Il s’agit de la chaîne affectée par [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), un épuisement de pile à partir de motifs imbriqués. La dernière version publiée de braces, 3.0.3, est encore affectée. Le correctif automatique forcé propose eslint-config-next 14.2.35, une rétrogradation majeure incompatible avec l’alignement Next.js 15 retenu : elle n’est pas appliquée. La levée de ces alertes exige un correctif amont ou un remplacement/migration de la chaîne de lint, à tester séparément. Le critère « aucune high dans l’audit complet » n’est donc pas atteint.
 

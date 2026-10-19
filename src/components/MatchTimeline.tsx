@@ -223,7 +223,7 @@ export function MatchTimeline({
               {isUpdate ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="text-xs font-bold uppercase tracking-wide text-accent">
+                    <span className="text-xs font-bold uppercase tracking-wide text-editorial-link">
                       {updateLabels[item.update.type as keyof typeof updateLabels]}
                     </span>
                     {item.update.isPinned && (

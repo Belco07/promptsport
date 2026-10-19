@@ -8,11 +8,9 @@ import { PrismaClient } from "@/generated/prisma/client";
  * PostgreSQL jusqu'à épuisement du pool. En production, une seule instance est
  * créée.
  *
- * WP12a : la source de données est passée de SQLite à PostgreSQL. L'adaptateur
- * `@prisma/adapter-better-sqlite3` est spécifique à SQLite : il est remplacé par
- * `@prisma/adapter-pg`, qui parle le protocole PostgreSQL (c'est l'exception
- * prévue par le brief du WP12a — sans ce changement, le client ne peut pas se
- * connecter).
+ * WP35 : l'application utilise PrismaNeon (WebSocket) et l'URL pooled Neon.
+ * La CLI et les migrations gardent leur URL directe dans prisma.config.ts.
+ * Un proxy WebSocket de boucle locale permet de conserver les tests Docker.
  *
  * Prisma 7 ne lit plus .env tout seul : Next.js le charge pour l'application,
  * et on complète le cas échéant avec le lecteur natif de Node (sans dépendance
@@ -52,16 +50,28 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  // L'adaptateur est chargé paresseusement : `@prisma/adapter-pg` importe `pg`,
-  // qui n'a de sens que dans le runtime serveur. Un import statique le fait
-  // évaluer dans toutes les couches du bundle, y compris celles qui chargent les
-  // modules de Server Actions référencés par un composant client — l'évaluation
-  // échoue alors et TOUTES les Server Actions de la page répondent 500
-  // (« Cannot read properties of undefined (reading 'bind') »).
-  // En le chargeant ici, il n'est évalué qu'à la création réelle du client.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- chargement paresseux assumé (voir commentaire ci-dessus)
-  const { PrismaPg } = require("@prisma/adapter-pg") as typeof import("@prisma/adapter-pg");
-  const adapter = new PrismaPg({ connectionString: resolveDatabaseUrl() });
+  // Keep the driver server-side when client components reference Server Actions.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy server-only driver
+  const { PrismaNeon } = require("@prisma/adapter-neon") as typeof import("@prisma/adapter-neon");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- same lazy boundary
+  const { neonConfig } = require("@neondatabase/serverless") as typeof import("@neondatabase/serverless");
+  const connectionString = resolveDatabaseUrl();
+  const localProxy = process.env.NEON_WS_PROXY?.trim();
+  if (localProxy) {
+    const proxyUrl = new URL(`ws://${localProxy}`);
+    const databaseUrl = new URL(connectionString);
+    const loopback = new Set(["localhost", "127.0.0.1", "[::1]"]);
+    if (!loopback.has(proxyUrl.hostname) || !loopback.has(databaseUrl.hostname) || proxyUrl.username || proxyUrl.password) {
+      throw new Error("NEON_WS_PROXY est réservé à PostgreSQL et à une passerelle de boucle locale.");
+    }
+    // Insecure WebSocket is allowed only for the explicit loopback test proxy.
+    neonConfig.wsProxy = () => localProxy;
+    neonConfig.useSecureWebSocket = false;
+    neonConfig.pipelineTLS = false;
+    neonConfig.pipelineConnect = false;
+    neonConfig.poolQueryViaFetch = false;
+  }
+  const adapter = new PrismaNeon({ connectionString });
   return new PrismaClient({ adapter });
 }
 

@@ -7,21 +7,14 @@ import { defineConfig, env } from "prisma/config";
  * elle est déclarée ici pour les commandes de migration, et passée au client
  * via un driver adapter (voir src/lib/prisma.ts).
  *
- * Prisma Postgres fournit **deux** chaînes de connexion :
- *   - `DATABASE_URL` : chaîne *pooled* (`pooled.db.prisma.io`), pour
- *     l'application : les fonctions serverless ouvrent beaucoup de connexions
- *     courtes, que le pooler multiplexe ;
- *   - `DIRECT_URL`   : chaîne *directe* (`db.prisma.io`), **obligatoire** pour
- *     les migrations, l'introspection et Prisma Studio : un pooler en mode
- *     transaction ne conserve pas l'état de session (verrous, `SET`, requêtes
- *     préparées), d'où des échecs de migration difficiles à lire.
+ * Neon fournit deux chaînes PostgreSQL :
+ *   - DATABASE_URL : hôte pooled `ep-...-pooler....neon.tech` pour PrismaNeon ;
+ *   - DIRECT_URL : hôte direct `ep-....neon.tech` pour les migrations,
+ *     l'introspection et Prisma Studio (connexion TCP).
  *
- * La CLI prend donc `DIRECT_URL` en priorité et retombe sur `DATABASE_URL`
- * quand elle n'est pas définie (poste local, CI, ou Vercel où seule
- * `DATABASE_URL` est déclarée) : c'est la configuration recommandée par Prisma
- * (https://docs.prisma.io/docs/postgres/database/connecting-to-your-database).
- * Conséquence pratique : `npm run db:deploy` et `npm run db:seed:themes`
- * fonctionnent sans avoir à réécrire `DATABASE_URL` à la main.
+ * DIRECT_URL reste prioritaire. Le repli DATABASE_URL est conservé pour les
+ * outils locaux/CI qui ne fournissent qu'une URL PostgreSQL directe.
+ * APP_DATABASE_URL ne modifie jamais la destination de la CLI.
  *
  * Le fichier .env est lu avec le lecteur natif de Node (process.loadEnvFile),
  * disponible depuis Node 20.12/21.7 — cela évite d'ajouter la dépendance dotenv,
