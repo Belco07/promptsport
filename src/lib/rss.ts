@@ -169,7 +169,7 @@ function decodeEntities(value: string): string {
 }
 
 /** Retire les balises HTML et normalise les espaces d'un extrait de flux. */
-function plainText(value: string | undefined): string {
+export function plainText(value: string | undefined): string {
   if (!value) return "";
   return decodeEntities(
     value

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { isAiConfigured } from "@/lib/ai";
-import { cleanupOldNewsAlerts } from "@/lib/news";
+import { cleanupOldNewsAlerts, purgeIgnoredNewsAlerts } from "@/lib/news";
 import { prisma } from "@/lib/prisma";
 
 import { ActionButton } from "./ActionButton";
@@ -41,6 +41,15 @@ const STATUS_STYLES = {
   },
 } as const;
 
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  RSS: "Flux RSS",
+  YOUTUBE: "YouTube",
+  BLUESKY: "Bluesky",
+  MASTODON: "Mastodon",
+  REDDIT: "Reddit",
+  SOCIAL: "Réseau social (RSS)",
+};
+
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -60,8 +69,9 @@ export default async function VeillePage({
   const info = readParam(params.info);
   const aiReady = isAiConfigured();
   await cleanupOldNewsAlerts();
+  await purgeIgnoredNewsAlerts();
 
-  const [alerts, pending, generated, ignored, activeSources, untranslated] =
+  const [alerts, pending, generated, activeSources, untranslated] =
     await Promise.all([
       prisma.newsAlert.findMany({
         orderBy: { publishedAt: "desc" },
@@ -70,7 +80,6 @@ export default async function VeillePage({
       }),
       prisma.newsAlert.count({ where: { status: "PENDING" } }),
       prisma.newsAlert.count({ where: { status: "DRAFT_GENERATED" } }),
-      prisma.newsAlert.count({ where: { status: "IGNORED" } }),
       prisma.newsSource.count({ where: { active: true } }),
       prisma.newsAlert.count({ where: { titleFr: null } }),
     ]);
@@ -80,12 +89,22 @@ export default async function VeillePage({
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         News Engine
       </p>
-      <h1 className="mb-2 text-2xl font-bold tracking-tight text-foreground">Veille</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Veille</h1>
+        <Link
+          href="/backoffice/veille/sources"
+          className="rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          Gérer les sources ({activeSources})
+        </Link>
+      </div>
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
-        Les sources actives sont interrogées par <code>npm run news:fetch</code>. Chaque
-        alerte peut être transformée en brouillon par l&apos;IA : la publication reste une
-        décision humaine, depuis le studio. Les alertes de plus de <strong>48 h</strong>{" "}
-        sont supprimées automatiquement ; les brouillons déjà créés restent dans le studio.
+        Les sources actives — médias, YouTube et réseaux sociaux — sont interrogées par{" "}
+        <code>npm run news:fetch</code>. Chaque alerte peut être transformée en brouillon
+        par l&apos;IA : la publication reste une décision humaine, depuis le studio. Les
+        alertes de plus de <strong>48 h</strong> sont supprimées automatiquement ; une
+        alerte ignorée est supprimée immédiatement et définitivement. Les brouillons
+        déjà créés restent dans le studio.
       </p>
 
       {error ? (
@@ -140,7 +159,7 @@ export default async function VeillePage({
         {[
           { label: "En attente", value: pending },
           { label: "Brouillons générés", value: generated },
-          { label: "Ignorées", value: ignored },
+          { label: "Titres à traduire", value: untranslated },
           { label: "Sources actives", value: activeSources },
         ].map((stat) => (
           <div key={stat.label} className="rounded-lg border border-border bg-card p-4">
@@ -220,7 +239,7 @@ export default async function VeillePage({
                     <td className="px-4 py-3 text-xs">
                       <span className="font-medium text-foreground">{alert.source.name}</span>
                       <span className="mt-1 block text-muted-foreground">
-                        {alert.source.type === "RSS" ? "Flux RSS" : "YouTube"}
+                        {SOURCE_TYPE_LABELS[alert.source.type] ?? alert.source.type}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -247,9 +266,11 @@ export default async function VeillePage({
                           </form>
                           <form action={ignoreAlert.bind(null, alert.id)}>
                             <ActionButton
-                              label="Ignorer"
-                              pendingLabel="…"
-                              variant="secondary"
+                              label="Ignorer et supprimer"
+                              pendingLabel="Suppression…"
+                              variant="danger"
+                              title="Supprimer définitivement cette alerte de la veille"
+                              confirmMessage="Supprimer définitivement cette alerte ? Cette action est irréversible."
                             />
                           </form>
                         </div>

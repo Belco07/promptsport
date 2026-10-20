@@ -3,9 +3,9 @@
  *
  *   npm run news:seed
  *
- * Installe ou réactive la liste des grands médias sportifs internationaux.
- * Les sources existantes sont mises à jour par URL ; aucune alerte n'est
- * supprimée. Le script est idempotent.
+ * Installe ou réactive la liste des grands médias sportifs internationaux et
+ * des comptes sociaux de référence. Les sources existantes sont mises à jour
+ * par URL ; aucune alerte n'est supprimée. Le script est idempotent.
  */
 export {};
 
@@ -18,9 +18,18 @@ try {
   if (callerDatabaseUrl !== undefined) process.env.DATABASE_URL = callerDatabaseUrl;
 }
 
+type SeedSourceType =
+  | "RSS"
+  | "YOUTUBE"
+  | "BLUESKY"
+  | "MASTODON"
+  | "REDDIT"
+  | "SOCIAL";
+
 type SeedSource = {
   name: string;
   url: string;
+  type?: SeedSourceType;
 };
 
 const SOURCES: SeedSource[] = [
@@ -74,6 +83,28 @@ const SOURCES: SeedSource[] = [
 
   // Asie
   { name: "SCMP Sport", url: "https://www.scmp.com/rss/95/feed" },
+
+  // Réseaux sociaux
+  {
+    name: "The Athletic Football (Bluesky)",
+    url: "https://bsky.app/profile/theathleticfc.bsky.social",
+    type: "BLUESKY",
+  },
+  {
+    name: "ESPN (Mastodon miroir)",
+    url: "https://mastodon.social/@espn@sportsbots.xyz",
+    type: "MASTODON",
+  },
+  {
+    name: "r/soccer (Reddit)",
+    url: "https://www.reddit.com/r/soccer/",
+    type: "REDDIT",
+  },
+  {
+    name: "Sky Sports Football (YouTube)",
+    url: "https://www.youtube.com/@SkySportsFootball",
+    type: "YOUTUBE",
+  },
 ];
 
 async function main(): Promise<void> {
@@ -87,11 +118,12 @@ async function main(): Promise<void> {
         where: { url: source.url },
         select: { id: true },
       });
+      const type = source.type ?? "RSS";
 
       await prisma.newsSource.upsert({
         where: { url: source.url },
-        update: { name: source.name, type: "RSS", active: true },
-        create: { name: source.name, type: "RSS", url: source.url, active: true },
+        update: { name: source.name, type, active: true },
+        create: { name: source.name, type, url: source.url, active: true },
       });
 
       if (existing) updated += 1;

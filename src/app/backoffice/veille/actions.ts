@@ -30,8 +30,27 @@ function veilUrl(params: { error?: string; info?: string } = {}): string {
   return `/backoffice/veille${query ? `?${query}` : ""}`;
 }
 
-function fail(message: string): never {
-  redirect(veilUrl({ error: message }));
+function sourcesUrl(params: { error?: string; info?: string } = {}): string {
+  const search = new URLSearchParams();
+  if (params.error) search.set("error", params.error.slice(0, 300));
+  if (params.info) search.set("info", params.info.slice(0, 300));
+  const query = search.toString();
+  return `/backoffice/veille/sources${query ? `?${query}` : ""}`;
+}
+
+function fail(
+  message: string,
+  target: "veille" | "sources" = "veille",
+): never {
+  redirect(
+    target === "sources"
+      ? sourcesUrl({ error: message })
+      : veilUrl({ error: message }),
+  );
+}
+
+function failSource(message: string): never {
+  fail(message, "sources");
 }
 
 /** Vérifie la session et le rôle avant toute génération. */
@@ -141,7 +160,7 @@ export async function generateArticle(alertId: string): Promise<void> {
 
   if (!alert) fail("Cette alerte n'existe plus.");
   if (alert.status !== "PENDING") {
-    fail("Cette alerte a déjà été traitée (brouillon généré ou ignorée).");
+    fail("Cette alerte a déjà été traitée ou supprimée.");
   }
 
   const categoryId = await defaultCategoryId();
@@ -191,7 +210,12 @@ export async function generateArticle(alertId: string): Promise<void> {
   redirect(`/studio/articles/${result.articleId}/edit`);
 }
 
-/** Marque une alerte comme ignorée (elle reste consultable dans la liste). */
+/**
+ * Ignore une alerte en la supprimant immédiatement et définitivement.
+ *
+ * Aucun statut « ignoré » n'est conservé : la veille ne doit pas accumuler de
+ * lignes inutiles. Les brouillons éventuellement créés restent indépendants.
+ */
 export async function ignoreAlert(alertId: string): Promise<void> {
   await requireBackofficeUser();
 
@@ -199,17 +223,162 @@ export async function ignoreAlert(alertId: string): Promise<void> {
     fail("Alerte introuvable.");
   }
 
-  const updated = await prisma.newsAlert.updateMany({
+  const deleted = await prisma.newsAlert.deleteMany({
     where: { id: alertId, status: "PENDING" },
-    data: { status: "IGNORED" },
   });
 
   revalidatePath("/backoffice/veille");
+  revalidatePath("/backoffice/veille/sources");
   redirect(
     veilUrl({
-      info: updated.count
-        ? "Alerte ignorée."
-        : "Cette alerte avait déjà été traitée.",
+      info: deleted.count
+        ? "Alerte supprimée définitivement."
+        : "Cette alerte a déjà été traitée ou supprimée.",
+    }),
+  );
+}
+
+const SOURCE_TYPES = [
+  "RSS",
+  "YOUTUBE",
+  "BLUESKY",
+  "MASTODON",
+  "REDDIT",
+  "SOCIAL",
+] as const;
+
+type SourceTypeValue = (typeof SOURCE_TYPES)[number];
+
+function isSourceType(value: string): value is SourceTypeValue {
+  return (SOURCE_TYPES as readonly string[]).includes(value);
+}
+
+function readFormString(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeSourceUrl(raw: string, type: SourceTypeValue): URL {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    failSource("URL invalide : indiquez une adresse HTTP(S) complète.");
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    failSource("URL invalide : seules les adresses HTTP(S) sont acceptées.");
+  }
+
+  const host = url.hostname.replace(/^www\./i, "");
+  switch (type) {
+    case "YOUTUBE":
+      if (
+        host !== "youtube.com" &&
+        !host.endsWith(".youtube.com")
+      ) {
+        failSource("URL YouTube invalide : utilisez une URL de chaîne youtube.com.");
+      }
+      if (!url.pathname.startsWith("/@") && !url.pathname.startsWith("/channel/")) {
+        failSource("URL YouTube invalide : utilisez /@handle ou /channel/UC….");
+      }
+      break;
+    case "BLUESKY":
+      if (host !== "bsky.app" || !url.pathname.startsWith("/profile/")) {
+        failSource("URL Bluesky invalide : utilisez https://bsky.app/profile/….");
+      }
+      break;
+    case "MASTODON": {
+      const parts = url.pathname.split("/").filter(Boolean);
+      if (parts[0] !== "users" && !parts[0]?.startsWith("@")) {
+        failSource("URL Mastodon invalide : utilisez https://instance.social/@compte.");
+      }
+      break;
+    }
+    case "REDDIT":
+      if (host !== "reddit.com" && !host.endsWith(".reddit.com")) {
+        failSource("URL Reddit invalide : utilisez https://www.reddit.com/r/….");
+      }
+      if (!url.pathname.startsWith("/r/") && !url.pathname.startsWith("/user/")) {
+        failSource("URL Reddit invalide : utilisez un subreddit /r/… ou un profil /user/….");
+      }
+      break;
+    case "RSS":
+    case "SOCIAL":
+      break;
+  }
+
+  return url;
+}
+
+/** Ajoute manuellement une source de veille. */
+export async function addNewsSource(formData: FormData): Promise<void> {
+  await requireBackofficeUser();
+
+  const name = readFormString(formData, "name").slice(0, 120);
+  const typeValue = readFormString(formData, "type");
+  const rawUrl = readFormString(formData, "url");
+
+  if (name.length < 2) {
+    failSource("Le nom de la source doit contenir au moins 2 caractères.");
+  }
+  if (!isSourceType(typeValue)) {
+    failSource("Type de source invalide.");
+  }
+
+  const url = normalizeSourceUrl(rawUrl, typeValue).toString();
+
+  try {
+    await prisma.newsSource.create({
+      data: { name, type: typeValue, url, active: true },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      failSource("Cette URL est déjà enregistrée comme source de veille.");
+    }
+    console.error(
+      "[veille] échec de l'ajout de la source :",
+      error instanceof Error ? error.message : error,
+    );
+    failSource("La source n'a pas pu être ajoutée.");
+  }
+
+  revalidatePath("/backoffice/veille");
+  revalidatePath("/backoffice/veille/sources");
+  redirect(sourcesUrl({ info: `Source « ${name} » ajoutée et activée.` }));
+}
+
+/** Supprime définitivement une source et toutes ses alertes (cascade). */
+export async function deleteNewsSource(sourceId: string): Promise<void> {
+  await requireBackofficeUser();
+
+  if (typeof sourceId !== "string" || !sourceId) {
+    failSource("Source introuvable.");
+  }
+
+  const source = await prisma.newsSource.findUnique({
+    where: { id: sourceId },
+    select: { name: true, _count: { select: { alerts: true } } },
+  });
+  if (!source) {
+    failSource("Cette source n'existe plus.");
+  }
+
+  try {
+    await prisma.newsSource.delete({ where: { id: sourceId } });
+  } catch (error) {
+    console.error(
+      "[veille] échec de la suppression de la source :",
+      error instanceof Error ? error.message : error,
+    );
+    failSource("La source n'a pas pu être supprimée.");
+  }
+
+  revalidatePath("/backoffice/veille");
+  revalidatePath("/backoffice/veille/sources");
+  redirect(
+    sourcesUrl({
+      info: `Source « ${source.name} » supprimée définitivement avec ${source._count.alerts} alerte(s).`,
     }),
   );
 }

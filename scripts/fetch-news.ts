@@ -53,6 +53,14 @@ Variables :
   YOUTUBE_API_KEY   Requise pour les sources de type YOUTUBE
   NEON_WS_PROXY     Passerelle locale (Docker uniquement, ex. 127.0.0.1:5443)
 
+Types de sources :
+  RSS               Flux RSS/Atom
+  YOUTUBE           Chaîne YouTube (API Data v3)
+  BLUESKY           Profil Bluesky (API publique AT Protocol)
+  MASTODON          Profil Mastodon (API publique de l'instance)
+  REDDIT            Subreddit ou profil Reddit (flux Atom public)
+  SOCIAL            Flux RSS d'une passerelle sociale (RSSHub, Nitter…)
+
 Rétention :
   Les alertes de plus de 48 h sont supprimées à chaque collecte.
 `);
@@ -211,17 +219,23 @@ async function main(): Promise<void> {
   const [
     { prisma },
     { fetchRssItems },
+    { fetchBlueskyItems, fetchMastodonItems, redditFeedUrl },
     { isAiConfigured, translateTitlesToFrench },
-    { cleanupOldNewsAlerts, isRecentNewsItem },
+    { cleanupOldNewsAlerts, isRecentNewsItem, purgeIgnoredNewsAlerts },
   ] = await Promise.all([
     import("../src/lib/prisma"),
     import("../src/lib/rss"),
+    import("../src/lib/social"),
     import("../src/lib/ai"),
     import("../src/lib/news"),
   ]);
 
   try {
     if (!dryRun) {
+      const ignored = await purgeIgnoredNewsAlerts();
+      if (ignored > 0) {
+        console.log(`[veille] ${ignored} alerte(s) ignorée(s) purgée(s).`);
+      }
       const removed = await cleanupOldNewsAlerts();
       if (removed > 0) {
         console.log(`[veille] ${removed} alerte(s) de plus de 48 h supprimée(s).`);
@@ -260,13 +274,28 @@ async function main(): Promise<void> {
     for (const source of sources) {
       try {
         let items: FeedItem[];
-        if (source.type === "RSS") {
-          items = await fetchRssItems(source.url, limit);
-        } else {
-          if (!youtubeKey) {
-            throw new Error("YOUTUBE_API_KEY absente de l'environnement.");
-          }
-          items = await fetchYouTubeItems(source.url, limit, youtubeKey);
+        switch (source.type) {
+          case "RSS":
+          case "SOCIAL":
+            items = await fetchRssItems(source.url, limit);
+            break;
+          case "YOUTUBE":
+            if (!youtubeKey) {
+              throw new Error("YOUTUBE_API_KEY absente de l'environnement.");
+            }
+            items = await fetchYouTubeItems(source.url, limit, youtubeKey);
+            break;
+          case "BLUESKY":
+            items = await fetchBlueskyItems(source.url, limit);
+            break;
+          case "MASTODON":
+            items = await fetchMastodonItems(source.url, limit);
+            break;
+          case "REDDIT":
+            items = await fetchRssItems(redditFeedUrl(source.url), limit);
+            break;
+          default:
+            throw new Error(`Type de source non pris en charge : ${source.type}`);
         }
 
         received += items.length;

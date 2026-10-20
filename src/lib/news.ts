@@ -30,3 +30,16 @@ export async function cleanupOldNewsAlerts(now: Date = new Date()): Promise<numb
   });
   return result.count;
 }
+
+/**
+ * Purge de sécurité des alertes historiquement marquées « ignorées ».
+ *
+ * L'action d'ignorance supprime désormais la ligne immédiatement ; cette
+ * fonction nettoie les éventuels restes d'anciennes versions.
+ */
+export async function purgeIgnoredNewsAlerts(): Promise<number> {
+  const result = await prisma.newsAlert.deleteMany({
+    where: { status: "IGNORED" },
+  });
+  return result.count;
+}
