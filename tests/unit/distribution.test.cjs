@@ -7,7 +7,7 @@ const ts = require('typescript');
 function load(file, imports, env = {}) {
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, require: name => { if (!(name in imports)) throw Error(`Unexpected import: ${name}`); return imports[name]; }, process: { env }, console: { error() {} } });
+  vm.runInNewContext(code, { exports, URL, require: name => { if (!(name in imports)) throw Error(`Unexpected import: ${name}`); return imports[name]; }, process: { env }, console: { error() {} } });
   return exports;
 }
 
@@ -89,4 +89,21 @@ test('les actions refusent un lecteur et un journaliste sans droit sur cet artic
     assert.equal((await actions.retrySocialPosts('article')).error, 'Action non autorisée.');
     assert.equal(writes, 0);
   }
+});
+
+test('les fixtures E2E ne tentent aucun nettoyage sur une base distante', async () => {
+  let before, after, writes = 0;
+  const register = () => {};
+  register.beforeEach = callback => { before = callback; };
+  register.afterEach = callback => { after = callback; };
+  register.afterAll = () => {};
+  load('tests/e2e/distribution.spec.ts', {
+    '@playwright/test': { test: register },
+    bcryptjs: {},
+    '../fixtures/db': { sql: async () => { writes++; }, closeDb() {}, e2eId: () => 'e2e-fixture' },
+    '../fixtures/helpers': {},
+  }, { DATABASE_URL: 'postgresql://example.test/database' });
+  await assert.rejects(before({}), /Local Docker required/);
+  await after();
+  assert.equal(writes, 0);
 });

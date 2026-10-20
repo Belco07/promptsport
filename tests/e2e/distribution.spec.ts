@@ -4,19 +4,23 @@ import { closeDb, e2eId, sql, sqlOne } from "../fixtures/db";
 import { login } from "../fixtures/helpers";
 
 let prefix: string;
+let localFixtures = false;
 const password = "E2eDistribution-2026!pw";
 
 test.beforeEach(async ({ page }) => {
+  localFixtures = false;
   try { process.loadEnvFile(); } catch { /* Environment provided by the runner. */ }
   const url = new URL(process.env.APP_DATABASE_URL || process.env.DATABASE_URL || "");
   if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "5432") throw Error("Local Docker required.");
   prefix = e2eId("distribution");
+  localFixtures = true;
   await sql(`INSERT INTO "Author" (id,name,email,"passwordHash",role,"createdAt") VALUES ($1,$1,$2,$3,'EDITOR',NOW())`, [prefix, `${prefix}@example.test`, await bcrypt.hash(password, 10)]);
   await sql(`INSERT INTO "Category" (id,name,slug,"createdAt") VALUES ($1,$1,$1,NOW())`, [prefix]);
   await sql(`INSERT INTO "Article" (id,title,slug,content,excerpt,status,"authorId","categoryId","createdAt","updatedAt") VALUES ($1,$1,$1,'Un article sportif de test.','Un résumé factuel.','DRAFT',$1,$1,NOW(),NOW())`, [prefix]);
   await page.route("**/api/analytics/track", route => route.fulfill({ status: 204 }));
 });
 test.afterEach(async () => {
+  if (!localFixtures) return;
   await sql(`DELETE FROM "Article" WHERE id=$1`, [prefix]);
   await sql(`DELETE FROM "Category" WHERE id=$1`, [prefix]);
   await sql(`DELETE FROM "Author" WHERE id=$1`, [prefix]);
