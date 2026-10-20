@@ -7,6 +7,8 @@ import path from "node:path";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { generateArticleSocialPosts } from "@/lib/distribution";
 
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
@@ -50,6 +52,17 @@ function revalidatePublicSurfaces(): void {
   revalidatePath("/");
   revalidatePath("/sitemap.xml");
   revalidatePath("/rss.xml");
+}
+
+function scheduleSocialPosts(articleId: string): void {
+  after(async () => {
+    try {
+      await generateArticleSocialPosts(articleId);
+      revalidatePath(`/studio/articles/${articleId}/edit`);
+    } catch {
+      console.error("[distribution] Génération indisponible ; l'article reste publié.");
+    }
+  });
 }
 
 /** Vrai si l'erreur est une violation d'unicité Prisma (slug déjà pris). */
@@ -241,7 +254,10 @@ export async function createArticle(
         themes: { connect: linkedThemeIds.map((id) => ({ id })) },
       },
     });
-    if (created.status === "PUBLISHED") await notifyArticleFollowers(created.id);
+    if (created.status === "PUBLISHED") {
+      scheduleSocialPosts(created.id);
+      await notifyArticleFollowers(created.id);
+    }
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return `Le slug « ${result.data.slug} » est déjà utilisé par un autre article.`;
@@ -323,7 +339,10 @@ export async function updateArticle(
   }
 
   revalidatePath("/studio/articles");
-  if (existing.status !== "PUBLISHED" && result.data.status === "PUBLISHED") await notifyArticleFollowers(id);
+  if (existing.status !== "PUBLISHED" && result.data.status === "PUBLISHED") {
+    scheduleSocialPosts(id);
+    await notifyArticleFollowers(id);
+  }
   // Un article publié avant ou après cette modification change l'accueil (titre,
   // extrait, diffusion premium), le sitemap et le flux RSS.
   if (existing.status === "PUBLISHED" || result.data.status === "PUBLISHED") {
@@ -373,7 +392,10 @@ export async function updateArticleStatus(
 
   revalidatePath("/studio/articles");
   revalidatePath(`/article/${existing.slug}`);
-  if (existing.status !== "PUBLISHED" && newStatus === "PUBLISHED") await notifyArticleFollowers(articleId);
+  if (existing.status !== "PUBLISHED" && newStatus === "PUBLISHED") {
+    scheduleSocialPosts(articleId);
+    await notifyArticleFollowers(articleId);
+  }
   // Le sélecteur de statut couvrait déjà l'accueil ; sitemap et RSS manquaient.
   if (existing.status === "PUBLISHED" || newStatus === "PUBLISHED") {
     revalidatePublicSurfaces();

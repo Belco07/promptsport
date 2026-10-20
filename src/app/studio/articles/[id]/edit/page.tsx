@@ -7,6 +7,7 @@ import { allowedArticleStatuses, canEditArticle, canSetPremium, readOnlyReason }
 
 import { updateArticle } from "../../actions";
 import { ArticleForm } from "../../ArticleForm";
+import { DistributionPanel } from "@/components/studio/DistributionPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -20,15 +21,18 @@ export const dynamic = "force-dynamic";
  */
 export default async function EditArticlePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
+  const { tab } = await searchParams;
   const session = await auth();
   const viewer = { id: session?.user?.id ?? "", role: session?.user?.role ?? null };
 
   const [article, categories, themes] = await Promise.all([
-    prisma.article.findUnique({ where: { id }, include: { themes: { select: { id: true } } } }),
+    prisma.article.findUnique({ where: { id }, include: { themes: { select: { id: true } }, socialPosts: { select: { id: true, platform: true, content: true, status: true } } } }),
     prisma.category.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -56,7 +60,12 @@ export default async function EditArticlePage({
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">/{article.slug}</p>
 
-      {editable ? (
+      {article.status === "PUBLISHED" && <nav aria-label="Rubriques de l’article" className="mb-6 flex gap-5 border-b border-border text-sm font-semibold">
+        <Link scroll={false} href={`/studio/articles/${id}/edit`} aria-current={tab !== "diffusion" ? "page" : undefined} className={`border-b-2 px-2 py-3 ${tab !== "diffusion" ? "border-editorial-link text-editorial-link" : "border-transparent text-muted-foreground"}`}>Article</Link>
+        <Link scroll={false} href={`/studio/articles/${id}/edit?tab=diffusion`} aria-current={tab === "diffusion" ? "page" : undefined} className={`border-b-2 px-2 py-3 ${tab === "diffusion" ? "border-editorial-link text-editorial-link" : "border-transparent text-muted-foreground"}`}>Diffusion</Link>
+      </nav>}
+
+      {article.status === "PUBLISHED" && tab === "diffusion" ? <DistributionPanel articleId={article.id} posts={article.socialPosts} editable={editable} /> : editable ? (
         // La Server Action d'édition reçoit l'identifiant en première position.
         <ArticleForm
           action={updateArticle.bind(null, article.id)}

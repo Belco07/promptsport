@@ -1092,3 +1092,11 @@ AnalyticsPageView : les événements bruts de plus de 90 jours sont purgés par 
 Politique de sauvegarde recommandée : archive PostgreSQL custom quotidienne et systématiquement avant une migration ou un import de remplacement ; garder 7 sauvegardes quotidiennes et 4 hebdomadaires, chiffrées dans un stockage distinct du poste et du dépôt, avec accès restreint. Tester la restauration dans une base vide au moins une fois par mois. Cette politique décrit les opérations à organiser ; aucun stockage externe ou planificateur de sauvegarde n’est créé par ce lot. La procédure de restauration est détaillée ci-dessus.
 
 Nettoyage Git WP23 : 17 branches locales codex/* et sauvegarde/* déjà contenues dans origin/main ont été supprimées avec git branch -d. Les branches de travail sont conservées tant qu’elles ne sont pas fusionnées ; les branches distantes ne sont pas supprimées.
+
+### Distribution sociale — WP42
+
+La première publication d’un article génère après la réponse HTTP deux propositions (X et Facebook), à partir du titre et du résumé, avec DeepSeek (`DEEPSEEK_API_KEY`). L’onglet **Diffusion** de l’édition d’un article publié permet de copier chaque texte et de le marquer comme publié. Aucun appel de publication aux réseaux sociaux n’est effectué. Une republication conserve les propositions existantes ; une panne IA ne bloque pas l’article et les textes manquants peuvent être relancés dans cet onglet. `NEXT_PUBLIC_SITE_URL` doit désigner le site public pour les liens ajoutés aux posts.
+
+Tests unitaires : `node --test tests/unit/distribution.test.cjs`.
+
+E2E locaux : après les migrations et le seed des comptes E2E sur Docker (`localhost:5432`), lancer `node scripts/test-distribution.cjs` (parcours WP42) ou `node scripts/test-distribution.cjs tests/e2e` (suite complète). Le script démarre une IA simulée sur le port 5451 et un tunnel PostgreSQL WebSocket sur 5452 ; il neutralise les clés d’envoi et n’appelle pas DeepSeek. Le port 3002 doit être libre pour que le script démarre son serveur de test avec cette configuration.

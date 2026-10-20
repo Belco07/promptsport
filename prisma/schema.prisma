@@ -124,6 +124,7 @@ enum ArticleFormat {
 }
 
 model Article {
+  socialPosts SocialPost[]
   bookmarks Bookmark[]
   readingHistory ReadingHistory[]
   matchId       String?
@@ -162,6 +163,28 @@ model Article {
   @@index([categoryId])
   @@index([matchId, status, publishedAt])
   @@index([status])
+}
+
+enum SocialPlatform {
+  X
+  FACEBOOK
+}
+
+enum SocialPostStatus {
+  DRAFT
+  POSTED
+}
+
+model SocialPost {
+  id        String @id @default(cuid())
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  platform  SocialPlatform
+  content   String
+  status    SocialPostStatus @default(DRAFT)
+  createdAt DateTime @default(now())
+
+  @@unique([articleId, platform])
 }
 
 /// Thème éditorial (WP16a).
@@ -1142,6 +1165,13 @@ model NewsAlert {
 enum NewsSourceType {
   RSS
   YOUTUBE
+  /// Réseaux sociaux intégrés via leur API publique.
+  BLUESKY
+  MASTODON
+  REDDIT
+  /// Flux RSS/Atom d'une passerelle sociale (RSSHub, Nitter…), pour les
+  /// plateformes qui n'exposent pas de timeline publique sans authentification.
+  SOCIAL
 }
 
 enum NewsAlertStatus {
