@@ -430,9 +430,9 @@ node scripts/migrate-local-to-neon.cjs --target "postgresql://…@ep-….neon.te
 ```
 
 **3. Appliquer.** Le script enchaîne : `pg_dump --data-only --inserts` de la
-base Docker, `prisma migrate deploy` sur Neon, injection du dump dans une
-transaction unique (`psql --single-transaction`), puis comparaison table par
-table des comptages source et cible.
+base Docker, `prisma migrate deploy` sur Neon, injection du dump en autocommit
+(sans transaction globale), puis comparaison table par table des comptages
+source et cible.
 
 ```bash
 node scripts/migrate-local-to-neon.cjs --target "postgresql://…" --confirm
@@ -455,9 +455,11 @@ Options utiles :
 Le dump exclut `_prisma_migrations` (écrite par Prisma sur la cible) et suspend
 les triggers utilisateur pendant le chargement : `sync_club_rivalries` exigerait
 que les clubs rivaux existent déjà, ce que l'ordre de `pg_dump` ne garantit pas.
-Les clés étrangères restent vérifiées, les triggers sont réactivés avant le
-`COMMIT`. En cas d'échec, la transaction est annulée : la cible reste dans
-l'état laissé par les migrations, et le dump produit est conservé.
+Les clés étrangères restent vérifiées ; les triggers sont réactivés en fin
+d'import et dans le chemin d'erreur. L'injection n'étant pas transactionnelle,
+un échec laisse les lignes déjà validées sur la cible : corriger puis relancer
+avec `--truncate` (ou restaurer une sauvegarde Neon). Le dump produit est
+conservé.
 
 Prérequis : Docker en marche, conteneur `promptsport-pg` démarré (il fournit
 `pg_dump` et `psql`, absents de l'hôte Windows), `npm install` effectué.
