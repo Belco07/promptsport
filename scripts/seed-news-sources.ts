@@ -4,8 +4,11 @@
  *   npm run news:seed
  *
  * Installe ou réactive la liste des grands médias sportifs internationaux et
- * des comptes sociaux de référence. Les sources existantes sont mises à jour
- * par URL ; aucune alerte n'est supprimée. Le script est idempotent.
+ * des comptes sociaux de référence. Les sources X, Facebook et Instagram sont
+ * préremplies avec les API officielles ; leur collecte nécessite les tokens
+ * X_BEARER_TOKEN, META_ACCESS_TOKEN et META_IG_USER_ID. Les sources existantes
+ * sont mises à jour par URL ; aucune alerte n'est supprimée. Le script est
+ * idempotent.
  */
 export {};
 
@@ -24,6 +27,9 @@ type SeedSourceType =
   | "BLUESKY"
   | "MASTODON"
   | "REDDIT"
+  | "X"
+  | "FACEBOOK"
+  | "INSTAGRAM"
   | "SOCIAL";
 
 type SeedSource = {
@@ -105,10 +111,39 @@ const SOURCES: SeedSource[] = [
     url: "https://www.youtube.com/@SkySportsFootball",
     type: "YOUTUBE",
   },
+
+  // X, Facebook, Instagram — API officielles (tokens requis).
+  // Les sources sont préremplies ; la collecte démarre dès que les variables
+  // X_BEARER_TOKEN, META_ACCESS_TOKEN et META_IG_USER_ID sont configurées.
+  { name: "ESPN (X)", url: "https://x.com/espn", type: "X" },
+  { name: "The Athletic Football (X)", url: "https://x.com/TheAthleticFC", type: "X" },
+  { name: "Sky Sports News (X)", url: "https://x.com/SkySportsNews", type: "X" },
+  { name: "Fabrizio Romano (X)", url: "https://x.com/FabrizioRomano", type: "X" },
+  { name: "ESPN (Facebook)", url: "https://www.facebook.com/espn", type: "FACEBOOK" },
+  { name: "The Athletic (Facebook)", url: "https://www.facebook.com/theathletic", type: "FACEBOOK" },
+  { name: "Sky Sports (Facebook)", url: "https://www.facebook.com/skysports", type: "FACEBOOK" },
+  { name: "ESPN (Instagram)", url: "https://www.instagram.com/espn", type: "INSTAGRAM" },
+  { name: "The Athletic (Instagram)", url: "https://www.instagram.com/theathletic", type: "INSTAGRAM" },
+  { name: "Sky Sports (Instagram)", url: "https://www.instagram.com/skysports", type: "INSTAGRAM" },
+  { name: "Fabrizio Romano (Instagram)", url: "https://www.instagram.com/fabrizioromano", type: "INSTAGRAM" },
 ];
 
 async function main(): Promise<void> {
   const { prisma } = await import("../src/lib/prisma");
+  const missingTokens = [
+    !process.env.X_BEARER_TOKEN?.trim() ? "X_BEARER_TOKEN" : null,
+    !process.env.META_ACCESS_TOKEN?.trim() ? "META_ACCESS_TOKEN" : null,
+    !process.env.META_IG_USER_ID?.trim() ? "META_IG_USER_ID" : null,
+  ].filter((value): value is string => Boolean(value));
+
+  if (missingTokens.length > 0) {
+    console.warn(
+      `[veille] Tokens manquants (${missingTokens.join(", ")}) : les sources ` +
+        "X/Facebook/Instagram seront préremplies mais échoueront à la collecte " +
+        "jusqu'à leur configuration.",
+    );
+  }
+
   let created = 0;
   let updated = 0;
 
