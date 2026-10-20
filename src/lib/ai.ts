@@ -5,10 +5,10 @@
  * brouillon Markdown. La création de l'article `DRAFT` est faite par la Server
  * Action du backoffice, après relecture humaine.
  *
- * Fournisseurs compatibles OpenAI :
- *   - OpenAI (défaut) : OPENAI_API_KEY, OPENAI_MODEL, OPENAI_BASE_URL ;
- *   - DeepSeek : DEEPSEEK_API_KEY (OPENAI_BASE_URL vaut alors
- *     https://api.deepseek.com et le modèle par défaut deepseek-chat).
+ * Fournisseur : DeepSeek, via son API compatible OpenAI.
+ *   - DEEPSEEK_API_KEY : clé obligatoire pour activer la génération ;
+ *   - DEEPSEEK_MODEL : facultatif (défaut : deepseek-chat) ;
+ *   - DEEPSEEK_BASE_URL : facultatif (défaut : https://api.deepseek.com).
  */
 
 export type NewsAlertInput = {
@@ -35,35 +35,24 @@ const MAX_TITLE_LENGTH = 160;
 const MAX_EXCERPT_LENGTH = 320;
 const MAX_CONTENT_LENGTH = 24_000;
 
-/** Une clé est-elle configurée ? Utilisé pour désactiver le bouton côté UI. */
+/** Une clé DeepSeek est-elle configurée ? Utilisé pour désactiver le bouton côté UI. */
 export function isAiConfigured(): boolean {
-  return Boolean(
-    process.env.OPENAI_API_KEY?.trim() || process.env.DEEPSEEK_API_KEY?.trim(),
-  );
+  return Boolean(process.env.DEEPSEEK_API_KEY?.trim());
 }
 
 function resolveProvider(): AiProvider {
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
-  if (openaiKey) {
-    return {
-      apiKey: openaiKey,
-      baseURL: process.env.OPENAI_BASE_URL?.trim() || undefined,
-      model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
-    };
+  const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error(
+      "Aucune clé IA configurée. Renseignez DEEPSEEK_API_KEY dans .env et sur Vercel.",
+    );
   }
 
-  const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
-  if (deepseekKey) {
-    return {
-      apiKey: deepseekKey,
-      baseURL: process.env.OPENAI_BASE_URL?.trim() || "https://api.deepseek.com",
-      model: process.env.OPENAI_MODEL?.trim() || "deepseek-chat",
-    };
-  }
-
-  throw new Error(
-    "Aucune clé IA configurée. Renseignez OPENAI_API_KEY (ou DEEPSEEK_API_KEY) dans .env et sur Vercel.",
-  );
+  return {
+    apiKey,
+    baseURL: process.env.DEEPSEEK_BASE_URL?.trim() || "https://api.deepseek.com",
+    model: process.env.DEEPSEEK_MODEL?.trim() || "deepseek-chat",
+  };
 }
 
 /** Retire un éventuel bloc de code Markdown autour du JSON. */

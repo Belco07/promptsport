@@ -103,7 +103,7 @@ export default async function VeillePage({
 
       {!aiReady ? (
         <div className="mb-6 rounded-lg border border-status-warning-border bg-status-warning px-4 py-3 text-sm text-status-warning-foreground">
-          La clé IA n&apos;est pas configurée. Renseignez <code>OPENAI_API_KEY</code> dans
+          La clé IA n&apos;est pas configurée. Renseignez <code>DEEPSEEK_API_KEY</code> dans
           <code> .env</code> (et sur Vercel) pour activer la génération. Les alertes
           restent consultables.
         </div>
@@ -208,7 +208,7 @@ export default async function VeillePage({
                               title={
                                 aiReady
                                   ? "Créer un brouillon relu par un humain avant publication"
-                                  : "OPENAI_API_KEY manquante"
+                                  : "DEEPSEEK_API_KEY manquante"
                               }
                             />
                           </form>

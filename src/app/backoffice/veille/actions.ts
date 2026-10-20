@@ -126,7 +126,7 @@ export async function generateArticle(alertId: string): Promise<void> {
 
   if (!isAiConfigured()) {
     fail(
-      "Clé IA absente : renseignez OPENAI_API_KEY (ou DEEPSEEK_API_KEY) dans .env et sur Vercel.",
+      "Clé IA absente : renseignez DEEPSEEK_API_KEY dans .env et sur Vercel.",
     );
   }
 
