@@ -35,13 +35,15 @@ function distribution({ status = 'PUBLISHED', failing, existing = [] } = {}) {
   const article = { title: 'Titre', excerpt: 'Résumé', slug: 'article-test', status, socialPosts: posts };
   const db = {
     article: { findUnique: async () => article },
-    socialPost: { upsert: async ({ create, update }) => { assert.deepEqual(Object.keys(update), []); if (!posts.some(post => post.platform === create.platform)) posts.push(create); } },
+    $executeRaw: async (_sql, id, platform, text, base, articleId) => {
+      if (article.status === 'PUBLISHED' && !posts.some(post => post.platform === platform)) posts.push({ id, platform, articleId, content: `${text}\n\n${base}${article.slug}` });
+    },
   };
-  db.$transaction = callback => callback(db);
   const engine = load('src/lib/distribution.ts', {
     '@/lib/prisma': { prisma: db },
     '@/lib/ai': { generateSocialPost: async (_title, _excerpt, platform) => { if (platform === failing) throw Error('Provider unavailable'); return `Post ${platform}`; } },
     '@/lib/seo': { absoluteUrl: path => `https://example.test${path}` },
+    'node:crypto': { randomUUID: () => 'fixture-uuid' },
   });
   return { posts, article, engine };
 }
