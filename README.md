@@ -1100,3 +1100,21 @@ La première publication d’un article génère après la réponse HTTP deux pr
 Tests unitaires : `node --test tests/unit/distribution.test.cjs`.
 
 E2E locaux : après les migrations et le seed des comptes E2E sur Docker (`localhost:5432`), lancer `node scripts/test-distribution.cjs` (parcours WP42) ou `node scripts/test-distribution.cjs tests/e2e` (suite complète). Le script démarre une IA simulée sur le port 5451 et un tunnel PostgreSQL WebSocket sur 5452 ; il neutralise les clés d’envoi et n’appelle pas DeepSeek. Le port 3002 doit être libre pour que le script démarre son serveur de test avec cette configuration.
+
+
+### Automatisation de la veille — WP41-bis
+
+`GET /api/cron/fetch-news` réutilise `src/lib/news-fetcher.ts`, comme `npm run news:fetch`. L’endpoint exige exclusivement `Authorization: Bearer <CRON_SECRET>` ; un secret absent côté serveur renvoie 503, un jeton absent ou invalide 401. Les paramètres `?token=` ne sont jamais acceptés. Les réponses ne sont pas mises en cache. Une collecte réussie renvoie `{ "success": true, "alertsCreated": 0 }`, avec le nombre réellement inséré (donc 0 si les alertes sont déjà connues). Une panne de toutes les sources renvoie 502 ; une panne globale renvoie 500.
+
+Le workflow `.github/workflows/fetch-news.yml` appelle cet endpoint **toutes les 30 minutes**, aux minutes 13 et 43 UTC. Il réutilise le secret Actions `CRON_SECRET` (même valeur que sur Vercel) et la variable `SITE_URL` du dépôt, avec repli sur `https://www.promptsport.net`. Le workflow doit être sur `main` et GitHub Actions activé. Il peut aussi être lancé manuellement dans Actions → Collecte de la veille → Run workflow. Les exécutions de ce workflow sont sérialisées pour éviter les chevauchements.
+
+La limite reste de 3 éléments par source (modifiable dans le CLI avec `--limit`) et la rétention de 48 h est conservée. Le cron traite jusqu’à 3 sources simultanément ; la traduction reste limitée aux alertes nouvelles. Le collecteur partagé ne déconnecte jamais Prisma et ne modifie pas le code de sortie du processus ; seul le CLI ferme son client à la fin.
+
+Test manuel, sans placer le secret dans l’URL :
+
+```bash
+curl --fail-with-body --header "Authorization: Bearer $CRON_SECRET" \
+  https://www.promptsport.net/api/cron/fetch-news
+```
+
+Tests isolés du collecteur et de l’authentification : `node --test tests/unit/news-fetcher.test.cjs`.

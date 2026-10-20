@@ -1,0 +1,60 @@
+name: Collecte de la veille
+
+on:
+  schedule:
+    - cron: '13,43 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fetch-news
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Collecter les nouvelles alertes
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://www.promptsport.net' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$CRON_SECRET" ]]; then
+            echo "Configurer le secret Actions CRON_SECRET, identique à celui de Vercel."
+            exit 1
+          fi
+          if [[ "$SITE_URL" != https://* || "$SITE_URL" == *'?'* || "$SITE_URL" == *'#'* ]]; then
+            echo "SITE_URL doit être l'adresse HTTPS publique du site."
+            exit 1
+          fi
+          # Le domaine canonique évite une redirection qui perdrait Authorization.
+          case "${SITE_URL%/}" in
+            https://promptsport.net) SITE_URL=https://www.promptsport.net ;;
+          esac
+          response_file=$(mktemp)
+          trap 'rm -f "$response_file"' EXIT
+          http_status=$(curl --silent --show-error \
+            --connect-timeout 10 --max-time 310 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            --output "$response_file" --write-out '%{http_code}' \
+            "${SITE_URL%/}/api/cron/fetch-news")
+          cat "$response_file"
+          echo
+          echo "HTTP $http_status"
+          if [[ "$http_status" != 2* ]]; then
+            echo "::error::Collecte refusée ou interrompue (HTTP $http_status)."
+            exit 1
+          fi
+          python3 - "$response_file" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as response:
+              result = json.load(response)
+          if result.get("success") is not True:
+              sys.exit("La collecte n'a pas abouti.")
+          print("Alertes créées :", result.get("alertsCreated", 0))
+          PY
