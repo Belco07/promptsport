@@ -1122,6 +1122,8 @@ model NewsAlert {
   source   NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
 
   title       String
+  /// Traduction française du titre, affichée dans la veille (WP41).
+  titleFr     String?
   url         String
   /// Extrait fourni par la source (texte brut, tronqué).
   content     String?

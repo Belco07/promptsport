@@ -1,10 +1,11 @@
 import Link from "next/link";
 
 import { isAiConfigured } from "@/lib/ai";
+import { cleanupOldNewsAlerts } from "@/lib/news";
 import { prisma } from "@/lib/prisma";
 
 import { ActionButton } from "./ActionButton";
-import { generateArticle, ignoreAlert } from "./actions";
+import { generateArticle, ignoreAlert, translateAlertTitles } from "./actions";
 
 /**
  * Backoffice — veille éditoriale (WP41).
@@ -58,18 +59,21 @@ export default async function VeillePage({
   const error = readParam(params.error);
   const info = readParam(params.info);
   const aiReady = isAiConfigured();
+  await cleanupOldNewsAlerts();
 
-  const [alerts, pending, generated, ignored, activeSources] = await Promise.all([
-    prisma.newsAlert.findMany({
-      orderBy: { publishedAt: "desc" },
-      take: 100,
-      include: { source: { select: { name: true, type: true } } },
-    }),
-    prisma.newsAlert.count({ where: { status: "PENDING" } }),
-    prisma.newsAlert.count({ where: { status: "DRAFT_GENERATED" } }),
-    prisma.newsAlert.count({ where: { status: "IGNORED" } }),
-    prisma.newsSource.count({ where: { active: true } }),
-  ]);
+  const [alerts, pending, generated, ignored, activeSources, untranslated] =
+    await Promise.all([
+      prisma.newsAlert.findMany({
+        orderBy: { publishedAt: "desc" },
+        take: 100,
+        include: { source: { select: { name: true, type: true } } },
+      }),
+      prisma.newsAlert.count({ where: { status: "PENDING" } }),
+      prisma.newsAlert.count({ where: { status: "DRAFT_GENERATED" } }),
+      prisma.newsAlert.count({ where: { status: "IGNORED" } }),
+      prisma.newsSource.count({ where: { active: true } }),
+      prisma.newsAlert.count({ where: { titleFr: null } }),
+    ]);
 
   return (
     <div className="px-8 py-10">
@@ -80,7 +84,8 @@ export default async function VeillePage({
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
         Les sources actives sont interrogées par <code>npm run news:fetch</code>. Chaque
         alerte peut être transformée en brouillon par l&apos;IA : la publication reste une
-        décision humaine, depuis le studio.
+        décision humaine, depuis le studio. Les alertes de plus de <strong>48 h</strong>{" "}
+        sont supprimées automatiquement ; les brouillons déjà créés restent dans le studio.
       </p>
 
       {error ? (
@@ -107,6 +112,28 @@ export default async function VeillePage({
           <code> .env</code> (et sur Vercel) pour activer la génération. Les alertes
           restent consultables.
         </div>
+      ) : null}
+
+      {untranslated > 0 ? (
+        <form
+          action={translateAlertTitles}
+          className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
+        >
+          <ActionButton
+            label={`Traduire les titres (${untranslated})`}
+            pendingLabel="Traduction…"
+            disabled={!aiReady}
+            title={
+              aiReady
+                ? "Traduire en français les titres encore dans leur langue d'origine"
+                : "DEEPSEEK_API_KEY manquante"
+            }
+          />
+          <p className="text-sm text-muted-foreground">
+            {untranslated} titre(s) à traduire, par lots de 40. La traduction est faite
+            par l&apos;IA et enregistrée pour les prochaines consultations.
+          </p>
+        </form>
       ) : null}
 
       <dl className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -162,6 +189,7 @@ export default async function VeillePage({
             <tbody className="divide-y divide-border">
               {alerts.map((alert) => {
                 const status = STATUS_STYLES[alert.status];
+                const displayTitle = alert.titleFr ?? alert.title;
                 return (
                   <tr key={alert.id} className="align-top hover:bg-muted">
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
@@ -174,9 +202,14 @@ export default async function VeillePage({
                         href={alert.url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        title={
+                          displayTitle !== alert.title
+                            ? `Titre original : ${alert.title}`
+                            : undefined
+                        }
                         className="font-medium text-foreground underline decoration-border underline-offset-2 hover:text-editorial-link"
                       >
-                        {alert.title}
+                        {displayTitle}
                       </a>
                       {alert.content ? (
                         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">

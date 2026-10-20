@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { Prisma } from "@/generated/prisma/client";
-import { generateArticleFromAlert, isAiConfigured } from "@/lib/ai";
+import {
+  generateArticleFromAlert,
+  isAiConfigured,
+  translateTitlesToFrench,
+} from "@/lib/ai";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessBackoffice } from "@/lib/roles";
@@ -148,7 +152,7 @@ export async function generateArticle(alertId: string): Promise<void> {
   let generated: { title: string; excerpt: string; content: string };
   try {
     generated = await generateArticleFromAlert({
-      title: alert.title,
+      title: alert.titleFr ?? alert.title,
       content: alert.content,
       url: alert.url,
       sourceName: alert.source.name,
@@ -206,6 +210,60 @@ export async function ignoreAlert(alertId: string): Promise<void> {
       info: updated.count
         ? "Alerte ignorée."
         : "Cette alerte avait déjà été traitée.",
+    }),
+  );
+}
+
+const TRANSLATION_BATCH_SIZE = 40;
+
+/**
+ * Traduit en français les titres des alertes qui n'ont pas encore de
+ * traduction. Utilisé lorsque la collecte a été faite sans DEEPSEEK_API_KEY.
+ */
+export async function translateAlertTitles(): Promise<void> {
+  await requireBackofficeUser();
+
+  if (!isAiConfigured()) {
+    fail(
+      "Clé IA absente : renseignez DEEPSEEK_API_KEY dans .env et sur Vercel.",
+    );
+  }
+
+  const alerts = await prisma.newsAlert.findMany({
+    where: { titleFr: null },
+    orderBy: { publishedAt: "desc" },
+    take: TRANSLATION_BATCH_SIZE,
+    select: { id: true, title: true },
+  });
+
+  if (alerts.length === 0) {
+    redirect(veilUrl({ info: "Tous les titres de la veille sont déjà en français." }));
+  }
+
+  let translations: string[];
+  try {
+    translations = await translateTitlesToFrench(alerts.map((alert) => alert.title));
+  } catch (error) {
+    console.error(
+      "[veille] échec de la traduction des titres :",
+      error instanceof Error ? error.message : error,
+    );
+    fail("La traduction a échoué. Les titres restent inchangés ; réessayez plus tard.");
+  }
+
+  await prisma.$transaction(
+    alerts.map((alert, index) =>
+      prisma.newsAlert.update({
+        where: { id: alert.id },
+        data: { titleFr: translations[index]?.trim() || alert.title },
+      }),
+    ),
+  );
+
+  revalidatePath("/backoffice/veille");
+  redirect(
+    veilUrl({
+      info: `${alerts.length} titre(s) traduit(s) en français.`,
     }),
   );
 }

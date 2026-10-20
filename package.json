@@ -19,7 +19,8 @@
     "newsletter:send": "npx tsx scripts/send-campaign.ts",
     "sync:football": "npx tsx scripts/sync-football.ts",
     "analytics:aggregate": "npx tsx scripts/analytics-aggregate.ts",
-    "news:fetch": "npx tsx scripts/fetch-news.ts"
+    "news:fetch": "npx tsx scripts/fetch-news.ts",
+    "news:seed": "npx tsx scripts/seed-news-sources.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.3",

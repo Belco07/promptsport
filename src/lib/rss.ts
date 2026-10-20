@@ -140,26 +140,44 @@ function getFeedParser(): Parser {
   feedParser ??= new Parser({
     timeout: 20_000,
     headers: {
-      "User-Agent": "PromptSport News Engine/1.0 (+https://promptsport.fr)",
+      "User-Agent":
+        "Mozilla/5.0 (compatible; PromptSport News Engine/1.0; +https://promptsport.fr)",
       Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
     },
   });
   return feedParser;
 }
 
-/** Retire les balises HTML et normalise les espaces d'un extrait de flux. */
-function plainText(value: string | undefined): string {
-  if (!value) return "";
+/** Décode les entités numériques et les principales entités nommées. */
+function decodeEntities(value: string): string {
   return value
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
+    .replace(/&#(x?)([0-9a-f]+);/gi, (match, hex: string, code: string) => {
+      const point = Number.parseInt(code, hex ? 16 : 10);
+      return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : match;
+    })
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&apos;|&#39;/gi, "'")
+    .replace(/&rsquo;|&lsquo;/gi, "'")
+    .replace(/&rdquo;|&ldquo;/gi, '"')
+    .replace(/&hellip;/gi, "…")
+    .replace(/&mdash;/gi, "—")
+    .replace(/&ndash;/gi, "–");
+}
+
+/** Retire les balises HTML et normalise les espaces d'un extrait de flux. */
+function plainText(value: string | undefined): string {
+  if (!value) return "";
+  return decodeEntities(
+    value
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<!\[CDATA\[|\]\]>/g, " ")
+      .replace(/<[^>]+>/g, " "),
+  )
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, MAX_CONTENT_LENGTH);
@@ -172,11 +190,11 @@ function readDate(value: string | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** Seules les URL HTTP(S) sont acceptées. */
-function readUrl(value: string | undefined): string | null {
+/** Seules les URL HTTP(S) sont acceptées ; les liens relatifs sont résolus. */
+function readUrl(value: string | undefined, base?: string): string | null {
   if (!value) return null;
   try {
-    const url = new URL(value);
+    const url = new URL(value, base);
     return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
   } catch {
     return null;
@@ -198,7 +216,7 @@ export async function fetchRssItems(feedUrl: string, limit = 10): Promise<FeedIt
 
   for (const item of feed.items ?? []) {
     const title = plainText(item.title).slice(0, 300);
-    const link = readUrl(item.link ?? item.guid);
+    const link = readUrl(item.link ?? item.guid, url);
     if (!title || !link) continue;
 
     items.push({

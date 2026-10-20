@@ -55,6 +55,19 @@ function resolveProvider(): AiProvider {
   };
 }
 
+/** Instancie le client compatible OpenAI utilisé pour DeepSeek. */
+async function createClient() {
+  const provider = resolveProvider();
+  const { default: OpenAI } = await import("openai");
+  const client = new OpenAI({
+    apiKey: provider.apiKey,
+    baseURL: provider.baseURL,
+    timeout: 45_000,
+    maxRetries: 1,
+  });
+  return { client, model: provider.model };
+}
+
 /** Retire un éventuel bloc de code Markdown autour du JSON. */
 function stripCodeFence(value: string): string {
   const trimmed = value.trim();
@@ -86,7 +99,7 @@ function plainExcerpt(content: string): string {
 
 function sourceLink(sourceName: string, sourceUrl: string): string {
   const label = sourceName.replace(/[[\]]/g, "").trim() || "Source";
-  return `\n\n---\n\n*Source : [${label}](${sourceUrl})*`;
+  return `\n\n*Source : [${label}](${sourceUrl})*`;
 }
 
 /**
@@ -136,11 +149,16 @@ Règles absolues :
 - n'invente aucun fait, score, citation ou déclaration absent de l'alerte ;
 - si une information manque, reste prudent et attribue-la à la source ;
 - écris en français, au format Markdown, sans titre H1 (le titre est séparé) ;
-- structure : une introduction de 2 à 3 phrases, 2 ou 3 sections en "##", une conclusion courte ;
-- 450 à 650 mots, ton professionnel, pas de sensationnalisme ;
-- ne recopie pas l'extrait mot pour mot.
+- n'ajoute ni signature, ni mention d'IA, ni lien vers la source : il est ajouté automatiquement.
+Structure impérative :
+1. Commence par un chapô de 2 à 3 phrases qui répond à l'essentiel (qui, quoi, quand, où, pourquoi), sans intertitre.
+2. Poursuis avec 2 ou 3 sections en "##". Chaque intertitre doit être court, spécifique au sujet et informatif. N'utilise jamais les libellés génériques "Introduction", "Contexte", "Les faits", "Analyse" ou "Conclusion".
+3. Chaque section contient 1 ou 2 paragraphes de 2 à 4 phrases. Pas de listes à puces, sauf énumération indispensable.
+4. Termine par un paragraphe court d'ouverture (conséquence, prochaine échéance ou question), sans intertitre "Conclusion".
+5. Vise 450 à 650 mots. Ton professionnel, fluide, sans sensationnalisme ni formules creuses.
+6. Ne répète pas le titre dans le chapô et ne recopie pas l'extrait mot pour mot.
 Réponds uniquement avec un objet JSON valide :
-{"title":"titre accrocheur de 90 caractères maximum","excerpt":"résumé de 200 caractères maximum","content":"article Markdown complet"}`;
+{"title":"titre factuel et accrocheur de 90 caractères maximum","excerpt":"chapô de 200 caractères maximum","content":"article Markdown complet"}`;
 
 function userPrompt(alert: NewsAlertInput): string {
   const publishedAt = alert.publishedAt
@@ -169,18 +187,10 @@ function userPrompt(alert: NewsAlertInput): string {
 export async function generateArticleFromAlert(
   alert: NewsAlertInput,
 ): Promise<GeneratedArticle> {
-  const provider = resolveProvider();
-  const { default: OpenAI } = await import("openai");
-
-  const client = new OpenAI({
-    apiKey: provider.apiKey,
-    baseURL: provider.baseURL,
-    timeout: 45_000,
-    maxRetries: 1,
-  });
+  const { client, model } = await createClient();
 
   const completion = await client.chat.completions.create({
-    model: provider.model,
+    model,
     temperature: 0.5,
     max_tokens: 2400,
     response_format: { type: "json_object" },
@@ -196,4 +206,79 @@ export async function generateArticleFromAlert(
   }
 
   return parseCompletion(raw, alert);
+}
+
+const TRANSLATION_PROMPT = `Tu es traducteur éditorial sportif pour PromptSport.
+Traduis chaque titre en français naturel, concis et fidèle.
+Règles :
+- conserve les noms propres, clubs, compétitions, sigles et marques ;
+- si un titre est déjà en français, renvoie-le tel quel, sans le réécrire ;
+- n'ajoute aucune information et ne commente pas ;
+- conserve exactement le même nombre d'éléments et le même ordre.
+Réponds uniquement en JSON : {"titles":["traduction 1","traduction 2", ...]}`;
+
+const TRANSLATION_BATCH_SIZE = 40;
+
+function parseTranslatedTitles(raw: string, originals: string[]): string[] {
+  const cleaned = stripCodeFence(raw);
+  let payload: unknown;
+  try {
+    payload = JSON.parse(cleaned);
+  } catch {
+    throw new Error("La réponse de traduction n'est pas un JSON valide.");
+  }
+
+  const list =
+    payload &&
+    typeof payload === "object" &&
+    Array.isArray((payload as { titles?: unknown }).titles)
+      ? (payload as { titles: unknown[] }).titles
+      : null;
+
+  if (!list || list.length !== originals.length) {
+    throw new Error("La réponse de traduction ne contient pas le bon nombre de titres.");
+  }
+
+  return originals.map((original, index) => {
+    const translated = cleanText(list[index], MAX_TITLE_LENGTH);
+    return translated || original;
+  });
+}
+
+/**
+ * Traduit une liste de titres de presse en français via DeepSeek.
+ *
+ * Les titres sont envoyés par lots pour borner la taille de la réponse. En cas
+ * d'échec, l'erreur remonte : l'appelant conserve alors les titres originaux et
+ * pourra relancer la traduction depuis le backoffice.
+ */
+export async function translateTitlesToFrench(titles: string[]): Promise<string[]> {
+  const cleaned = titles.map((title) => cleanText(title, MAX_TITLE_LENGTH));
+  if (cleaned.length === 0) return [];
+
+  const { client, model } = await createClient();
+  const translated: string[] = [];
+
+  for (let offset = 0; offset < cleaned.length; offset += TRANSLATION_BATCH_SIZE) {
+    const batch = cleaned.slice(offset, offset + TRANSLATION_BATCH_SIZE);
+    const completion = await client.chat.completions.create({
+      model,
+      temperature: 0.1,
+      max_tokens: 3000,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: TRANSLATION_PROMPT },
+        { role: "user", content: JSON.stringify({ titles: batch }) },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw || typeof raw !== "string") {
+      throw new Error("L'IA n'a renvoyé aucune traduction.");
+    }
+
+    translated.push(...parseTranslatedTitles(raw, batch));
+  }
+
+  return translated;
 }

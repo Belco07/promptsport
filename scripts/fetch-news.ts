@@ -34,7 +34,7 @@ type FeedItem = {
   publishedAt: Date;
 };
 
-const DEFAULT_LIMIT = 10;
+const DEFAULT_LIMIT = 3;
 
 function usage(): void {
   console.log(`News Engine — collecte des alertes
@@ -49,8 +49,12 @@ Options :
   --help            Afficher cette aide
 
 Variables :
+  DEEPSEEK_API_KEY  Active la traduction française des titres à la collecte
   YOUTUBE_API_KEY   Requise pour les sources de type YOUTUBE
   NEON_WS_PROXY     Passerelle locale (Docker uniquement, ex. 127.0.0.1:5443)
+
+Rétention :
+  Les alertes de plus de 48 h sont supprimées à chaque collecte.
 `);
 }
 
@@ -204,12 +208,26 @@ async function main(): Promise<void> {
   const sourceFilter = readOption(args, "source")?.trim();
   const dryRun = args.includes("--dry-run");
 
-  const [{ prisma }, { fetchRssItems }] = await Promise.all([
+  const [
+    { prisma },
+    { fetchRssItems },
+    { isAiConfigured, translateTitlesToFrench },
+    { cleanupOldNewsAlerts, isRecentNewsItem },
+  ] = await Promise.all([
     import("../src/lib/prisma"),
     import("../src/lib/rss"),
+    import("../src/lib/ai"),
+    import("../src/lib/news"),
   ]);
 
   try {
+    if (!dryRun) {
+      const removed = await cleanupOldNewsAlerts();
+      if (removed > 0) {
+        console.log(`[veille] ${removed} alerte(s) de plus de 48 h supprimée(s).`);
+      }
+    }
+
     const sources = await prisma.newsSource.findMany({
       where: {
         active: true,
@@ -253,19 +271,34 @@ async function main(): Promise<void> {
 
         received += items.length;
 
-        const urls = items.map((item) => item.url);
+        const recent = items.filter((item) => isRecentNewsItem(item.publishedAt));
+        const urls = recent.map((item) => item.url);
         const existing = await prisma.newsAlert.findMany({
           where: { sourceId: source.id, url: { in: urls } },
           select: { url: true },
         });
         const known = new Set(existing.map((alert) => alert.url));
-        const fresh = items.filter((item) => !known.has(item.url));
+        const fresh = recent.filter((item) => !known.has(item.url));
+
+        let titlesFr: string[] | null = null;
+        if (!dryRun && fresh.length > 0 && isAiConfigured()) {
+          try {
+            titlesFr = await translateTitlesToFrench(fresh.map((item) => item.title));
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn(
+              `[veille] ${source.name} : traduction indisponible (${message}). ` +
+                "Les titres restent dans leur langue d'origine.",
+            );
+          }
+        }
 
         if (!dryRun && fresh.length > 0) {
           const result = await prisma.newsAlert.createMany({
-            data: fresh.map((item) => ({
+            data: fresh.map((item, index) => ({
               sourceId: source.id,
               title: item.title,
+              titleFr: titlesFr?.[index] ?? null,
               url: item.url,
               content: item.content,
               publishedAt: item.publishedAt,
@@ -279,6 +312,7 @@ async function main(): Promise<void> {
 
         console.log(
           `[veille] ${source.name} (${source.type}) : ${items.length} reçue(s), ` +
+            `${items.length - recent.length} trop ancienne(s), ` +
             `${fresh.length} nouvelle(s)${dryRun ? " (dry-run, non enregistrées)" : ""}.`,
         );
       } catch (error) {
