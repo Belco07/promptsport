@@ -3,6 +3,8 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { SITE_URL } from "@/lib/seo";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Sitemap XML (WP8b), servi sur /sitemap.xml.
  *
@@ -23,102 +25,105 @@ const MAX_URLS = 50000;
 /** Fenêtre de publication des matchs, en jours. */
 const MATCH_WINDOW_DAYS = 30;
 
-export const revalidate = 3600;
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
-  const windowStart = new Date(now.getTime() - MATCH_WINDOW_DAYS * 864e5);
-  const windowEnd = new Date(now.getTime() + MATCH_WINDOW_DAYS * 864e5);
+  try {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - MATCH_WINDOW_DAYS * 864e5);
+    const windowEnd = new Date(now.getTime() + MATCH_WINDOW_DAYS * 864e5);
 
-  const [articles, competitions, matches, themes, clubs, players] = await Promise.all([
-    prisma.article.findMany({
-      where: { status: "PUBLISHED" },
-      orderBy: { publishedAt: "desc" },
-      select: { slug: true, publishedAt: true, updatedAt: true },
-    }),
-    prisma.competition.findMany({
-      orderBy: { name: "asc" },
-      select: { slug: true, updatedAt: true },
-    }),
-    prisma.match.findMany({
-      where: { scheduledAt: { gte: windowStart, lte: windowEnd } },
-      orderBy: { scheduledAt: "desc" },
-      select: { id: true, status: true, scheduledAt: true, updatedAt: true },
-    }),
-    // WP16c : thèmes éditoriaux actifs. Les thèmes désactivés répondent 404,
-    // les déclarer ici ferait remonter une erreur dans Search Console.
-    prisma.theme.findMany({
-      where: { active: true },
-      orderBy: { name: "asc" },
-      select: { slug: true, updatedAt: true },
-    }),
-    prisma.team.findMany({ orderBy: { name: "asc" }, select: { slug: true, updatedAt: true } }),
-    prisma.player.findMany({ orderBy: { name: "asc" }, select: { slug: true, updatedAt: true } }),
-  ]);
+    const [articles, competitions, matches, themes, clubs, players] = await Promise.all([
+      prisma.article.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { publishedAt: "desc" },
+        select: { slug: true, publishedAt: true, updatedAt: true },
+      }),
+      prisma.competition.findMany({
+        orderBy: { name: "asc" },
+        select: { slug: true, updatedAt: true },
+      }),
+      prisma.match.findMany({
+        where: { scheduledAt: { gte: windowStart, lte: windowEnd } },
+        orderBy: { scheduledAt: "desc" },
+        select: { id: true, status: true, scheduledAt: true, updatedAt: true },
+      }),
+      // WP16c : thèmes éditoriaux actifs. Les thèmes désactivés répondent 404,
+      // les déclarer ici ferait remonter une erreur dans Search Console.
+      prisma.theme.findMany({
+        where: { active: true },
+        orderBy: { name: "asc" },
+        select: { slug: true, updatedAt: true },
+      }),
+      prisma.team.findMany({ orderBy: { name: "asc" }, select: { slug: true, updatedAt: true } }),
+      prisma.player.findMany({ orderBy: { name: "asc" }, select: { slug: true, updatedAt: true } }),
+    ]);
 
-  const entries: MetadataRoute.Sitemap = [
-    {
-      url: `${SITE_URL}/archives`,
-      lastModified: articles[0]?.publishedAt ?? now,
-      changeFrequency: "daily",
-      priority: 0.6,
-    },
-    {
-      url: SITE_URL,
-      lastModified: articles[0]?.publishedAt ?? now,
-      changeFrequency: "daily",
-      priority: 1,
-    },
-    {
-      url: `${SITE_URL}/scores`,
-      lastModified: matches[0]?.updatedAt ?? now,
-      changeFrequency: "hourly",
-      priority: 0.7,
-    },
-    // /recherche et ses paramètres sont exclus : résultats dynamiques noindex (WP17b).
-    // /abonnement est volontairement ABSENT : la page est en `noindex`
-    // (WP8a), et déclarer une URL noindex dans un sitemap fait remonter un
-    // avertissement « Exclue par la balise noindex » dans Search Console.
-  ];
+    const entries: MetadataRoute.Sitemap = [
+      {
+        url: `${SITE_URL}/archives`,
+        lastModified: articles[0]?.publishedAt ?? now,
+        changeFrequency: "daily",
+        priority: 0.6,
+      },
+      {
+        url: SITE_URL,
+        lastModified: articles[0]?.publishedAt ?? now,
+        changeFrequency: "daily",
+        priority: 1,
+      },
+      {
+        url: `${SITE_URL}/scores`,
+        lastModified: matches[0]?.updatedAt ?? now,
+        changeFrequency: "hourly",
+        priority: 0.7,
+      },
+      // /recherche et ses paramètres sont exclus : résultats dynamiques noindex (WP17b).
+      // /abonnement est volontairement ABSENT : la page est en `noindex`
+      // (WP8a), et déclarer une URL noindex dans un sitemap fait remonter un
+      // avertissement « Exclue par la balise noindex » dans Search Console.
+    ];
 
-  for (const article of articles) {
-    entries.push({
-      url: `${SITE_URL}/article/${article.slug}`,
-      lastModified: article.updatedAt,
-      changeFrequency: "daily",
-      priority: 0.8,
-    });
+    for (const article of articles) {
+      entries.push({
+        url: `${SITE_URL}/article/${article.slug}`,
+        lastModified: article.updatedAt,
+        changeFrequency: "daily",
+        priority: 0.8,
+      });
+    }
+
+    for (const competition of competitions) {
+      entries.push({
+        url: `${SITE_URL}/competition/${competition.slug}`,
+        lastModified: competition.updatedAt,
+        changeFrequency: "weekly",
+        priority: 0.7,
+      });
+    }
+
+    for (const match of matches) {
+      entries.push({
+        url: `${SITE_URL}/match/${match.id}`,
+        lastModified: match.updatedAt,
+        changeFrequency: match.status === "LIVE" ? "hourly" : "daily",
+        priority: 0.6,
+      });
+    }
+
+    for (const theme of themes) {
+      entries.push({
+        url: `${SITE_URL}/theme/${theme.slug}`,
+        lastModified: theme.updatedAt,
+        changeFrequency: "daily",
+        priority: 0.7,
+      });
+    }
+
+    for (const club of clubs) entries.push({ url: `${SITE_URL}/club/${club.slug}`, lastModified: club.updatedAt, changeFrequency: "daily", priority: 0.6 });
+    for (const player of players) entries.push({ url: `${SITE_URL}/joueur/${player.slug}`, lastModified: player.updatedAt, changeFrequency: "daily", priority: 0.5 });
+
+    return entries.slice(0, MAX_URLS);
+  } catch {
+    console.error("[sitemap] Impossible de charger les données. Sitemap vide retourné.");
+    return [];
   }
-
-  for (const competition of competitions) {
-    entries.push({
-      url: `${SITE_URL}/competition/${competition.slug}`,
-      lastModified: competition.updatedAt,
-      changeFrequency: "weekly",
-      priority: 0.7,
-    });
-  }
-
-  for (const match of matches) {
-    entries.push({
-      url: `${SITE_URL}/match/${match.id}`,
-      lastModified: match.updatedAt,
-      changeFrequency: match.status === "LIVE" ? "hourly" : "daily",
-      priority: 0.6,
-    });
-  }
-
-  for (const theme of themes) {
-    entries.push({
-      url: `${SITE_URL}/theme/${theme.slug}`,
-      lastModified: theme.updatedAt,
-      changeFrequency: "daily",
-      priority: 0.7,
-    });
-  }
-
-  for (const club of clubs) entries.push({ url: `${SITE_URL}/club/${club.slug}`, lastModified: club.updatedAt, changeFrequency: "daily", priority: 0.6 });
-  for (const player of players) entries.push({ url: `${SITE_URL}/joueur/${player.slug}`, lastModified: player.updatedAt, changeFrequency: "daily", priority: 0.5 });
-
-  return entries.slice(0, MAX_URLS);
 }
