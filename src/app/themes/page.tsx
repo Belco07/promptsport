@@ -15,7 +15,7 @@ import { buildPageMetadata } from "@/lib/seo";
  * correspond à ce que montre la page du thème.
  */
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Tous les thèmes",
