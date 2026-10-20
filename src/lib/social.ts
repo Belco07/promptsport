@@ -6,8 +6,10 @@ import { plainText } from "./rss";
  *
  * Les réseaux ouverts sont interrogés directement via leur API publique :
  * Bluesky, Mastodon et Reddit. YouTube reste géré par le script de collecte
- * (API Data v3). Les plateformes fermées (X, Instagram, Facebook, TikTok)
- * passent par un flux RSS de passerelle, traité comme un flux RSS classique.
+ * (API Data v3). X, Facebook et Instagram disposent de connecteurs dédiés dans
+ * social-platforms.ts (API officielles). TikTok et les plateformes sans API
+ * accessible passent par un flux RSS de passerelle, traité comme un flux RSS
+ * classique.
  */
 
 const USER_AGENT =

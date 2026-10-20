@@ -26,6 +26,9 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   BLUESKY: "Bluesky",
   MASTODON: "Mastodon",
   REDDIT: "Reddit",
+  X: "X (Twitter)",
+  FACEBOOK: "Facebook",
+  INSTAGRAM: "Instagram",
   SOCIAL: "Réseau social (RSS)",
 };
 
@@ -58,6 +61,27 @@ export default async function VeilleSourcesPage({
     },
   });
 
+  const apiAccess = [
+    {
+      label: "X",
+      ready: Boolean(process.env.X_BEARER_TOKEN?.trim()),
+      missing: "X_BEARER_TOKEN",
+    },
+    {
+      label: "Facebook",
+      ready: Boolean(process.env.META_ACCESS_TOKEN?.trim()),
+      missing: "META_ACCESS_TOKEN",
+    },
+    {
+      label: "Instagram",
+      ready: Boolean(
+        process.env.META_ACCESS_TOKEN?.trim() &&
+          process.env.META_IG_USER_ID?.trim(),
+      ),
+      missing: "META_ACCESS_TOKEN + META_IG_USER_ID",
+    },
+  ];
+
   return (
     <div className="px-8 py-10">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -68,9 +92,10 @@ export default async function VeilleSourcesPage({
       </h1>
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
         Les sources actives sont interrogées par <code>npm run news:fetch</code>. Les
-        médias passent par un flux RSS ou une chaîne YouTube. Les réseaux sociaux
-        ouverts (Bluesky, Mastodon, Reddit) sont lus via leur API publique. Pour X,
-        Instagram, Facebook et TikTok, utilisez un flux RSS de passerelle (RSSHub,
+        médias passent par un flux RSS ou une chaîne YouTube. Bluesky, Mastodon et
+        Reddit sont lus via leur API publique. X, Facebook et Instagram utilisent
+        leurs API officielles, avec des tokens d&apos;accès. Pour TikTok ou une
+        plateforme sans API accessible, utilisez un flux RSS de passerelle (RSSHub,
         Nitter…) et choisissez « Réseau social (RSS) ».
       </p>
 
@@ -91,6 +116,42 @@ export default async function VeilleSourcesPage({
           {info}
         </div>
       ) : null}
+
+      <section className="mb-6 rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">Accès API</h2>
+          <p className="text-xs text-muted-foreground">
+            Variables d&apos;environnement, puis redéploiement.
+          </p>
+        </div>
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+          {apiAccess.map((access) => (
+            <p key={access.label} className="text-muted-foreground">
+              <span className="font-medium text-foreground">{access.label}</span> :{" "}
+              <span
+                className={
+                  access.ready
+                    ? "font-medium text-status-success-foreground"
+                    : "font-medium text-status-error-foreground"
+                }
+              >
+                {access.ready ? "configuré" : "token manquant"}
+              </span>
+              {access.ready ? null : (
+                <>
+                  {" "}
+                  (<code>{access.missing}</code>)
+                </>
+              )}
+            </p>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Une source peut être ajoutée même sans token, mais sa collecte échouera
+          jusqu&apos;à la configuration. Les tokens ne sont jamais affichés dans le
+          backoffice.
+        </p>
+      </section>
 
       <section className="mb-8 rounded-lg border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
@@ -124,6 +185,9 @@ export default async function VeilleSourcesPage({
               <option value="BLUESKY">Bluesky</option>
               <option value="MASTODON">Mastodon</option>
               <option value="REDDIT">Reddit</option>
+              <option value="X">X (Twitter)</option>
+              <option value="FACEBOOK">Facebook</option>
+              <option value="INSTAGRAM">Instagram</option>
               <option value="SOCIAL">Réseau social (RSS)</option>
             </select>
           </label>
@@ -139,12 +203,20 @@ export default async function VeilleSourcesPage({
           </label>
           <ActionButton label="Ajouter la source" pendingLabel="Ajout…" />
         </form>
-        <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
-          YouTube : URL de la chaîne (<code>/@handle</code> ou <code>/channel/…</code>).
-          Bluesky : <code>https://bsky.app/profile/…</code>. Mastodon :{" "}
-          <code>https://instance.social/@compte</code>. Reddit : URL du subreddit ou du
-          profil. Réseau social (RSS) : URL du flux fourni par la passerelle.
-        </p>
+        <div className="space-y-1 border-t border-border px-4 py-3 text-xs text-muted-foreground">
+          <p>
+            YouTube : URL de la chaîne (<code>/@handle</code> ou{" "}
+            <code>/channel/…</code>). Bluesky :{" "}
+            <code>https://bsky.app/profile/…</code>. Mastodon :{" "}
+            <code>https://instance.social/@compte</code>. Reddit : URL du
+            subreddit ou du profil.
+          </p>
+          <p>
+            X : URL du profil (<code>https://x.com/…</code>). Facebook : URL de
+            la page. Instagram : URL du profil Business/Creator. Réseau social
+            (RSS) : URL du flux fourni par la passerelle.
+          </p>
+        </div>
       </section>
 
       <section className="overflow-hidden rounded-lg border border-border bg-card">

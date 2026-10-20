@@ -47,6 +47,9 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   BLUESKY: "Bluesky",
   MASTODON: "Mastodon",
   REDDIT: "Reddit",
+  X: "X (Twitter)",
+  FACEBOOK: "Facebook",
+  INSTAGRAM: "Instagram",
   SOCIAL: "Réseau social (RSS)",
 };
 

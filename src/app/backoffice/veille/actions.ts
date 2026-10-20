@@ -13,6 +13,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessBackoffice } from "@/lib/roles";
 import { slugify } from "@/lib/slug";
+import {
+  facebookPageFromUrl,
+  instagramUsernameFromUrl,
+  xHandleFromUrl,
+} from "@/lib/social-platforms";
 
 /**
  * Server Actions du News Engine (WP41).
@@ -244,6 +249,9 @@ const SOURCE_TYPES = [
   "BLUESKY",
   "MASTODON",
   "REDDIT",
+  "X",
+  "FACEBOOK",
+  "INSTAGRAM",
   "SOCIAL",
 ] as const;
 
@@ -301,6 +309,29 @@ function normalizeSourceUrl(raw: string, type: SourceTypeValue): URL {
       }
       if (!url.pathname.startsWith("/r/") && !url.pathname.startsWith("/user/")) {
         failSource("URL Reddit invalide : utilisez un subreddit /r/… ou un profil /user/….");
+      }
+      break;
+    case "X":
+      try {
+        xHandleFromUrl(url.toString());
+      } catch (error) {
+        failSource(error instanceof Error ? error.message : "URL X invalide.");
+      }
+      break;
+    case "FACEBOOK":
+      try {
+        facebookPageFromUrl(url.toString());
+      } catch (error) {
+        failSource(error instanceof Error ? error.message : "URL Facebook invalide.");
+      }
+      break;
+    case "INSTAGRAM":
+      try {
+        instagramUsernameFromUrl(url.toString());
+      } catch (error) {
+        failSource(
+          error instanceof Error ? error.message : "URL Instagram invalide.",
+        );
       }
       break;
     case "RSS":

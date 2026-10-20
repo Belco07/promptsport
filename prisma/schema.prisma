@@ -1169,6 +1169,10 @@ enum NewsSourceType {
   BLUESKY
   MASTODON
   REDDIT
+  /// Plateformes nécessitant un accès API officiel (tokens).
+  X
+  FACEBOOK
+  INSTAGRAM
   /// Flux RSS/Atom d'une passerelle sociale (RSSHub, Nitter…), pour les
   /// plateformes qui n'exposent pas de timeline publique sans authentification.
   SOCIAL

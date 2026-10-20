@@ -51,6 +51,10 @@ Options :
 Variables :
   DEEPSEEK_API_KEY  Active la traduction française des titres à la collecte
   YOUTUBE_API_KEY   Requise pour les sources de type YOUTUBE
+  X_BEARER_TOKEN    Requis pour les sources X (X API v2, lecture)
+  META_ACCESS_TOKEN Requis pour Facebook et Instagram (Meta Graph API)
+  META_IG_USER_ID   Requis pour Instagram (business discovery)
+  META_GRAPH_VERSION Version Graph API optionnelle (défaut : v23.0)
   NEON_WS_PROXY     Passerelle locale (Docker uniquement, ex. 127.0.0.1:5443)
 
 Types de sources :
@@ -59,6 +63,9 @@ Types de sources :
   BLUESKY           Profil Bluesky (API publique AT Protocol)
   MASTODON          Profil Mastodon (API publique de l'instance)
   REDDIT            Subreddit ou profil Reddit (flux Atom public)
+  X                 Profil X (X API v2, Bearer Token)
+  FACEBOOK          Page Facebook (Meta Graph API)
+  INSTAGRAM         Profil Instagram Business/Creator (Meta Graph API)
   SOCIAL            Flux RSS d'une passerelle sociale (RSSHub, Nitter…)
 
 Rétention :
@@ -220,12 +227,14 @@ async function main(): Promise<void> {
     { prisma },
     { fetchRssItems },
     { fetchBlueskyItems, fetchMastodonItems, redditFeedUrl },
+    { fetchFacebookItems, fetchInstagramItems, fetchXItems },
     { isAiConfigured, translateTitlesToFrench },
     { cleanupOldNewsAlerts, isRecentNewsItem, purgeIgnoredNewsAlerts },
   ] = await Promise.all([
     import("../src/lib/prisma"),
     import("../src/lib/rss"),
     import("../src/lib/social"),
+    import("../src/lib/social-platforms"),
     import("../src/lib/ai"),
     import("../src/lib/news"),
   ]);
@@ -267,6 +276,9 @@ async function main(): Promise<void> {
     }
 
     const youtubeKey = process.env.YOUTUBE_API_KEY?.trim();
+    const xToken = process.env.X_BEARER_TOKEN?.trim();
+    const metaToken = process.env.META_ACCESS_TOKEN?.trim();
+    const instagramUserId = process.env.META_IG_USER_ID?.trim();
     let created = 0;
     let received = 0;
     let failures = 0;
@@ -293,6 +305,40 @@ async function main(): Promise<void> {
             break;
           case "REDDIT":
             items = await fetchRssItems(redditFeedUrl(source.url), limit);
+            break;
+          case "X":
+            if (!xToken) {
+              throw new Error(
+                "X_BEARER_TOKEN absente de l'environnement : la source X ne peut pas être interrogée.",
+              );
+            }
+            items = await fetchXItems(source.url, limit, xToken);
+            break;
+          case "FACEBOOK":
+            if (!metaToken) {
+              throw new Error(
+                "META_ACCESS_TOKEN absente de l'environnement : la source Facebook ne peut pas être interrogée.",
+              );
+            }
+            items = await fetchFacebookItems(source.url, limit, metaToken);
+            break;
+          case "INSTAGRAM":
+            if (!metaToken) {
+              throw new Error(
+                "META_ACCESS_TOKEN absente de l'environnement : la source Instagram ne peut pas être interrogée.",
+              );
+            }
+            if (!instagramUserId) {
+              throw new Error(
+                "META_IG_USER_ID absente de l'environnement : la source Instagram ne peut pas être interrogée.",
+              );
+            }
+            items = await fetchInstagramItems(
+              source.url,
+              limit,
+              metaToken,
+              instagramUserId,
+            );
             break;
           default:
             throw new Error(`Type de source non pris en charge : ${source.type}`);
