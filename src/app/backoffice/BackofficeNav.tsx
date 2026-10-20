@@ -43,6 +43,14 @@ export function BackofficeNav() {
       </Link>
 
       <Link
+        href="/backoffice/veille"
+        aria-current={isActive(pathname.startsWith("/backoffice/veille")) ? "page" : undefined}
+        className={linkClass(isActive(pathname.startsWith("/backoffice/veille")))}
+      >
+        Veille
+      </Link>
+
+      <Link
         href="/backoffice/users"
         aria-current={isActive(pathname.startsWith("/backoffice/users")) ? "page" : undefined}
         className={linkClass(isActive(pathname.startsWith("/backoffice/users")))}

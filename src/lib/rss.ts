@@ -1,3 +1,5 @@
+import Parser from "rss-parser";
+
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from "@/lib/seo";
 
 /**
@@ -5,6 +7,9 @@ import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from "@/lib/seo";
  *
  * Aucune bibliothèque externe : le XML est construit à la main, avec échappement
  * systématique des valeurs (titres, extraits) pour rester valide.
+ *
+ * WP41 : ce module porte aussi la lecture des flux **externes** du News Engine
+ * (`fetchRssItems`), d'où l'import de `rss-parser`.
  */
 
 export type RssArticle = {
@@ -114,3 +119,97 @@ export const RSS_HEADERS = {
 } as const;
 
 export { SITE_DESCRIPTION, SITE_NAME };
+
+/* -------------------------------------------------------------------------- */
+/* News Engine (WP41) — lecture des flux externes                             */
+/* -------------------------------------------------------------------------- */
+
+export type FeedItem = {
+  title: string;
+  url: string;
+  content: string | null;
+  publishedAt: Date;
+};
+
+/** Longueur maximale de l'extrait conservé en base et envoyé à l'IA. */
+const MAX_CONTENT_LENGTH = 4000;
+
+let feedParser: Parser | null = null;
+
+function getFeedParser(): Parser {
+  feedParser ??= new Parser({
+    timeout: 20_000,
+    headers: {
+      "User-Agent": "PromptSport News Engine/1.0 (+https://promptsport.fr)",
+      Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml",
+    },
+  });
+  return feedParser;
+}
+
+/** Retire les balises HTML et normalise les espaces d'un extrait de flux. */
+function plainText(value: string | undefined): string {
+  if (!value) return "";
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_CONTENT_LENGTH);
+}
+
+/** Date valide ou `null` : certaines sources publient des dates illisibles. */
+function readDate(value: string | undefined): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Seules les URL HTTP(S) sont acceptées. */
+function readUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Récupère les derniers éléments d'un flux RSS/Atom externe.
+ *
+ * @param feedUrl URL du flux, telle qu'enregistrée dans `NewsSource`.
+ * @param limit   Nombre maximal d'éléments retournés (les plus récents).
+ */
+export async function fetchRssItems(feedUrl: string, limit = 10): Promise<FeedItem[]> {
+  const url = readUrl(feedUrl);
+  if (!url) throw new Error("URL de flux RSS invalide.");
+
+  const feed = await getFeedParser().parseURL(url);
+  const items: FeedItem[] = [];
+
+  for (const item of feed.items ?? []) {
+    const title = plainText(item.title).slice(0, 300);
+    const link = readUrl(item.link ?? item.guid);
+    if (!title || !link) continue;
+
+    items.push({
+      title,
+      url: link,
+      content: plainText(item.contentSnippet ?? item.content ?? item.summary) || null,
+      publishedAt: readDate(item.isoDate ?? item.pubDate) ?? new Date(),
+    });
+  }
+
+  return items
+    .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+    .slice(0, Math.max(1, limit));
+}

@@ -1093,3 +1093,57 @@ model ReadingHistory {
   @@unique([readerId, articleId])
   @@index([readerId, readAt])
 }
+
+// ---------------------------------------------------------------------------
+// News Engine (WP41) : veille automatisée et pré-rédaction assistée par IA
+// ---------------------------------------------------------------------------
+
+/// Source surveillée par le News Engine (flux RSS ou chaîne YouTube).
+model NewsSource {
+  id   String         @id @default(cuid())
+  name String
+  type NewsSourceType
+  /// URL du flux RSS ou de la chaîne YouTube.
+  url  String         @unique
+  active Boolean      @default(true)
+
+  alerts NewsAlert[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+}
+
+/// Alerte détectée par la veille, en attente de décision éditoriale.
+model NewsAlert {
+  id       String   @id @default(cuid())
+  sourceId String
+  source   NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  title       String
+  url         String
+  /// Extrait fourni par la source (texte brut, tronqué).
+  content     String?
+  publishedAt DateTime
+  status      NewsAlertStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Une même URL n'est enregistrée qu'une fois par source.
+  @@unique([sourceId, url])
+  @@index([status, publishedAt])
+  @@index([sourceId])
+}
+
+enum NewsSourceType {
+  RSS
+  YOUTUBE
+}
+
+enum NewsAlertStatus {
+  PENDING
+  DRAFT_GENERATED
+  IGNORED
+}
