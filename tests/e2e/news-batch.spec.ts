@@ -4,11 +4,14 @@ import { closeDb, e2eId, sql, sqlOne } from "../fixtures/db";
 import { login } from "../fixtures/helpers";
 
 let prefix: string;
+let localFixtures = false;
 const password = "E2eNewsBatch-2026!pw";
 test.beforeEach(async ({ page }) => {
+  localFixtures = false;
   const url = new URL(process.env.APP_DATABASE_URL || process.env.DATABASE_URL || "");
   if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "5432") throw Error("Docker local requis.");
   prefix = e2eId("news-batch");
+  localFixtures = true;
   await sql(`INSERT INTO "Author" (id,name,email,"passwordHash",role,"createdAt") VALUES ($1,$1,$2,$3,'ADMIN',NOW())`, [prefix, `${prefix}@example.test`, await bcrypt.hash(password, 10)]);
   await sql(`INSERT INTO "Category" (id,name,slug,"createdAt") VALUES ($1,$1,$1,NOW())`, [prefix]);
   await sql(`INSERT INTO "Theme" (id,name,slug,"createdAt","updatedAt") VALUES ($1,$1,$1,NOW(),NOW())`, [prefix]);
@@ -21,6 +24,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/backoffice/veille");
 });
 test.afterEach(async () => {
+  if (!localFixtures) return;
   await sql(`DELETE FROM "Article" WHERE "authorId"=$1`, [prefix]);
   await sql(`DELETE FROM "NewsSource" WHERE id=$1`, [prefix]);
   await sql(`DELETE FROM "Theme" WHERE id=$1`, [prefix]);
