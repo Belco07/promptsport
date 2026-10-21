@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Canvas, Textbox, Rect, Circle, Triangle, Group, FabricImage, FabricObject, filters } from "fabric";
+import { Canvas, Textbox, Rect, Circle, Polygon, Group, FabricImage, FabricObject, filters } from "fabric";
 import { saveVisualImage } from "@/app/studio/visual-studio/actions";
 
+const TOP_LEFT = { originX: "left", originY: "top" } as const;
 const FORMATS = [
   { label: "Article / X / Facebook — 1200 × 630", width: 1200, height: 630 },
   { label: "Instagram — 1080 × 1080", width: 1080, height: 1080 },
@@ -77,7 +78,7 @@ export default function VisualEditor({ channel }: { channel?: string }) {
     c.add(object); c.setActiveObject(object); c.requestRenderAll(); setSaved("");
   }
   function addText() {
-    add(new Textbox(text || "Votre titre", { left: 60, top: 60, width: size.current.width - 120, fontFamily: font, fontSize, fontWeight: weight, fill: color, textAlign: align }));
+    add(new Textbox(text || "Votre titre", { ...TOP_LEFT, left: 60, top: 60, width: size.current.width - 120, fontFamily: font, fontSize, fontWeight: weight, fill: color, textAlign: align }));
   }
   function setDimensions(index: number) {
     const c = canvas.current; if (!c) return;
@@ -92,7 +93,7 @@ export default function VisualEditor({ channel }: { channel?: string }) {
     const c = canvas.current; const image = c?.backgroundImage;
     if (!c || !(image instanceof FabricImage)) return;
     const ratio = Math.max(size.current.width / image.width, size.current.height / image.height);
-    image.set({ scaleX: ratio, scaleY: ratio, left: (size.current.width - image.width * ratio) / 2, top: (size.current.height - image.height * ratio) / 2 });
+    image.set({ ...TOP_LEFT, scaleX: ratio, scaleY: ratio, left: (size.current.width - image.width * ratio) / 2, top: (size.current.height - image.height * ratio) / 2 });
   }
   async function loadImage(url: string, asBackground: boolean) {
     const c = canvas.current; if (!c) return;
@@ -100,7 +101,7 @@ export default function VisualEditor({ channel }: { channel?: string }) {
     if (canvas.current !== c) return;
     if (image.width * image.height > 40_000_000) throw Error("Image trop grande : maximum 40 mégapixels.");
     if (asBackground) { c.backgroundImage = image; fitBackground(); c.requestRenderAll(); }
-    else { image.scaleToWidth(Math.min(size.current.width / 2, image.width)); image.set({ left: 60, top: 60 }); add(image); }
+    else { image.scaleToWidth(Math.min(size.current.width / 2, image.width)); image.set({ ...TOP_LEFT, left: 60, top: 60 }); add(image); }
     setSaved("");
   }
   async function fileImage(file: File | undefined, asBackground: boolean) {
@@ -124,10 +125,10 @@ export default function VisualEditor({ channel }: { channel?: string }) {
     if (c.getObjects().length && !window.confirm("Remplacer la composition actuelle ?")) return;
     c.clear(); c.backgroundColor = "#111410"; setBackground("#111410");
     const w = size.current.width; const h = size.current.height;
-    c.add(new Rect({ left: 0, top: h * .55, width: w, height: h * .45, fill: "#070907", opacity: .88 }));
-    c.add(new Rect({ left: 48, top: h * .6, width: 120, height: 10, fill: "#d7ff00" }));
-    c.add(new Textbox(kind === "mercato" ? "MERCATO" : kind === "match" ? "LE CHOC DU SOIR" : "À LA UNE", { left: 48, top: h * .64, width: w - 96, fontFamily: font, fontSize: Math.round(w / 14), fontWeight: "900", fill: "#ffffff" }));
-    c.add(new Textbox("Votre titre à personnaliser", { left: 48, top: h * .84, width: w - 96, fontFamily: font, fontSize: Math.round(w / 32), fill: "#d7ff00" }));
+    c.add(new Rect({ ...TOP_LEFT, left: 0, top: h * .55, width: w, height: h * .45, fill: "#070907", opacity: .88 }));
+    c.add(new Rect({ ...TOP_LEFT, left: 48, top: h * .6, width: 120, height: 10, fill: "#d7ff00" }));
+    c.add(new Textbox(kind === "mercato" ? "MERCATO" : kind === "match" ? "LE CHOC DU SOIR" : "À LA UNE", { ...TOP_LEFT, left: 48, top: h * .64, width: w - 96, fontFamily: font, fontSize: Math.round(w / 14), fontWeight: "900", fill: "#ffffff" }));
+    c.add(new Textbox("Votre titre à personnaliser", { ...TOP_LEFT, left: 48, top: h * .84, width: w - 96, fontFamily: font, fontSize: Math.round(w / 32), fill: "#d7ff00" }));
     c.requestRenderAll(); setSaved("");
   }
   function filterBackground(value: string) {
@@ -183,14 +184,14 @@ export default function VisualEditor({ channel }: { channel?: string }) {
           <label className="block text-sm">Couleur du texte / de la forme<input aria-label="Couleur du texte ou de la forme" type="color" value={color} onChange={event => { setColor(event.target.value); update({ fill: event.target.value }); }} /></label>
           <button type="button" className={button} onClick={addText}>Ajouter le texte</button>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={button} onClick={() => add(new Rect({ left: 80, top: 80, width: 300, height: 140, fill: color }))}>Rectangle</button>
-            <button type="button" className={button} onClick={() => add(new Circle({ left: 80, top: 80, radius: 90, fill: color }))}>Cercle</button>
-            <button type="button" className={button} onClick={() => add(new Group([new Rect({ width: 220, height: 20, top: 35, fill: color }), new Triangle({ left: 200, width: 90, height: 90, angle: 90, fill: color })], { left: 80, top: 80 }))}>Flèche</button>
+            <button type="button" className={button} onClick={() => add(new Rect({ ...TOP_LEFT, left: 80, top: 80, width: 300, height: 140, fill: color }))}>Rectangle</button>
+            <button type="button" className={button} onClick={() => add(new Circle({ ...TOP_LEFT, left: 80, top: 80, radius: 90, fill: color }))}>Cercle</button>
+            <button type="button" className={button} onClick={() => add(new Group([new Rect({ ...TOP_LEFT, width: 220, height: 20, top: 35, fill: color }), new Polygon([{ x: 0, y: 0 }, { x: 90, y: 45 }, { x: 0, y: 90 }], { ...TOP_LEFT, left: 200, top: 0, fill: color })], { ...TOP_LEFT, left: 80, top: 80 }))}>Flèche</button>
           </div>
           <div className="flex flex-wrap gap-2"><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; const object = c?.getActiveObject(); if (c && object) { c.bringObjectForward(object); c.requestRenderAll(); } }}>Avancer</button><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; const object = c?.getActiveObject(); if (c && object) { c.sendObjectBackwards(object); c.requestRenderAll(); } }}>Reculer</button><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; if (c) { c.remove(...c.getActiveObjects()); c.discardActiveObject(); c.requestRenderAll(); } }}>Supprimer la sélection</button></div>
         </fieldset>
       </aside>
-      <section aria-label="Composition et export" className="min-w-0">
+      <section aria-label="Composition et export" className="min-w-0 xl:sticky xl:top-4 xl:self-start">
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
           <label className="text-sm">Export<select aria-label="Format d’export" className={control} value={exportType} onChange={event => setExportType(event.target.value)}><option value="image/png">PNG</option><option value="image/webp">WebP</option></select></label>
           <button type="button" className={button} disabled={!ready || busy} onClick={() => exportImage(false)}>Télécharger</button>
