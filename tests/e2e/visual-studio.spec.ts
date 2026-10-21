@@ -35,8 +35,17 @@ test("Visual Studio : texte, formes et export PNG aux dimensions natives", async
   await page.goto("/studio/visual-studio");
   await expect(page.getByRole("heading", { name: "Visual Studio", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Ajouter le texte", exact: true })).toBeEnabled();
+  const photo = await page.evaluate(() => {
+    const canvas = document.createElement("canvas"); canvas.width = 16; canvas.height = 16;
+    const context = canvas.getContext("2d")!; context.fillStyle = "#0066cc"; context.fillRect(0, 0, 16, 16);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  await page.getByLabel("Importer un fond", { exact: true }).setInputFiles({ name: "fond.png", mimeType: "image/png", buffer: Buffer.from(photo, "base64") });
+  await expect(page.getByRole("button", { name: "Ajouter le texte", exact: true })).toBeEnabled();
+  await page.getByLabel("Filtre du fond", { exact: true }).selectOption("gray");
   await page.getByLabel("Texte", { exact: true }).fill("PROMPTSPORT — LE MATCH");
   await page.getByRole("button", { name: "Ajouter le texte", exact: true }).click();
+  await page.getByLabel("Couleur du texte ou de la forme", { exact: true }).fill("#0055aa");
   await page.getByRole("button", { name: "Rectangle", exact: true }).click();
   await page.getByRole("button", { name: "Reculer", exact: true }).click();
   const download = page.waitForEvent("download");
