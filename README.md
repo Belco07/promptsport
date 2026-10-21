@@ -1120,10 +1120,24 @@ E2E locaux : après les migrations et le seed des comptes E2E sur Docker (`local
 
 `npm run news:seed` installe aussi la page « Actualités » de Flashscore, les
 sites des instances (FFF, UEFA, FIFA, Ligue 1, Premier League, LaLiga, Serie A,
-Bundesliga, AFC, CAF, CONCACAF, CONMEBOL, OFC) et les 18 clubs de Ligue 1. Les
-sources de première main portent `isOfficial = true` et sont signalées par un
+Bundesliga, AFC, CAF, CONCACAF, CONMEBOL, OFC), les 18 clubs de Ligue 1, ainsi
+que leurs comptes officiels X, Facebook, Instagram et YouTube. Le seed ajoute
+également les comptes officiels des principales stars du football (Lamine Yamal,
+Kylian Mbappé, Cristiano Ronaldo, Lionel Messi, Neymar, Erling Haaland, Vinícius
+Júnior, Jude Bellingham, Mohamed Salah, Robert Lewandowski, Antoine Griezmann,
+Ousmane Dembélé, Harry Kane, Alexia Putellas, Aitana Bonmatí, Marta). Les sites
+et comptes de première main portent `isOfficial = true` et sont signalés par un
 badge « Officiel » dans la veille et dans la liste des sources. Le marqueur est
 éditorial : il ne remplace pas la vérification humaine.
+
+Les comptes X, Facebook et Instagram nécessitent respectivement
+`X_BEARER_TOKEN`, `META_ACCESS_TOKEN` et `META_IG_USER_ID` ; les chaînes YouTube
+nécessitent `YOUTUBE_API_KEY`. Sans identifiant, les sources concernées restent
+en base mais sont désactivées : elles n'échouent pas à chaque collecte. Après
+configuration, relancer `npm run news:seed` les active. La liste des sources du
+backoffice affiche leur statut « En attente de token » ou « En attente de clé ».
+Instagram utilise la Business Discovery de Meta : un compte public
+professionnel peut rester inaccessible si le token authentifié n'y a pas accès.
 
 Les connecteurs sont choisis par source :
 

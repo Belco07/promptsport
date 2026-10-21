@@ -37,6 +37,8 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   MANUAL: "Site officiel (référence)",
 };
 
+const TOKEN_SOURCE_TYPES = new Set(["X", "FACEBOOK", "INSTAGRAM", "YOUTUBE"]);
+
 const inputClass =
   "w-full rounded-md border border-border px-3 py-2 text-sm text-foreground outline-none focus:border-editorial-link focus:ring-1 focus:ring-blue-600";
 const labelClass = "mb-1 block text-xs font-medium text-foreground";
@@ -55,17 +57,23 @@ export default async function VeilleSourcesPage({
   const info = readParam(params.info);
 
   const sources = await prisma.newsSource.findMany({
-    where: { active: true },
-    orderBy: [{ isOfficial: "desc" }, { type: "asc" }, { name: "asc" }],
+    orderBy: [
+      { active: "desc" },
+      { isOfficial: "desc" },
+      { type: "asc" },
+      { name: "asc" },
+    ],
     select: {
       id: true,
       name: true,
       type: true,
       url: true,
+      active: true,
       isOfficial: true,
       _count: { select: { alerts: true } },
     },
   });
+  const activeSources = sources.filter((source) => source.active).length;
 
   const apiAccess = [
     {
@@ -86,6 +94,11 @@ export default async function VeilleSourcesPage({
       ),
       missing: "META_ACCESS_TOKEN + META_IG_USER_ID",
     },
+    {
+      label: "YouTube",
+      ready: Boolean(process.env.YOUTUBE_API_KEY?.trim()),
+      missing: "YOUTUBE_API_KEY",
+    },
   ];
 
   return (
@@ -99,12 +112,12 @@ export default async function VeilleSourcesPage({
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
         Les sources actives sont interrogées par <code>npm run news:fetch</code>. Les
         médias passent par un flux RSS, une chaîne YouTube ou un connecteur dédié.
-        Les <strong>sources officielles</strong> — clubs, fédérations, confédérations
-        et ligues — sont marquées « Officiel » et restent la référence de première
-        main. X, Facebook et Instagram utilisent leurs API officielles, avec des
-        tokens d&apos;accès. Pour TikTok ou une plateforme sans API accessible,
-        utilisez un flux RSS de passerelle (RSSHub, Nitter…) et choisissez
-        « Réseau social (RSS) ».
+        Les <strong>sources officielles</strong> — clubs, fédérations, confédérations,
+        ligues, joueurs et personnalités — sont marquées « Officiel » et restent la
+        référence de première main. X, Facebook, Instagram et YouTube utilisent
+        leurs API officielles, avec des tokens ou une clé d&apos;accès. Pour TikTok
+        ou une plateforme sans API accessible, utilisez un flux RSS de passerelle
+        (RSSHub, Nitter…) et choisissez « Réseau social (RSS) ».
       </p>
 
       {error ? (
@@ -132,7 +145,7 @@ export default async function VeilleSourcesPage({
             Variables d&apos;environnement, puis redéploiement.
           </p>
         </div>
-        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
           {apiAccess.map((access) => (
             <p key={access.label} className="text-muted-foreground">
               <span className="font-medium text-foreground">{access.label}</span> :{" "}
@@ -155,9 +168,11 @@ export default async function VeilleSourcesPage({
           ))}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Une source peut être ajoutée même sans token, mais sa collecte échouera
-          jusqu&apos;à la configuration. Les tokens ne sont jamais affichés dans le
-          backoffice.
+          Les sources X, Facebook, Instagram et YouTube sans identifiant sont
+          conservées dans la liste mais restent inactives : elles ne provoquent
+          pas d&apos;échec de collecte. Après configuration des variables, relancez{" "}
+          <code>npm run news:seed</code> pour les activer. Les tokens ne sont
+          jamais affichés dans le backoffice.
         </p>
       </section>
 
@@ -217,8 +232,9 @@ export default async function VeilleSourcesPage({
           <label className="mt-3 flex items-start gap-2 text-xs text-foreground">
             <input type="checkbox" name="isOfficial" className="mt-0.5" />
             <span>
-              Source officielle (club, fédération, confédération ou ligue).
-              Elle sera signalée par un badge « Officiel » dans la veille.
+              Source officielle (club, fédération, confédération, ligue, joueur
+              ou personnalité). Elle sera signalée par un badge « Officiel »
+              dans la veille.
             </span>
           </label>
         </form>
@@ -248,7 +264,10 @@ export default async function VeilleSourcesPage({
       <section className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">
-            Sources actives ({sources.length})
+            Sources configurées ({sources.length})
+            <span className="ml-2 font-normal text-muted-foreground">
+              · {activeSources} actives
+            </span>
           </h2>
           <Link
             href="/backoffice/veille"
@@ -260,12 +279,12 @@ export default async function VeilleSourcesPage({
 
         {sources.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            Aucune source active. Ajoutez-en une ci-dessus.
+            Aucune source configurée. Ajoutez-en une ci-dessus.
           </p>
         ) : (
           <div className="max-h-[32rem] overflow-auto">
-            <table className="w-full min-w-[820px] text-left text-sm">
-              <caption className="sr-only">Sources de veille actives</caption>
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <caption className="sr-only">Sources de veille configurées</caption>
               <thead className="sticky top-0 border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-semibold">
@@ -273,6 +292,9 @@ export default async function VeilleSourcesPage({
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
                     Type
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold">
+                    Statut
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
                     URL
@@ -300,6 +322,21 @@ export default async function VeilleSourcesPage({
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                       {SOURCE_TYPE_LABELS[source.type] ?? source.type}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs">
+                      {source.active ? (
+                        <span className="font-medium text-status-success-foreground">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded bg-muted px-2 py-0.5 font-medium text-muted-foreground">
+                          {TOKEN_SOURCE_TYPES.has(source.type)
+                            ? source.type === "YOUTUBE"
+                              ? "En attente de clé"
+                              : "En attente de token"
+                            : "Inactive"}
+                        </span>
+                      )}
                     </td>
                     <td className="max-w-md px-4 py-3 text-xs">
                       <a
@@ -335,8 +372,10 @@ export default async function VeilleSourcesPage({
       </section>
 
       <p className="mt-4 text-xs text-muted-foreground">
-        La suppression d&apos;une source est définitive. Ses alertes de veille sont
-        supprimées immédiatement ; les brouillons créés dans le studio restent intacts.
+        Les sources inactives sont conservées pour être activées après
+        configuration de leur accès. La suppression d&apos;une source est définitive :
+        ses alertes de veille sont supprimées immédiatement ; les brouillons créés
+        dans le studio restent intacts.
       </p>
     </div>
   );

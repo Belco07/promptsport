@@ -38,6 +38,15 @@ test.beforeEach(async ({ page }) => {
      VALUES ($1,$2,$3,$4,'Une actualité officielle.',NOW(),NOW(),NOW())`,
     [`${prefix}-alert`, `${prefix}-source`, prefix, `https://example.test/${prefix}/article`],
   );
+  await sql(
+    `INSERT INTO "NewsSource" (id,name,type,url,active,"isOfficial","createdAt","updatedAt")
+     VALUES ($1,$2,'X',$3,false,true,NOW(),NOW())`,
+    [
+      `${prefix}-inactive-source`,
+      `${prefix}-inactive`,
+      `https://x.com/${prefix.replace(/[^A-Za-z0-9_]/g, "_")}`,
+    ],
+  );
 
   await page.route("**/api/analytics/track", (route) => route.fulfill({ status: 204 }));
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
@@ -46,7 +55,10 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(async () => {
   if (!localFixtures) return;
   await sql(`DELETE FROM "NewsAlert" WHERE "sourceId"=$1`, [`${prefix}-source`]);
-  await sql(`DELETE FROM "NewsSource" WHERE id=$1`, [`${prefix}-source`]);
+  await sql(`DELETE FROM "NewsSource" WHERE id IN ($1,$2)`, [
+    `${prefix}-source`,
+    `${prefix}-inactive-source`,
+  ]);
   await sql(`DELETE FROM "Author" WHERE id=$1`, [prefix]);
 });
 
@@ -65,4 +77,14 @@ test("affiche le badge Officiel dans la veille et dans les sources", async ({ pa
   await expect(sourceRow).toBeVisible();
   await expect(sourceRow.getByText("Officiel", { exact: true })).toBeVisible();
   await expect(sourceRow.getByText("Site officiel", { exact: true })).toBeVisible();
+
+  const inactiveRow = page
+    .getByRole("row")
+    .filter({ hasText: `${prefix}-inactive` })
+    .first();
+  await expect(inactiveRow).toBeVisible();
+  await expect(inactiveRow.getByText("Officiel", { exact: true })).toBeVisible();
+  await expect(
+    inactiveRow.getByText("En attente de token", { exact: true }),
+  ).toBeVisible();
 });

@@ -1138,8 +1138,9 @@ model NewsSource {
   /// URL du flux, de la page ou de l'API interrogée.
   url  String         @unique
   active Boolean      @default(true)
-  /// Source de première main : club, fédération, confédération ou ligue.
-  /// Ce marqueur est éditorial ; il ne remplace pas la vérification humaine.
+  /// Source de première main : club, fédération, confédération, ligue,
+  /// joueur ou personnalité. Ce marqueur est éditorial ; il ne remplace pas
+  /// la vérification humaine.
   isOfficial Boolean  @default(false)
 
   alerts NewsAlert[]

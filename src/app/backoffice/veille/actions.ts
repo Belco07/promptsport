@@ -352,10 +352,20 @@ export async function addNewsSource(formData: FormData): Promise<void> {
   }
 
   const url = normalizeSourceUrl(rawUrl, typeValue).toString();
+  const accessReady: Partial<Record<SourceTypeValue, boolean>> = {
+    X: Boolean(process.env.X_BEARER_TOKEN?.trim()),
+    FACEBOOK: Boolean(process.env.META_ACCESS_TOKEN?.trim()),
+    INSTAGRAM: Boolean(
+      process.env.META_ACCESS_TOKEN?.trim() &&
+        process.env.META_IG_USER_ID?.trim(),
+    ),
+    YOUTUBE: Boolean(process.env.YOUTUBE_API_KEY?.trim()),
+  };
+  const active = accessReady[typeValue] ?? true;
 
   try {
     await prisma.newsSource.create({
-      data: { name, type: typeValue, url, active: true, isOfficial },
+      data: { name, type: typeValue, url, active, isOfficial },
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -370,7 +380,13 @@ export async function addNewsSource(formData: FormData): Promise<void> {
 
   revalidatePath("/backoffice/veille");
   revalidatePath("/backoffice/veille/sources");
-  redirect(sourcesUrl({ info: `Source « ${name} » ajoutée et activée.` }));
+  redirect(
+    sourcesUrl({
+      info: active
+        ? `Source « ${name} » ajoutée et activée.`
+        : `Source « ${name} » ajoutée ; sa collecte attend la configuration de l'accès API.`,
+    }),
+  );
 }
 
 /** Supprime définitivement une source et toutes ses alertes (cascade). */
