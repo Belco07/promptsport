@@ -8,8 +8,10 @@ import { logout } from "@/app/studio/logout-action";
 
 /**
  * Layout du backoffice (administration).
- * Barre latérale : Tableau de bord, Utilisateurs/Rôles/Paramètres (désactivés),
- * Voir le site, Se déconnecter.
+ *
+ * La barre latérale occupe la hauteur de l'écran et reste collée en haut : la
+ * navigation défile indépendamment si elle dépasse, tandis que le bloc compte
+ * et « Se déconnecter » reste ancré en bas (WP43).
  */
 export default async function BackofficeLayout({
   children,
@@ -27,15 +29,15 @@ export default async function BackofficeLayout({
 
   return (
     <div className="workspace-theme flex min-h-screen bg-background">
-      <aside className="flex w-60 shrink-0 flex-col justify-between border-r border-border bg-card p-4">
-        <div>
-          <p className="mb-6 px-3 text-sm font-bold uppercase tracking-wide text-foreground">
-            Backoffice
-          </p>
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-border bg-card p-4">
+        <p className="mb-6 shrink-0 px-3 text-sm font-bold uppercase tracking-wide text-foreground">
+          Backoffice
+        </p>
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           <BackofficeNav />
         </div>
 
-        <div className="space-y-2 border-t border-border pt-4">
+        <div className="mt-auto shrink-0 space-y-2 border-t border-border pt-4">
           <p className="px-3 text-xs text-muted-foreground">
             Connecté : <span className="font-medium text-foreground">{displayName}</span>
           </p>

@@ -1183,3 +1183,16 @@ enum NewsAlertStatus {
   DRAFT_GENERATED
   IGNORED
 }
+
+// ---------------------------------------------------------------------------
+// Configuration globale du site (WP43)
+// ---------------------------------------------------------------------------
+
+/// Configuration globale à ligne unique (`id = "default"`).
+model SiteConfig {
+  id              String   @id @default("default")
+  siteName        String   @default("PromptSport")
+  siteDescription String   @default("L'actualité sportive en continu")
+  maintenanceMode Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+}

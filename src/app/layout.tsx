@@ -23,6 +23,7 @@ import {
   TWITTER_CREATOR,
   absoluteUrl,
 } from "@/lib/seo";
+import { getSiteConfig } from "@/lib/site-config";
 import "./globals.css";
 import "./editorial.css";
 import "./workspace.css";
@@ -70,51 +71,62 @@ const sora = Sora({
 });
 
 /**
- * Métadonnées globales (WP8a) : URL de base, gabarit de titre, Open Graph,
- * Twitter Card, icônes et robots. Les pages publiques surchargent ensuite
- * canonical / openGraph / twitter via `buildPageMetadata`.
+ * Métadonnées globales (WP8a, WP43) : URL de base, gabarit de titre, Open
+ * Graph, Twitter Card, icônes et robots. Le nom et la description viennent de
+ * `SiteConfig`, avec les constantes historiques comme repli.
  *
- * Aucune URL canonique n'est déclarée ici : elle serait héritée par toutes les
- * pages (y compris /login ou /studio) et pointerait à tort vers l'accueil.
+ * Les pages publiques surchargent ensuite canonical / openGraph / twitter via
+ * `buildPageMetadata`. Aucune URL canonique n'est déclarée ici : elle serait
+ * héritée par toutes les pages (y compris /login ou /studio) et pointerait à
+ * tort vers l'accueil.
  */
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: HOME_TITLE,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description: SITE_DESCRIPTION,
-  applicationName: SITE_NAME,
-  openGraph: {
-    type: "website",
-    locale: "fr_FR",
-    siteName: SITE_NAME,
-    url: SITE_URL,
-    title: HOME_TITLE,
-    description: SITE_DESCRIPTION,
-    images: [absoluteUrl(DEFAULT_OG_IMAGE)],
-  },
-  twitter: {
-    card: "summary_large_image",
-    creator: TWITTER_CREATOR,
-    site: TWITTER_CREATOR,
-    title: HOME_TITLE,
-    description: SITE_DESCRIPTION,
-    images: [absoluteUrl(DEFAULT_OG_IMAGE)],
-  },
-  icons: {
-    icon: [
-      // Favicon historique (src/app/favicon.ico) et version PNG 512 générée.
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-    ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getSiteConfig();
+  const siteName = config.siteName.trim() || SITE_NAME;
+  const description = config.siteDescription.trim() || SITE_DESCRIPTION;
+  const homeTitle = HOME_TITLE.startsWith(SITE_NAME)
+    ? `${siteName}${HOME_TITLE.slice(SITE_NAME.length)}`
+    : `${siteName} — L'actualité qui vibre, la passion qui déborde`;
+
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: homeTitle,
+      template: `%s | ${siteName}`,
+    },
+    description,
+    applicationName: siteName,
+    openGraph: {
+      type: "website",
+      locale: "fr_FR",
+      siteName,
+      url: SITE_URL,
+      title: homeTitle,
+      description,
+      images: [absoluteUrl(DEFAULT_OG_IMAGE)],
+    },
+    twitter: {
+      card: "summary_large_image",
+      creator: TWITTER_CREATOR,
+      site: TWITTER_CREATOR,
+      title: homeTitle,
+      description,
+      images: [absoluteUrl(DEFAULT_OG_IMAGE)],
+    },
+    icons: {
+      icon: [
+        // Favicon historique (src/app/favicon.ico) et version PNG 512 générée.
+        { url: "/favicon.ico", sizes: "any" },
+        { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+      ],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 /**
  * Fenêtre d'affichage (WP33) : `viewport-fit=cover` expose les zones sûres iOS

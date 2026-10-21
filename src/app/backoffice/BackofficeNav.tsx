@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation";
 import { useMounted } from "@/lib/use-mounted";
 
 /**
- * Navigation du backoffice. « Utilisateurs » est actif ; « Rôles » et
- * « Paramètres » restent des placeholders désactivés.
+ * Navigation du backoffice. Le lien « Rôles » a été retiré : la gestion des
+ * rôles se fait dans « Utilisateurs ». « Paramètres » ouvre la configuration
+ * globale du site (WP43).
  *
  * L'état actif n'est appliqué qu'après montage (`useMounted`) : le serveur et le
  * premier rendu client produisent ainsi exactement le même HTML, même si l'URL
@@ -15,11 +16,6 @@ import { useMounted } from "@/lib/use-mounted";
  * « Hydration failed » et régénérait l'arbre — au risque de laisser les
  * interactions inertes.
  */
-const PLACEHOLDERS = [
-  { label: "Rôles" },
-  { label: "Paramètres" },
-];
-
 export function BackofficeNav() {
   const pathname = usePathname();
   const mounted = useMounted();
@@ -33,7 +29,7 @@ export function BackofficeNav() {
   const isActive = (test: boolean) => mounted && test;
 
   return (
-    <nav className="space-y-1">
+    <nav className="space-y-1" aria-label="Navigation du backoffice">
       <Link
         href="/backoffice"
         aria-current={isActive(pathname === "/backoffice") ? "page" : undefined}
@@ -106,16 +102,13 @@ export function BackofficeNav() {
         Analytics
       </Link>
 
-      {PLACEHOLDERS.map((item) => (
-        <span
-          key={item.label}
-          aria-disabled="true"
-          className="block cursor-not-allowed rounded-md px-3 py-2 text-sm text-muted-foreground"
-          title="Bientôt disponible"
-        >
-          {item.label}
-        </span>
-      ))}
+      <Link
+        href="/backoffice/settings"
+        aria-current={isActive(pathname.startsWith("/backoffice/settings")) ? "page" : undefined}
+        className={linkClass(isActive(pathname.startsWith("/backoffice/settings")))}
+      >
+        Paramètres
+      </Link>
     </nav>
   );
 }
