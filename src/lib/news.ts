@@ -13,14 +13,25 @@ import { prisma } from "@/lib/prisma";
  */
 export const NEWS_ALERT_RETENTION_MS = 48 * 60 * 60 * 1000;
 
+/**
+ * Tolérance pour les dates légèrement en avance (fuseaux horaires, serveurs
+ * mal réglés). Au-delà, il s'agit d'un contenu programmé : on attend sa
+ * publication au lieu de créer une alerte en avance.
+ */
+export const NEWS_ALERT_FUTURE_TOLERANCE_MS = 6 * 60 * 60 * 1000;
+
 /** Date limite avant laquelle une alerte est considérée comme expirée. */
 export function newsAlertCutoff(now: Date = new Date()): Date {
   return new Date(now.getTime() - NEWS_ALERT_RETENTION_MS);
 }
 
-/** Vrai si l'élément de flux est assez récent pour entrer dans la veille. */
+/** Vrai si l'élément de flux est publié récemment, sans être daté du futur. */
 export function isRecentNewsItem(publishedAt: Date, now: Date = new Date()): boolean {
-  return publishedAt.getTime() >= newsAlertCutoff(now).getTime();
+  const timestamp = publishedAt.getTime();
+  return (
+    timestamp >= newsAlertCutoff(now).getTime() &&
+    timestamp <= now.getTime() + NEWS_ALERT_FUTURE_TOLERANCE_MS
+  );
 }
 
 /** Supprime les alertes créées il y a plus de 48 h. Retourne le nombre purgé. */

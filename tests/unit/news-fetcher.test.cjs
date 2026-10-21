@@ -40,6 +40,10 @@ function collector({ sources, fail = false, insertedCount } = {}) {
     } },
     '@/lib/social': {},
     '@/lib/social-platforms': {},
+    '@/lib/flashscore': { fetchFlashscoreItems: async () => [] },
+    '@/lib/news-json': { fetchJsonItems: async () => [] },
+    '@/lib/official-sites': { fetchOfficialSiteItems: async () => [] },
+    '@/lib/sitemap': { fetchSitemapItems: async () => [] },
     '@/lib/ai': { isAiConfigured: () => true, translateTitlesToFrench: async titles => { counters.translations++; return titles.map(title => 'FR ' + title); } },
     '@/lib/news': {
       cleanupOldNewsAlerts: async () => { counters.purges++; return 0; },
@@ -98,6 +102,10 @@ test('les connecteurs X et Meta reçoivent leurs clés après extraction du CLI'
       fetchFacebookItems: async (_url, _limit, token) => { calls.push(['FACEBOOK', token]); return []; },
       fetchInstagramItems: async (_url, _limit, token, userId) => { calls.push(['INSTAGRAM', token, userId]); return []; },
     },
+    '@/lib/flashscore': {},
+    '@/lib/news-json': {},
+    '@/lib/official-sites': {},
+    '@/lib/sitemap': {},
     '@/lib/ai': { isAiConfigured: () => false },
     '@/lib/news': { cleanupOldNewsAlerts: async () => 0, purgeIgnoredNewsAlerts: async () => 0, isRecentNewsItem: () => true },
   }, { X_BEARER_TOKEN: 'x-fixture', META_ACCESS_TOKEN: 'meta-fixture', META_IG_USER_ID: 'ig-fixture' });

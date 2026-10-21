@@ -30,6 +30,11 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   FACEBOOK: "Facebook",
   INSTAGRAM: "Instagram",
   SOCIAL: "Réseau social (RSS)",
+  FLASHSCORE: "Flashscore",
+  SITEMAP: "Sitemap d'actualités",
+  OFFICIAL_SITE: "Site officiel",
+  JSON: "API JSON",
+  MANUAL: "Site officiel (référence)",
 };
 
 const inputClass =
@@ -51,12 +56,13 @@ export default async function VeilleSourcesPage({
 
   const sources = await prisma.newsSource.findMany({
     where: { active: true },
-    orderBy: [{ type: "asc" }, { name: "asc" }],
+    orderBy: [{ isOfficial: "desc" }, { type: "asc" }, { name: "asc" }],
     select: {
       id: true,
       name: true,
       type: true,
       url: true,
+      isOfficial: true,
       _count: { select: { alerts: true } },
     },
   });
@@ -92,11 +98,13 @@ export default async function VeilleSourcesPage({
       </h1>
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
         Les sources actives sont interrogées par <code>npm run news:fetch</code>. Les
-        médias passent par un flux RSS ou une chaîne YouTube. Bluesky, Mastodon et
-        Reddit sont lus via leur API publique. X, Facebook et Instagram utilisent
-        leurs API officielles, avec des tokens d&apos;accès. Pour TikTok ou une
-        plateforme sans API accessible, utilisez un flux RSS de passerelle (RSSHub,
-        Nitter…) et choisissez « Réseau social (RSS) ».
+        médias passent par un flux RSS, une chaîne YouTube ou un connecteur dédié.
+        Les <strong>sources officielles</strong> — clubs, fédérations, confédérations
+        et ligues — sont marquées « Officiel » et restent la référence de première
+        main. X, Facebook et Instagram utilisent leurs API officielles, avec des
+        tokens d&apos;accès. Pour TikTok ou une plateforme sans API accessible,
+        utilisez un flux RSS de passerelle (RSSHub, Nitter…) et choisissez
+        « Réseau social (RSS) ».
       </p>
 
       {error ? (
@@ -161,47 +169,58 @@ export default async function VeilleSourcesPage({
             collecte.
           </p>
         </div>
-        <form
-          action={addNewsSource}
-          className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_190px_minmax(0,1.4fr)_auto] md:items-end"
-        >
-          <label className="block">
-            <span className={labelClass}>Nom</span>
-            <input
-              type="text"
-              name="name"
-              required
-              minLength={2}
-              maxLength={120}
-              placeholder="Ex. L'Équipe"
-              className={inputClass}
-            />
+        <form action={addNewsSource} className="p-4">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px_minmax(0,1.4fr)_auto] md:items-end">
+            <label className="block">
+              <span className={labelClass}>Nom</span>
+              <input
+                type="text"
+                name="name"
+                required
+                minLength={2}
+                maxLength={120}
+                placeholder="Ex. L'Équipe"
+                className={inputClass}
+              />
+            </label>
+            <label className="block">
+              <span className={labelClass}>Type</span>
+              <select name="type" defaultValue="RSS" className={inputClass}>
+                <option value="RSS">Flux RSS / Atom</option>
+                <option value="YOUTUBE">YouTube</option>
+                <option value="BLUESKY">Bluesky</option>
+                <option value="MASTODON">Mastodon</option>
+                <option value="REDDIT">Reddit</option>
+                <option value="X">X (Twitter)</option>
+                <option value="FACEBOOK">Facebook</option>
+                <option value="INSTAGRAM">Instagram</option>
+                <option value="SOCIAL">Réseau social (RSS)</option>
+                <option value="FLASHSCORE">Flashscore Actualités</option>
+                <option value="SITEMAP">Sitemap d&apos;actualités</option>
+                <option value="OFFICIAL_SITE">Site officiel</option>
+                <option value="JSON">API JSON</option>
+                <option value="MANUAL">Site officiel (référence)</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className={labelClass}>URL</span>
+              <input
+                type="url"
+                name="url"
+                required
+                placeholder="https://…"
+                className={inputClass}
+              />
+            </label>
+            <ActionButton label="Ajouter la source" pendingLabel="Ajout…" />
+          </div>
+          <label className="mt-3 flex items-start gap-2 text-xs text-foreground">
+            <input type="checkbox" name="isOfficial" className="mt-0.5" />
+            <span>
+              Source officielle (club, fédération, confédération ou ligue).
+              Elle sera signalée par un badge « Officiel » dans la veille.
+            </span>
           </label>
-          <label className="block">
-            <span className={labelClass}>Type</span>
-            <select name="type" defaultValue="RSS" className={inputClass}>
-              <option value="RSS">Flux RSS / Atom</option>
-              <option value="YOUTUBE">YouTube</option>
-              <option value="BLUESKY">Bluesky</option>
-              <option value="MASTODON">Mastodon</option>
-              <option value="REDDIT">Reddit</option>
-              <option value="X">X (Twitter)</option>
-              <option value="FACEBOOK">Facebook</option>
-              <option value="INSTAGRAM">Instagram</option>
-              <option value="SOCIAL">Réseau social (RSS)</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className={labelClass}>URL</span>
-            <input
-              type="url"
-              name="url"
-              required
-              placeholder="https://…"
-              className={inputClass}
-            />
-          </label>
-          <ActionButton label="Ajouter la source" pendingLabel="Ajout…" />
         </form>
         <div className="space-y-1 border-t border-border px-4 py-3 text-xs text-muted-foreground">
           <p>
@@ -215,6 +234,13 @@ export default async function VeilleSourcesPage({
             X : URL du profil (<code>https://x.com/…</code>). Facebook : URL de
             la page. Instagram : URL du profil Business/Creator. Réseau social
             (RSS) : URL du flux fourni par la passerelle.
+          </p>
+          <p>
+            Flashscore : URL de la page <code>/actualites/</code>. Sitemap :
+            URL XML d&apos;actualités. Site officiel : page de listing des
+            actualités (le domaine doit avoir un connecteur). API JSON : endpoint
+            public. Site officiel (référence) : site conservé dans la liste sans
+            collecte automatique.
           </p>
         </div>
       </section>
@@ -263,7 +289,14 @@ export default async function VeilleSourcesPage({
                 {sources.map((source) => (
                   <tr key={source.id} className="align-top hover:bg-muted">
                     <td className="px-4 py-3 font-medium text-foreground">
-                      {source.name}
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span>{source.name}</span>
+                        {source.isOfficial ? (
+                          <span className="inline-flex rounded bg-status-success px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-status-success-foreground">
+                            Officiel
+                          </span>
+                        ) : null}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                       {SOURCE_TYPE_LABELS[source.type] ?? source.type}

@@ -1116,6 +1116,39 @@ Tests unitaires : `node --test tests/unit/distribution.test.cjs`.
 E2E locaux : après les migrations et le seed des comptes E2E sur Docker (`localhost:5432`), lancer `node scripts/test-distribution.cjs` (parcours WP42) ou `node scripts/test-distribution.cjs tests/e2e` (suite complète). Le script démarre une IA simulée sur le port 5451 et un tunnel PostgreSQL WebSocket sur 5452 ; il neutralise les clés d’envoi et n’appelle pas DeepSeek. Le port 3002 doit être libre pour que le script démarre son serveur de test avec cette configuration.
 
 
+### Flashscore et sources officielles — veille
+
+`npm run news:seed` installe aussi la page « Actualités » de Flashscore, les
+sites des instances (FFF, UEFA, FIFA, Ligue 1, Premier League, LaLiga, Serie A,
+Bundesliga, AFC, CAF, CONCACAF, CONMEBOL, OFC) et les 18 clubs de Ligue 1. Les
+sources de première main portent `isOfficial = true` et sont signalées par un
+badge « Officiel » dans la veille et dans la liste des sources. Le marqueur est
+éditorial : il ne remplace pas la vérification humaine.
+
+Les connecteurs sont choisis par source :
+
+- `FLASHSCORE` lit `window.fsNewsData` sur `flashscore.fr/actualites/` ;
+- `SITEMAP` lit les sitemaps Google News ou les sitemaps datés (`lastmod`) ;
+- `OFFICIAL_SITE` applique une règle de listing propre à chaque domaine dans
+  `src/lib/official-sites.ts` ;
+- `JSON` lit une API publique (CAF) ;
+- `MANUAL` conserve un site officiel comme référence, sans collecte
+  automatique (Toulouse, Le Mans et Lyon, dont le site ne publie pas de flux
+  directement lisible).
+
+Le seed est idempotent : les sources existantes sont mises à jour par URL, sans
+supprimer les alertes. Les collectes restent limitées à 3 éléments par source et
+les alertes à 48 h. Une date de publication trop en avance (contenu programmé)
+est ignorée jusqu'à sa publication réelle. Les sites officiels sont lus sans
+navigateur headless ; leurs extraits peuvent être vides, le titre et la date du
+listing suffisant à la veille.
+
+Tests des connecteurs : `node --test tests/unit/news-connectors.test.cjs` et
+`node --test tests/unit/news-retention.test.cjs`. Le badge et le compteur des
+sources officielles sont couverts par
+`npx playwright test tests/e2e/news-sources.spec.ts` (Docker local, serveur
+`localhost:3002`).
+
 ### Automatisation de la veille — WP41-bis
 
 `GET /api/cron/fetch-news` réutilise `src/lib/news-fetcher.ts`, comme `npm run news:fetch`. L’endpoint exige exclusivement `Authorization: Bearer <CRON_SECRET>` ; un secret absent côté serveur renvoie 503, un jeton absent ou invalide 401. Les paramètres `?token=` ne sont jamais acceptés. Les réponses ne sont pas mises en cache. Une collecte réussie renvoie `{ "success": true, "alertsCreated": 0 }`, avec le nombre réellement inséré (donc 0 si les alertes sont déjà connues). Une panne de toutes les sources renvoie 502 ; une panne globale renvoie 500.

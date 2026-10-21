@@ -59,17 +59,18 @@ export default async function VeillePage({
   const page = Math.min(readPage(params.page), pageCount);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const [alerts, pending, generated, activeSources, untranslated] =
+  const [alerts, pending, generated, activeSources, officialSources, untranslated] =
     await Promise.all([
       prisma.newsAlert.findMany({
         orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
         skip,
         take: PAGE_SIZE,
-        include: { source: { select: { name: true, type: true } } },
+        include: { source: { select: { name: true, type: true, isOfficial: true } } },
       }),
       prisma.newsAlert.count({ where: { status: "PENDING" } }),
       prisma.newsAlert.count({ where: { status: "DRAFT_GENERATED" } }),
       prisma.newsSource.count({ where: { active: true } }),
+      prisma.newsSource.count({ where: { active: true, isOfficial: true } }),
       prisma.newsAlert.count({ where: { titleFr: null } }),
     ]);
 
@@ -96,12 +97,13 @@ export default async function VeillePage({
         </div>
       </div>
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
-        Les sources actives — médias, YouTube et réseaux sociaux — sont interrogées par{" "}
-        <code>npm run news:fetch</code>. Chaque alerte peut être transformée en brouillon
-        par l&apos;IA : la publication reste une décision humaine, depuis le studio. Les
-        alertes de plus de <strong>48 h</strong> sont supprimées automatiquement ; une
-        alerte ignorée est supprimée immédiatement et définitivement. Les brouillons
-        déjà créés restent dans le studio.
+        Les sources actives — médias, sites officiels, YouTube et réseaux sociaux —
+        sont interrogées par <code>npm run news:fetch</code>. Les sources officielles
+        sont signalées par un badge « Officiel ». Chaque alerte peut être transformée
+        en brouillon par l&apos;IA : la publication reste une décision humaine, depuis
+        le studio. Les alertes de plus de <strong>48 h</strong> sont supprimées
+        automatiquement ; une alerte ignorée est supprimée immédiatement et
+        définitivement. Les brouillons déjà créés restent dans le studio.
       </p>
 
       {error ? (
@@ -155,12 +157,13 @@ export default async function VeillePage({
         </form>
       ) : null}
 
-      <dl className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
           { label: "En attente", value: pending },
           { label: "Brouillons générés", value: generated },
           { label: "Titres à traduire", value: untranslated },
           { label: "Sources actives", value: activeSources },
+          { label: "Sources officielles", value: officialSources },
         ].map((stat) => (
           <div key={stat.label} className="rounded-lg border border-border bg-card p-4">
             <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

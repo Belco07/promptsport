@@ -28,6 +28,11 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   FACEBOOK: "Facebook",
   INSTAGRAM: "Instagram",
   SOCIAL: "Réseau social (RSS)",
+  FLASHSCORE: "Flashscore",
+  SITEMAP: "Sitemap d'actualités",
+  OFFICIAL_SITE: "Site officiel",
+  JSON: "API JSON",
+  MANUAL: "Site officiel (référence)",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
@@ -36,7 +41,7 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 });
 
 
-type Alert = { id: string; title: string; titleFr: string | null; content: string | null; url: string; publishedAt: string; status: keyof typeof STATUS_STYLES; source: { name: string; type: string } };
+type Alert = { id: string; title: string; titleFr: string | null; content: string | null; url: string; publishedAt: string; status: keyof typeof STATUS_STYLES; source: { name: string; type: string; isOfficial: boolean } };
 export function AlertList({ alerts, aiReady }: { alerts: Alert[]; aiReady: boolean }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
@@ -127,7 +132,14 @@ export function AlertList({ alerts, aiReady }: { alerts: Alert[]; aiReady: boole
                       ) : null}
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      <span className="font-medium text-foreground">{alert.source.name}</span>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-foreground">{alert.source.name}</span>
+                        {alert.source.isOfficial ? (
+                          <span className="inline-flex rounded bg-status-success px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-status-success-foreground">
+                            Officiel
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="mt-1 block text-muted-foreground">
                         {SOURCE_TYPE_LABELS[alert.source.type] ?? alert.source.type}
                       </span>

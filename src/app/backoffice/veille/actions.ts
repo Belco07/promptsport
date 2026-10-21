@@ -227,6 +227,11 @@ const SOURCE_TYPES = [
   "FACEBOOK",
   "INSTAGRAM",
   "SOCIAL",
+  "FLASHSCORE",
+  "SITEMAP",
+  "OFFICIAL_SITE",
+  "JSON",
+  "MANUAL",
 ] as const;
 
 type SourceTypeValue = (typeof SOURCE_TYPES)[number];
@@ -310,6 +315,20 @@ function normalizeSourceUrl(raw: string, type: SourceTypeValue): URL {
       break;
     case "RSS":
     case "SOCIAL":
+    case "SITEMAP":
+    case "OFFICIAL_SITE":
+    case "JSON":
+    case "MANUAL":
+      break;
+    case "FLASHSCORE":
+      if (
+        host !== "flashscore.fr" &&
+        host !== "flashscore.com" &&
+        !host.endsWith(".flashscore.fr") &&
+        !host.endsWith(".flashscore.com")
+      ) {
+        failSource("URL Flashscore invalide : utilisez un domaine flashscore.fr ou flashscore.com.");
+      }
       break;
   }
 
@@ -323,6 +342,7 @@ export async function addNewsSource(formData: FormData): Promise<void> {
   const name = readFormString(formData, "name").slice(0, 120);
   const typeValue = readFormString(formData, "type");
   const rawUrl = readFormString(formData, "url");
+  const isOfficial = formData.get("isOfficial") === "on";
 
   if (name.length < 2) {
     failSource("Le nom de la source doit contenir au moins 2 caractères.");
@@ -335,7 +355,7 @@ export async function addNewsSource(formData: FormData): Promise<void> {
 
   try {
     await prisma.newsSource.create({
-      data: { name, type: typeValue, url, active: true },
+      data: { name, type: typeValue, url, active: true, isOfficial },
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) {

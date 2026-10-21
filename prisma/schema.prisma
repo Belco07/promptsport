@@ -6,6 +6,14 @@
 // NOTE Prisma 7 : le générateur `prisma-client` remplace `prisma-client-js` et
 // exige un `output` explicite — le client n'est plus généré dans node_modules.
 
+model VisualTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  document  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -1121,14 +1129,18 @@ model ReadingHistory {
 // News Engine (WP41) : veille automatisée et pré-rédaction assistée par IA
 // ---------------------------------------------------------------------------
 
-/// Source surveillée par le News Engine (flux RSS ou chaîne YouTube).
+/// Source surveillée par le News Engine : flux, site officiel, sitemap,
+/// API JSON ou réseau social.
 model NewsSource {
   id   String         @id @default(cuid())
   name String
   type NewsSourceType
-  /// URL du flux RSS ou de la chaîne YouTube.
+  /// URL du flux, de la page ou de l'API interrogée.
   url  String         @unique
   active Boolean      @default(true)
+  /// Source de première main : club, fédération, confédération ou ligue.
+  /// Ce marqueur est éditorial ; il ne remplace pas la vérification humaine.
+  isOfficial Boolean  @default(false)
 
   alerts NewsAlert[]
 
@@ -1176,6 +1188,16 @@ enum NewsSourceType {
   /// Flux RSS/Atom d'une passerelle sociale (RSSHub, Nitter…), pour les
   /// plateformes qui n'exposent pas de timeline publique sans authentification.
   SOCIAL
+  /// Page « actualités » de Flashscore, lue depuis son payload embarqué.
+  FLASHSCORE
+  /// Sitemap XML d'actualités (Google News ou sitemap classique daté).
+  SITEMAP
+  /// Page d'actualités d'un site officiel, lue par un connecteur dédié.
+  OFFICIAL_SITE
+  /// API JSON publique exposant une liste d'articles.
+  JSON
+  /// Site officiel conservé comme référence, sans collecte automatique.
+  MANUAL
 }
 
 enum NewsAlertStatus {

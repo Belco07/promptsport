@@ -2,6 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { fetchRssItems, type FeedItem } from "@/lib/rss";
 import { fetchBlueskyItems, fetchMastodonItems, redditFeedUrl } from "@/lib/social";
 import { fetchFacebookItems, fetchInstagramItems, fetchXItems } from "@/lib/social-platforms";
+import { fetchFlashscoreItems } from "@/lib/flashscore";
+import { fetchJsonItems } from "@/lib/news-json";
+import { fetchOfficialSiteItems } from "@/lib/official-sites";
+import { fetchSitemapItems } from "@/lib/sitemap";
 import { isAiConfigured, translateTitlesToFrench } from "@/lib/ai";
 import { cleanupOldNewsAlerts, isRecentNewsItem, purgeIgnoredNewsAlerts } from "@/lib/news";
 
@@ -200,6 +204,23 @@ export async function fetchNews(options: NewsFetchOptions = {}): Promise<NewsFet
         case "RSS":
         case "SOCIAL":
           items = await fetchRssItems(source.url, limit);
+          break;
+        case "FLASHSCORE":
+          items = await fetchFlashscoreItems(source.url, limit);
+          break;
+        case "SITEMAP":
+          items = await fetchSitemapItems(source.url, limit);
+          break;
+        case "OFFICIAL_SITE":
+          items = await fetchOfficialSiteItems(source.url, limit);
+          break;
+        case "JSON":
+          items = await fetchJsonItems(source.url, limit);
+          break;
+        case "MANUAL":
+          // Site officiel conservé comme référence : aucune collecte
+          // automatique, mais la source reste visible et cliquable.
+          items = [];
           break;
         case "YOUTUBE":
           if (!youtubeKey) {
