@@ -27,8 +27,15 @@ export const metadata = {
   title: "Veille",
 };
 
+const PAGE_SIZE = 50;
+
 function readParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function readPage(value: string | string[] | undefined): number {
+  const page = Number.parseInt(readParam(value) ?? "1", 10);
+  return Number.isFinite(page) && page > 0 ? page : 1;
 }
 
 export default async function VeillePage({
@@ -44,11 +51,20 @@ export default async function VeillePage({
   await cleanupOldNewsAlerts();
   await purgeIgnoredNewsAlerts();
 
+  // Le comptage précède la lecture pour ramener une page hors limites sur la
+  // dernière page existante (les alertes de plus de 48 h sont purgées à chaque
+  // chargement, le nombre total peut donc diminuer entre deux visites).
+  const total = await prisma.newsAlert.count();
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(readPage(params.page), pageCount);
+  const skip = (page - 1) * PAGE_SIZE;
+
   const [alerts, pending, generated, activeSources, untranslated] =
     await Promise.all([
       prisma.newsAlert.findMany({
-        orderBy: { publishedAt: "desc" },
-        take: 100,
+        orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+        skip,
+        take: PAGE_SIZE,
         include: { source: { select: { name: true, type: true } } },
       }),
       prisma.newsAlert.count({ where: { status: "PENDING" } }),
@@ -56,6 +72,9 @@ export default async function VeillePage({
       prisma.newsSource.count({ where: { active: true } }),
       prisma.newsAlert.count({ where: { titleFr: null } }),
     ]);
+
+  const pageHref = (target: number) =>
+    target > 1 ? `/backoffice/veille?page=${target}` : "/backoffice/veille";
 
   return (
     <div className="px-8 py-10">
@@ -154,7 +173,7 @@ export default async function VeillePage({
         ))}
       </dl>
 
-      {alerts.length === 0 ? (
+      {total === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center">
           <p className="text-sm font-medium text-foreground">Aucune alerte pour le moment.</p>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -163,15 +182,47 @@ export default async function VeillePage({
               : "Lancez npm run news:fetch pour interroger les sources actives."}
           </p>
         </div>
+      ) : alerts.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center">
+          <p className="text-sm font-medium text-foreground">Aucune alerte sur cette page.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            <Link href="/backoffice/veille" className="underline">
+              Revenir à la première page
+            </Link>
+          </p>
+        </div>
       ) : (
         <AlertList alerts={alerts.map(alert => ({ ...alert, publishedAt: alert.publishedAt.toISOString() }))} aiReady={aiReady} />
       )}
 
-      <p className="mt-4 text-xs text-muted-foreground">
-        {alerts.length === 100
-          ? "Les 100 alertes les plus récentes sont affichées."
-          : `${alerts.length} alerte(s) affichée(s).`}
-      </p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+        <p>
+          {total === 0 || alerts.length === 0
+            ? `${total} alerte(s) au total.`
+            : `${skip + 1} à ${skip + alerts.length} sur ${total} alerte(s).`}
+        </p>
+        {pageCount > 1 ? (
+          <nav aria-label="Pagination de la veille" className="flex flex-wrap items-center gap-4 text-sm">
+            {page > 1 ? (
+              <Link href={pageHref(page - 1)} rel="prev" className="text-editorial-link underline hover:text-editorial-link">
+                ← Page précédente
+              </Link>
+            ) : (
+              <span>← Page précédente</span>
+            )}
+            <span className="text-muted-foreground">
+              Page {page} sur {pageCount}
+            </span>
+            {page < pageCount ? (
+              <Link href={pageHref(page + 1)} rel="next" className="text-editorial-link underline hover:text-editorial-link">
+                Page suivante →
+              </Link>
+            ) : (
+              <span>Page suivante →</span>
+            )}
+          </nav>
+        ) : null}
+      </div>
     </div>
   );
 }

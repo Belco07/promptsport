@@ -8,6 +8,9 @@ let localFixtures = false;
 const password = "E2eNewsBatch-2026!pw";
 test.beforeEach(async ({ page }) => {
   localFixtures = false;
+  // Charge `.env` (via le fixture SQL) avant de vérifier l'URL de la base :
+  // sans cette requête, Playwright ne connaît pas encore DATABASE_URL.
+  await sql("SELECT 1");
   const url = new URL(process.env.APP_DATABASE_URL || process.env.DATABASE_URL || "");
   if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "5432") throw Error("Docker local requis.");
   prefix = e2eId("news-batch");
@@ -60,5 +63,34 @@ test("ignorer une sélection conserve les autres alertes", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText("2 alerte(s) ignorée(s).");
   await expect(page.getByRole("row").filter({ hasText: `${prefix}-bad` })).toBeVisible();
   expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "NewsAlert" WHERE "sourceId"=$1`, [prefix]))?.count).toBe(1);
+});
+
+test("pagine les alertes par 50", async ({ page }) => {
+  // 51 alertes datées dans le futur pour occuper la totalité de la page 1,
+  // devant les alertes déjà présentes dans la base locale.
+  await sql(
+    `INSERT INTO "NewsAlert" (id,"sourceId",title,url,content,"publishedAt","createdAt","updatedAt")
+     SELECT $1 || '-page-' || lpad(g::text, 2, '0'), $1,
+            $1 || '-page-' || lpad(g::text, 2, '0'),
+            'https://example.test/' || $1 || '/page-' || g,
+            'Une actualité sportive confirmée.',
+            NOW() + (g || ' seconds')::interval, NOW(), NOW()
+     FROM generate_series(0, 50) AS g`,
+    [prefix],
+  );
+  await page.reload();
+
+  await expect(page.getByRole("navigation", { name: "Pagination de la veille" })).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-00` })).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Page suivante →" }).click();
+  await expect(page).toHaveURL(/\/backoffice\/veille\?page=2$/);
+  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-00` })).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-50` })).toHaveCount(0);
+
+  await page.getByRole("link", { name: "← Page précédente" }).click();
+  await expect(page).toHaveURL(/\/backoffice\/veille$/);
+  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
 });
 
