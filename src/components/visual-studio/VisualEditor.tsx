@@ -177,7 +177,7 @@ export default function VisualEditor({ channel }: { channel?: string }) {
         </fieldset>
         <fieldset disabled={!ready || busy} className="space-y-3 disabled:opacity-60">
           <legend className="mb-2 font-bold">Texte et formes</legend>
-          <label className="block text-sm">Texte<textarea className={control} value={text} onChange={event => { setText(event.target.value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ text: event.target.value }); }} /></label>
+          <label className="block text-sm">Texte<textarea aria-label="Texte" className={control} value={text} onChange={event => { setText(event.target.value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ text: event.target.value }); }} /></label>
           <label className="block text-sm">Police<select aria-label="Police" className={control} value={font} onChange={event => { setFont(event.target.value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ fontFamily: event.target.value }); }}>{["Montserrat", "Arial", "Georgia"].map(value => <option key={value}>{value}</option>)}</select></label>
           <div className="grid grid-cols-2 gap-2"><label className="text-sm">Taille<input className={control} type="number" min={12} max={240} value={fontSize} onChange={event => { const value = Math.max(12, Math.min(240, Number(event.target.value))); setFontSize(value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ fontSize: value }); }} /></label><label className="text-sm">Graisse<select aria-label="Graisse" className={control} value={weight} onChange={event => { setWeight(event.target.value); update({ fontWeight: event.target.value }); }}><option value="400">Normal</option><option value="700">Gras</option><option value="900">Très gras</option></select></label></div>
           <label className="block text-sm">Alignement<select aria-label="Alignement" className={control} value={align} onChange={event => { setAlign(event.target.value as Textbox["textAlign"]); update({ textAlign: event.target.value }); }}><option value="left">Gauche</option><option value="center">Centre</option><option value="right">Droite</option></select></label>
@@ -206,3 +206,4 @@ export default function VisualEditor({ channel }: { channel?: string }) {
     </div>
   </div>;
 }
+
