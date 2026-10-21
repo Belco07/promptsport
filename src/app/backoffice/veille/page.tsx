@@ -5,7 +5,7 @@ import { cleanupOldNewsAlerts, purgeIgnoredNewsAlerts } from "@/lib/news";
 import { prisma } from "@/lib/prisma";
 
 import { ActionButton } from "./ActionButton";
-import { translateAlertTitles } from "./actions";
+import { translateAlertTitles, triggerManualFetch } from "./actions";
 import { AlertList } from "./AlertList";
 
 /**
@@ -39,6 +39,7 @@ export default async function VeillePage({
   const params = await searchParams;
   const error = readParam(params.error);
   const info = readParam(params.info);
+  const refreshed = readParam(params.refreshed) === "1";
   const aiReady = isAiConfigured();
   await cleanupOldNewsAlerts();
   await purgeIgnoredNewsAlerts();
@@ -63,12 +64,17 @@ export default async function VeillePage({
       </p>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Veille</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <form action={triggerManualFetch}>
+            <ActionButton label="Actualiser la veille" pendingLabel="Récupération en cours..." title="Récupérer les nouvelles alertes des sources actives" />
+          </form>
         <Link
           href="/backoffice/veille/sources"
           className="rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
         >
           Gérer les sources ({activeSources})
         </Link>
+        </div>
       </div>
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
         Les sources actives — médias, YouTube et réseaux sociaux — sont interrogées par{" "}
@@ -91,9 +97,12 @@ export default async function VeillePage({
       {info ? (
         <div
           role="status"
-          className="mb-6 rounded-lg border border-status-success-border bg-status-success px-4 py-3 text-sm text-status-success-foreground"
+          className={refreshed
+            ? "fixed bottom-6 right-6 z-50 max-w-sm rounded-lg border border-status-success-border bg-status-success px-4 py-3 text-sm text-status-success-foreground shadow-lg"
+            : "mb-6 rounded-lg border border-status-success-border bg-status-success px-4 py-3 text-sm text-status-success-foreground"}
         >
           {info}
+          {refreshed && <Link href="/backoffice/veille" className="ml-3 underline">Fermer</Link>}
         </div>
       ) : null}
 

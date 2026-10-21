@@ -27,10 +27,11 @@ import {
  * Seule une personne peut ensuite publier depuis le studio.
  */
 
-function veilUrl(params: { error?: string; info?: string } = {}): string {
+function veilUrl(params: { error?: string; info?: string; refreshed?: boolean } = {}): string {
   const search = new URLSearchParams();
   if (params.error) search.set("error", params.error.slice(0, 300));
   if (params.info) search.set("info", params.info.slice(0, 300));
+  if (params.refreshed) search.set("refreshed", "1");
   const query = search.toString();
   return `/backoffice/veille${query ? `?${query}` : ""}`;
 }
@@ -439,4 +440,28 @@ export async function translateAlertTitles(): Promise<void> {
       info: `${alerts.length} titre(s) traduit(s) en français.`,
     }),
   );
+}
+
+/** Réutilise le collecteur CLI/cron, après contrôle des droits côté serveur. */
+export async function triggerManualFetch(): Promise<void> {
+  await requireBackofficeUser();
+  let result;
+  try {
+    const { fetchNews } = await import("@/lib/news-fetcher");
+    result = await fetchNews({ concurrency: 3 });
+  } catch {
+    console.error("[veille] actualisation manuelle interrompue.");
+    revalidatePath("/backoffice/veille");
+    fail("La récupération a échoué. Réessayez dans quelques instants.");
+  }
+  revalidatePath("/backoffice/veille");
+  revalidatePath("/backoffice/veille/sources");
+  if (result.sourcesProcessed > 0 && result.sourcesFailed === result.sourcesProcessed) {
+    fail("Aucune source n’a pu être récupérée. Vérifiez la configuration des sources.");
+  }
+  const message = result.sourcesProcessed === 0
+    ? "Aucune source active à récupérer."
+    : result.alertsCreated + (result.alertsCreated === 1 ? " nouvelle alerte importée." : " nouvelles alertes importées.")
+      + (result.sourcesFailed ? " " + result.sourcesFailed + " source(s) indisponible(s)." : "");
+  redirect(veilUrl({ info: message, refreshed: true }));
 }
