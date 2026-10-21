@@ -42,7 +42,7 @@ test("génération sans redirection, catégorie et thème liés, puis traitement
   await page.getByLabel(`Sélectionner ${prefix}-bad`, { exact: true }).check();
   await page.getByRole("button", { name: "Générer les brouillons sélectionnés" }).click();
   await expect(page.getByRole("status")).toHaveText("1 brouillon(s) généré(s).");
-  await expect(page.getByRole("alert")).toContainText("Certains traitements ont échoué");
+  await expect(page.getByRole("alert").filter({ hasText: "Certains traitements" })).toContainText("Certains traitements ont échoué");
   expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "Article" WHERE "authorId"=$1`, [prefix]))?.count).toBe(2);
   expect((await sqlOne<{ status: string }>(`SELECT status FROM "NewsAlert" WHERE id=$1`, [`${prefix}-bad`]))?.status).toBe("PENDING");
   await expect(page).toHaveURL(/\/backoffice\/veille$/);
@@ -57,3 +57,4 @@ test("ignorer une sélection conserve les autres alertes", async ({ page }) => {
   await expect(page.getByRole("row").filter({ hasText: `${prefix}-bad` })).toBeVisible();
   expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "NewsAlert" WHERE "sourceId"=$1`, [prefix]))?.count).toBe(1);
 });
+
