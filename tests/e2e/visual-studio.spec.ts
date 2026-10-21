@@ -60,7 +60,7 @@ test("Visual Studio : texte, formes et export PNG aux dimensions natives", async
 
 test("Visual Studio : sauvegarde et retour automatique dans le texte de l’article", async ({ page, context }) => {
   test.skip(process.env.E2E_VISUAL_LOCAL !== "1", "Utiliser npm run test:visual-studio pour un upload local isolé.");
-  await page.goto(`/studio/articles/${id}/edit`);
+  await page.goto(`/studio/articles/${id}/edit`, { waitUntil: "domcontentloaded" });
   const popupEvent = context.waitForEvent("page");
   await page.getByRole("button", { name: "Créer une image avec le Visual Studio", exact: true }).click();
   const popup = await popupEvent;
@@ -80,7 +80,7 @@ test("Visual Studio : sauvegarde et retour automatique dans le texte de l’arti
 
 test("Visual Studio : retour en couverture, brouillon non perdu et messages étrangers ignorés", async ({ page, context }) => {
   test.skip(process.env.E2E_VISUAL_LOCAL !== "1", "Utiliser npm run test:visual-studio pour un upload local isolé.");
-  await page.goto(`/studio/articles/${id}/edit`);
+  await page.goto(`/studio/articles/${id}/edit`, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Titre", { exact: true }).fill("Titre non encore enregistré");
   const popupEvent = context.waitForEvent("page");
   await page.getByRole("button", { name: "Créer une image de couverture avec le Visual Studio", exact: true }).click();
