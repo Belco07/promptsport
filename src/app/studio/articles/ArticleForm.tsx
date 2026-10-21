@@ -1,5 +1,7 @@
 "use client";
 
+import { VisualStudioButton } from "@/components/visual-studio/VisualStudioButton";
+
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { ArticleFormat } from "@/components/FormatBadge";
@@ -273,6 +275,7 @@ export function ArticleForm({
           onChange={setCoverImageUrl}
           name="coverImageUrl"
         />
+        <div className="mt-3"><VisualStudioButton onImage={setCoverImageUrl} label="Créer une image de couverture avec le Visual Studio" /></div>
       </div>
 
       <div>

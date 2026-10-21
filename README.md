@@ -1132,3 +1132,23 @@ curl --fail-with-body --header "Authorization: Bearer $CRON_SECRET" \
 ```
 
 Tests isolés du collecteur et de l’authentification : `node --test tests/unit/news-fetcher.test.cjs`.
+# Visual Studio — WP46
+
+Dans `/studio/visual-studio`, les journalistes, éditeurs et administrateurs peuvent
+composer un visuel avec Fabric.js : fond importé ou URL directe Unsplash, textes
+Montserrat, formes, logo, images transparentes et filtres. Les formats proposés
+sont 1200 × 630, 1080 × 1080 et 1080 × 1920. Les éléments restent déplaçables et
+redimensionnables ; les modèles Édito, Mercato et Match sont modifiables.
+
+« Télécharger » exporte localement. « Enregistrer » utilise l’upload existant
+(PNG/WebP, 5 Mo maximum) et exige `BLOB_READ_WRITE_TOKEN` en production. Depuis
+l’article, le bouton du texte insère l’image dans MDXEditor ; celui de la
+couverture renseigne son champ. Garder l’onglet de l’article ouvert et enregistrer
+l’article après réception. Le retour vérifie l’origine, la fenêtre et un canal
+unique ; il n’accepte que les URL d’export du stockage prévu.
+
+Tests : `npm run test:visual-studio` (Docker local sur 5432, port 3002 libre).
+Le runner désactive Blob/Resend réels, simule l’IA et utilise un serveur de
+développement Webpack pour servir les exports locaux. Montserrat est distribuée
+avec sa licence OFL dans `public/fonts/`.
+

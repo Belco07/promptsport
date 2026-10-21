@@ -20,7 +20,8 @@
     "sync:football": "npx tsx scripts/sync-football.ts",
     "analytics:aggregate": "npx tsx scripts/analytics-aggregate.ts",
     "news:fetch": "npx tsx scripts/fetch-news.ts",
-    "news:seed": "npx tsx scripts/seed-news-sources.ts"
+    "news:seed": "npx tsx scripts/seed-news-sources.ts",
+    "test:visual-studio": "node scripts/test-visual-studio.cjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.3",
@@ -30,6 +31,7 @@
     "@prisma/client": "7.10.1",
     "@vercel/blob": "^2.8.0",
     "bcryptjs": "3.0.3",
+    "fabric": "^7.4.0",
     "lucide-react": "^1.48.0",
     "mdast-util-directive": "^3.1.1",
     "next": "15.5.28",

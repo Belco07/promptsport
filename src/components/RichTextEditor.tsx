@@ -9,15 +9,22 @@ import {
   InsertThematicBreak, UndoRedo, headingsPlugin, listsPlugin, quotePlugin,
   linkPlugin, linkDialogPlugin, thematicBreakPlugin, markdownShortcutPlugin,
   toolbarPlugin, codeBlockPlugin, codeMirrorPlugin, tablePlugin, imagePlugin,
-  directivesPlugin,
+  directivesPlugin, insertMarkdown$, usePublisher,
 } from "@mdxeditor/editor";
 
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { SocialEmbedButton } from "@/components/embeds/SocialEmbedButton";
 import { socialEmbedDescriptor } from "@/components/embeds/social-embed-directive";
+import { VisualStudioButton } from "@/components/visual-studio/VisualStudioButton";
+import { imageMarkdown } from "@/components/editor/imageUploadPlugin";
 import { ImageUploadButton } from "@/components/editor/imageUploadPlugin";
 import { EmojiButton } from "@/components/editor/EmojiButton";
 import { QuoteButton, quoteDescriptor } from "@/components/editor/quoteDirective";
+
+function VisualStudioInsertButton() {
+  const insertMarkdown = usePublisher(insertMarkdown$);
+  return <VisualStudioButton onImage={url => insertMarkdown(imageMarkdown(url, "Visuel PromptSport"))} />;
+}
 
 /** Délai d'attente avant de relancer le rendu de l'aperçu (WP15d). */
 const PREVIEW_DEBOUNCE_MS = 500;
@@ -102,7 +109,7 @@ export default function RichTextEditor({ value, onChange }: {
           toolbarPlugin({ toolbarContents: () => <>
             <UndoRedo /><BoldItalicUnderlineToggles options={["Bold", "Italic"]} /><StrikeThroughSupSubToggles options={["Strikethrough"]} />
             <BlockTypeSelect /><ListsToggle /><CreateLink /><CodeToggle />
-            <InsertCodeBlock /><InsertThematicBreak /><ImageUploadButton /><QuoteButton /><SocialEmbedButton /><EmojiButton />
+            <InsertCodeBlock /><InsertThematicBreak /><ImageUploadButton /><VisualStudioInsertButton /><QuoteButton /><SocialEmbedButton /><EmojiButton />
           </> }),
         ]} />
     </div>

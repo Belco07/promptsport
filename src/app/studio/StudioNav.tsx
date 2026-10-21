@@ -10,6 +10,7 @@ import { useMounted } from "@/lib/use-mounted";
 const LINKS = [
   { href: "/studio", label: "Tableau de bord" },
   { href: "/studio/articles", label: "Articles" },
+  { href: "/studio/visual-studio", label: "Visual Studio" },
   { href: "/studio/une", label: "Une" },
   { href: "/studio/categories", label: "Catégories" },
 ];

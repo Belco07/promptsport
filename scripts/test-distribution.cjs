@@ -12,7 +12,7 @@ Object.assign(process.env, {
   DATABASE_URL: raw, APP_DATABASE_URL: raw, DIRECT_URL: raw,
   NEON_WS_PROXY: '127.0.0.1:5452',
   DEEPSEEK_API_KEY: 'local-fixture', DEEPSEEK_BASE_URL: 'http://127.0.0.1:5451/v1', E2E_DISTRIBUTION_STUB: '1',
-  RESEND_API_KEY: '', ALLSPORTS_API_KEY: '', FOOTBALL_DATA_API_KEY: '', FOTMOB_LIVE: '0',
+  RESEND_API_KEY: '', BLOB_READ_WRITE_TOKEN: '', ALLSPORTS_API_KEY: '', FOOTBALL_DATA_API_KEY: '', FOTMOB_LIVE: '0',
   NEXT_PUBLIC_SITE_URL: 'http://localhost:3002', AUTH_URL: 'http://localhost:3002', PLAYWRIGHT_BASE_URL: 'http://localhost:3002',
 });
 const ws = new WebSocketServer({ host: '127.0.0.1', port: 5452 });
