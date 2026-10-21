@@ -68,6 +68,7 @@ test.afterAll(async () => {
 
 test("enregistre les paramètres et actualise les métadonnées", async ({ page }) => {
   const siteName = `PromptSport E2E ${prefix.slice(-6)}`;
+  const escapedSiteName = siteName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const siteDescription = "Description SEO configurée par le test E2E WP43.";
 
   await expect(page.getByRole("heading", { name: "Paramètres" })).toBeVisible();
@@ -90,7 +91,10 @@ test("enregistre les paramètres et actualise les métadonnées", async ({ page 
   expect(saved).toEqual({ siteName, siteDescription, maintenanceMode: true });
 
   await page.goto("/backoffice/veille");
-  await expect(page).toHaveTitle(new RegExp(`Veille \\| ${siteName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  await expect(page).toHaveTitle(new RegExp(`Veille \\| ${escapedSiteName}`));
+
+  await page.goto("/");
+  await expect(page).toHaveTitle(new RegExp(`^${escapedSiteName}`));
 
   // Restaure immédiatement pour ne pas laisser la configuration de test aux
   // autres specs exécutées dans le même serveur de développement.

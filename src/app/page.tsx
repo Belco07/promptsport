@@ -17,9 +17,28 @@ import { AdSlotGate } from "@/components/AdSlotGate";
 import { Footer } from "@/components/Footer";
 import { prisma } from "@/lib/prisma";
 import { getHomepageFeatured } from "@/lib/featured";
-import { HOME_TITLE, SITE_DESCRIPTION, buildPageMetadata, jsonLdString, organizationJsonLd } from "@/lib/seo";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  buildPageMetadata,
+  homeTitleForSite,
+  jsonLdString,
+  organizationJsonLd,
+} from "@/lib/seo";
+import { getSiteConfig } from "@/lib/site-config";
 
-export const metadata: Metadata = buildPageMetadata({ title: { absolute: HOME_TITLE }, description: SITE_DESCRIPTION, path: "/" });
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getSiteConfig();
+  const siteName = config.siteName.trim() || SITE_NAME;
+  const description = config.siteDescription.trim() || SITE_DESCRIPTION;
+  return buildPageMetadata({
+    title: { absolute: homeTitleForSite(siteName) },
+    description,
+    path: "/",
+    siteName,
+  });
+}
+
 export const revalidate = 60;
 type HomeArticle = ArticleCardData & { id: string; contentLength: number };
 const competitionSlugs = ["ligue-1", "premier-league", "liga", "serie-a", "bundesliga", "uefa-champions-league"];

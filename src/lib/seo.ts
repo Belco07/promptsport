@@ -16,6 +16,18 @@ export const SITE_DESCRIPTION =
   "Toute l'actualité sportive : résultats et scores en direct, classements, analyses et articles premium.";
 export const TWITTER_CREATOR = "@moncompte";
 
+/**
+ * Titre d'accueil pour un nom de site configurable (WP43).
+ *
+ * Le slogan reste identique quand le nom change ; les constantes historiques
+ * servent de repli si le nom vient à manquer.
+ */
+export function homeTitleForSite(siteName: string): string {
+  return HOME_TITLE.startsWith(SITE_NAME)
+    ? `${siteName}${HOME_TITLE.slice(SITE_NAME.length)}`
+    : `${siteName} — L'actualité qui vibre, la passion qui déborde`;
+}
+
 /** Image Open Graph par défaut (1200x630), servie depuis /public. */
 export const DEFAULT_OG_IMAGE = "/og-default.png";
 /** Logo utilisé par les données structurées (route d'icône générée par Next). */
@@ -50,6 +62,8 @@ type PageMetadataInput = {
   authors?: string[];
   section?: string;
   robots?: Metadata["robots"];
+  /** Nom du site configurable (WP43) ; `SITE_NAME` par défaut. */
+  siteName?: string;
 };
 
 /**
@@ -67,6 +81,7 @@ export function buildPageMetadata({
   authors,
   section,
   robots,
+  siteName = SITE_NAME,
 }: PageMetadataInput): Metadata {
   const url = absoluteUrl(path);
   const absoluteImages = images.map((image) => absoluteUrl(image));
@@ -82,7 +97,7 @@ export function buildPageMetadata({
       title: ogTitle,
       description,
       url,
-      siteName: SITE_NAME,
+      siteName,
       locale: "fr_FR",
       images: absoluteImages,
       ...(publishedTime ? { publishedTime } : {}),

@@ -16,12 +16,12 @@ import { getUrgentArticle } from "@/lib/featured";
 import { prisma } from "@/lib/prisma";
 import {
   DEFAULT_OG_IMAGE,
-  HOME_TITLE,
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_URL,
   TWITTER_CREATOR,
   absoluteUrl,
+  homeTitleForSite,
 } from "@/lib/seo";
 import { getSiteConfig } from "@/lib/site-config";
 import "./globals.css";
@@ -84,9 +84,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const config = await getSiteConfig();
   const siteName = config.siteName.trim() || SITE_NAME;
   const description = config.siteDescription.trim() || SITE_DESCRIPTION;
-  const homeTitle = HOME_TITLE.startsWith(SITE_NAME)
-    ? `${siteName}${HOME_TITLE.slice(SITE_NAME.length)}`
-    : `${siteName} — L'actualité qui vibre, la passion qui déborde`;
+  const homeTitle = homeTitleForSite(siteName);
 
   return {
     metadataBase: new URL(SITE_URL),
