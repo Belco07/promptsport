@@ -55,6 +55,7 @@ test("Visual Studio : texte, formes et export PNG aux dimensions natives", async
   expect(bytes.subarray(1, 4).toString()).toBe("PNG");
   expect(bytes.readUInt32BE(16)).toBe(1200);
   expect(bytes.readUInt32BE(20)).toBe(630);
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: "tmp-results/wp46-visual-studio.png", fullPage: true });
 });
 
@@ -81,6 +82,7 @@ test("Visual Studio : sauvegarde et retour automatique dans le texte de l’arti
 test("Visual Studio : retour en couverture, brouillon non perdu et messages étrangers ignorés", async ({ page, context }) => {
   test.skip(process.env.E2E_VISUAL_LOCAL !== "1", "Utiliser npm run test:visual-studio pour un upload local isolé.");
   await page.goto(`/studio/articles/${id}/edit`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: "Créer une image de couverture avec le Visual Studio", exact: true })).toBeEnabled();
   await page.getByLabel("Titre", { exact: true }).fill("Titre non encore enregistré");
   const popupEvent = context.waitForEvent("page");
   await page.getByRole("button", { name: "Créer une image de couverture avec le Visual Studio", exact: true }).click();

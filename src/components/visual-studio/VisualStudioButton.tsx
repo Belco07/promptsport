@@ -21,8 +21,10 @@ export function VisualStudioButton({ onImage, label = "Créer une image avec le 
   const callback = useRef(onImage);
   const last = useRef("");
   const [message, setMessage] = useState("");
+  const [ready, setReady] = useState(false);
   useEffect(() => { callback.current = onImage; }, [onImage]);
   useEffect(() => {
+    setReady(true);
     function receive(event: MessageEvent) {
       if (event.origin !== window.location.origin || !popup.current || event.source !== popup.current) return;
       const data = event.data;
@@ -35,7 +37,7 @@ export function VisualStudioButton({ onImage, label = "Créer une image avec le 
     return () => window.removeEventListener("message", receive);
   }, []);
   return <span className="inline-flex flex-col gap-1">
-    <button type="button" className="rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted" onClick={() => {
+    <button type="button" disabled={!ready} className="rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted" onClick={() => {
       channel.current = crypto.randomUUID(); last.current = "";
       popup.current = window.open(`/studio/visual-studio?channel=${channel.current}`, "_blank");
       setMessage(popup.current ? "Le Visual Studio est ouvert dans un nouvel onglet." : "Autorisez l’ouverture d’un nouvel onglet pour le Visual Studio.");

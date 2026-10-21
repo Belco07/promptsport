@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 import {
   MDXEditor, BoldItalicUnderlineToggles, StrikeThroughSupSubToggles,
@@ -9,7 +9,7 @@ import {
   InsertThematicBreak, UndoRedo, headingsPlugin, listsPlugin, quotePlugin,
   linkPlugin, linkDialogPlugin, thematicBreakPlugin, markdownShortcutPlugin,
   toolbarPlugin, codeBlockPlugin, codeMirrorPlugin, tablePlugin, imagePlugin,
-  directivesPlugin, insertMarkdown$, usePublisher,
+  directivesPlugin, type MDXEditorMethods,
 } from "@mdxeditor/editor";
 
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
@@ -21,9 +21,8 @@ import { ImageUploadButton } from "@/components/editor/imageUploadPlugin";
 import { EmojiButton } from "@/components/editor/EmojiButton";
 import { QuoteButton, quoteDescriptor } from "@/components/editor/quoteDirective";
 
-function VisualStudioInsertButton() {
-  const insertMarkdown = usePublisher(insertMarkdown$);
-  return <VisualStudioButton onImage={url => insertMarkdown(imageMarkdown(url, "Visuel PromptSport"))} />;
+function VisualStudioInsertButton({ onImage }: { onImage: (url: string) => void }) {
+  return <VisualStudioButton onImage={onImage} />;
 }
 
 /** Délai d'attente avant de relancer le rendu de l'aperçu (WP15d). */
@@ -38,6 +37,14 @@ export default function RichTextEditor({ value, onChange }: {
   onChange: (markdown: string) => void;
 }) {
   const { resolvedTheme } = useTheme();
+  const editorRef = useRef<MDXEditorMethods>(null);
+  function appendVisual(url: string) {
+    // Le retour d’un autre onglet n’a pas forcément de sélection Lexical active.
+    const current = editorRef.current?.getMarkdown() ?? value;
+    const next = current.trimEnd() + "\n\n" + imageMarkdown(url, "Visuel PromptSport");
+    editorRef.current?.setMarkdown(next);
+    onChange(next);
+  }
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   // Markdown effectivement rendu : mis à jour après le délai d'attente.
   const [previewMarkdown, setPreviewMarkdown] = useState(value);
@@ -93,7 +100,7 @@ export default function RichTextEditor({ value, onChange }: {
       aria-labelledby="editor-tab-edit"
       className={tab === "edit" ? undefined : "hidden"}
     >
-      <MDXEditor markdown={value} onChange={onChange} className={resolvedTheme === "dark" ? "dark-theme" : undefined}
+      <MDXEditor ref={editorRef} markdown={value} onChange={onChange} className={resolvedTheme === "dark" ? "dark-theme" : undefined}
         contentEditableClassName="rich-text-editor-content"
         placeholder="Rédigez votre article…"
         plugins={[
@@ -109,7 +116,7 @@ export default function RichTextEditor({ value, onChange }: {
           toolbarPlugin({ toolbarContents: () => <>
             <UndoRedo /><BoldItalicUnderlineToggles options={["Bold", "Italic"]} /><StrikeThroughSupSubToggles options={["Strikethrough"]} />
             <BlockTypeSelect /><ListsToggle /><CreateLink /><CodeToggle />
-            <InsertCodeBlock /><InsertThematicBreak /><ImageUploadButton /><VisualStudioInsertButton /><QuoteButton /><SocialEmbedButton /><EmojiButton />
+            <InsertCodeBlock /><InsertThematicBreak /><ImageUploadButton /><VisualStudioInsertButton onImage={appendVisual} /><QuoteButton /><SocialEmbedButton /><EmojiButton />
           </> }),
         ]} />
     </div>
