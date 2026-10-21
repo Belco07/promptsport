@@ -31,7 +31,13 @@ const ai = http.createServer((req, res) => {
     try {
       const request = JSON.parse(body);
       const social = request.messages[0].content.includes('posts sportifs');
-      const content = social ? '⚽ Le sport nous rassemble ! Découvrez notre analyse. #Sport #PromptSport' : JSON.stringify({ title: 'Un article sportif de test', excerpt: 'Un résumé factuel.', content: 'Un article de test factuel. '.repeat(35) });
+      const prompt = request.messages[1]?.content ?? '';
+      const taxonomy = label => { try { return JSON.parse(prompt.split(label + ' : ')[1]?.split('\n')[0] ?? '[]'); } catch { return []; } };
+      const title = prompt.split("Titre de l'alerte : ")[1]?.split('\n')[0] ?? 'Un article sportif de test';
+      const category = taxonomy('Catégories disponibles').find(item => title.startsWith(item.slug));
+      const theme = taxonomy('Thèmes disponibles').find(item => title.startsWith(item.slug));
+      if (!social && title.endsWith('-bad')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({choices:[{message:{content:'invalid json'}}]})); return; }
+      const content = social ? '⚽ Le sport nous rassemble ! Découvrez notre analyse. #Sport #PromptSport' : JSON.stringify({ title, categorySlug: category?.slug ?? null, themeSlug: theme?.slug ?? null, excerpt: 'Un résumé factuel.', content: 'Un article de test factuel. '.repeat(35) });
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ id: 'fixture', choices: [{ message: { role: 'assistant', content }, finish_reason: 'stop', index: 0 }] }));
     } catch { res.writeHead(400); res.end(); }

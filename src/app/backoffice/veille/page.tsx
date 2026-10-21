@@ -5,7 +5,8 @@ import { cleanupOldNewsAlerts, purgeIgnoredNewsAlerts } from "@/lib/news";
 import { prisma } from "@/lib/prisma";
 
 import { ActionButton } from "./ActionButton";
-import { generateArticle, ignoreAlert, translateAlertTitles } from "./actions";
+import { translateAlertTitles } from "./actions";
+import { AlertList } from "./AlertList";
 
 /**
  * Backoffice — veille éditoriale (WP41).
@@ -20,43 +21,11 @@ import { generateArticle, ignoreAlert, translateAlertTitles } from "./actions";
 
 export const dynamic = "force-dynamic";
 // L'appel au fournisseur IA peut dépasser la limite par défaut d'une fonction.
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export const metadata = {
   title: "Veille",
 };
-
-const STATUS_STYLES = {
-  PENDING: {
-    label: "En attente",
-    className: "bg-status-warning text-status-warning-foreground",
-  },
-  DRAFT_GENERATED: {
-    label: "Brouillon généré",
-    className: "bg-status-success text-status-success-foreground",
-  },
-  IGNORED: {
-    label: "Ignorée",
-    className: "bg-muted text-muted-foreground",
-  },
-} as const;
-
-const SOURCE_TYPE_LABELS: Record<string, string> = {
-  RSS: "Flux RSS",
-  YOUTUBE: "YouTube",
-  BLUESKY: "Bluesky",
-  MASTODON: "Mastodon",
-  REDDIT: "Reddit",
-  X: "X (Twitter)",
-  FACEBOOK: "Facebook",
-  INSTAGRAM: "Instagram",
-  SOCIAL: "Réseau social (RSS)",
-};
-
-const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 function readParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -186,114 +155,7 @@ export default async function VeillePage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <caption className="sr-only">Alertes de veille éditoriale</caption>
-            <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-semibold">
-                  Date
-                </th>
-                <th scope="col" className="px-4 py-3 font-semibold">
-                  Alerte
-                </th>
-                <th scope="col" className="px-4 py-3 font-semibold">
-                  Source
-                </th>
-                <th scope="col" className="px-4 py-3 font-semibold">
-                  Statut
-                </th>
-                <th scope="col" className="px-4 py-3 font-semibold">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {alerts.map((alert) => {
-                const status = STATUS_STYLES[alert.status];
-                const displayTitle = alert.titleFr ?? alert.title;
-                return (
-                  <tr key={alert.id} className="align-top hover:bg-muted">
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                      <time dateTime={alert.publishedAt.toISOString()}>
-                        {dateFormatter.format(alert.publishedAt)}
-                      </time>
-                    </td>
-                    <td className="max-w-xl px-4 py-3">
-                      <a
-                        href={alert.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={
-                          displayTitle !== alert.title
-                            ? `Titre original : ${alert.title}`
-                            : undefined
-                        }
-                        className="font-medium text-foreground underline decoration-border underline-offset-2 hover:text-editorial-link"
-                      >
-                        {displayTitle}
-                      </a>
-                      {alert.content ? (
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                          {alert.content}
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      <span className="font-medium text-foreground">{alert.source.name}</span>
-                      <span className="mt-1 block text-muted-foreground">
-                        {SOURCE_TYPE_LABELS[alert.source.type] ?? alert.source.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded px-2 py-1 text-xs font-semibold ${status.className}`}
-                      >
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {alert.status === "PENDING" ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <form action={generateArticle.bind(null, alert.id)}>
-                            <ActionButton
-                              label="Générer avec l'IA"
-                              pendingLabel="Génération…"
-                              disabled={!aiReady}
-                              title={
-                                aiReady
-                                  ? "Créer un brouillon relu par un humain avant publication"
-                                  : "DEEPSEEK_API_KEY manquante"
-                              }
-                            />
-                          </form>
-                          <form action={ignoreAlert.bind(null, alert.id)}>
-                            <ActionButton
-                              label="Ignorer et supprimer"
-                              pendingLabel="Suppression…"
-                              variant="danger"
-                              title="Supprimer définitivement cette alerte de la veille"
-                              confirmMessage="Supprimer définitivement cette alerte ? Cette action est irréversible."
-                            />
-                          </form>
-                        </div>
-                      ) : alert.status === "DRAFT_GENERATED" ? (
-                        <Link
-                          href="/studio/articles"
-                          className="text-xs font-medium text-editorial-link underline hover:text-editorial-link"
-                        >
-                          Retrouver le brouillon
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <AlertList alerts={alerts.map(alert => ({ ...alert, publishedAt: alert.publishedAt.toISOString() }))} aiReady={aiReady} />
       )}
 
       <p className="mt-4 text-xs text-muted-foreground">

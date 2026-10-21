@@ -17,9 +17,13 @@ export type NewsAlertInput = {
   url: string;
   sourceName: string;
   publishedAt?: Date;
+  categories?: { slug: string; name: string }[];
+  themes?: { slug: string; name: string }[];
 };
 
 export type GeneratedArticle = {
+  categorySlug: string | null;
+  themeSlug: string | null;
   title: string;
   excerpt: string;
   content: string;
@@ -105,9 +109,8 @@ function sourceLink(sourceName: string, sourceUrl: string): string {
 /**
  * Convertit la réponse du modèle en article exploitable.
  *
- * Le prompt demande du JSON, mais les modèles (et les proxys compatibles) ne le
- * respectent pas toujours : on accepte aussi un Markdown brut, avec un titre
- * déduit de l'alerte.
+ * Refuse les réponses non JSON ou incomplètes afin de conserver l’alerte
+ * en attente plutôt que créer un brouillon inexploitable.
  */
 function parseCompletion(raw: string, alert: NewsAlertInput): GeneratedArticle {
   const cleaned = stripCodeFence(raw);
@@ -119,9 +122,10 @@ function parseCompletion(raw: string, alert: NewsAlertInput): GeneratedArticle {
       payload = parsed as Record<string, unknown>;
     }
   } catch {
-    payload = null;
+    throw new Error("La réponse de l’IA doit être un JSON valide.");
   }
 
+  if (!payload || ["title", "excerpt", "content"].some(key => typeof payload[key] !== "string" || !payload[key].trim())) throw new Error("Réponse IA incomplète.");
   const fallbackTitle = alert.title.trim() || "Actualité sportive";
   const title = cleanText(payload?.title, MAX_TITLE_LENGTH) || fallbackTitle;
   const body = cleanText(payload?.content, MAX_CONTENT_LENGTH) || cleaned;
@@ -138,6 +142,8 @@ function parseCompletion(raw: string, alert: NewsAlertInput): GeneratedArticle {
     title,
     excerpt,
     content: `${content}${sourceLink(alert.sourceName, alert.url)}`,
+    categorySlug: typeof payload.categorySlug === "string" ? payload.categorySlug.trim() : null,
+    themeSlug: typeof payload.themeSlug === "string" ? payload.themeSlug.trim() : null,
   };
 }
 
@@ -158,13 +164,16 @@ Structure impérative :
 5. Vise 450 à 650 mots. Ton professionnel, fluide, sans sensationnalisme ni formules creuses.
 6. Ne répète pas le titre dans le chapô et ne recopie pas l'extrait mot pour mot.
 Réponds uniquement avec un objet JSON valide :
-{"title":"titre factuel et accrocheur de 90 caractères maximum","excerpt":"chapô de 200 caractères maximum","content":"article Markdown complet"}`;
+{"title":"titre factuel et accrocheur de 90 caractères maximum","excerpt":"chapô de 200 caractères maximum","content":"article Markdown complet","categorySlug":"slug existant ou null","themeSlug":"slug existant ou null"}
+Choisis uniquement les slugs fournis, selon le sujet réel. Sans correspondance, renvoie null.`;
 
 function userPrompt(alert: NewsAlertInput): string {
   const publishedAt = alert.publishedAt
     ? alert.publishedAt.toISOString()
     : "date inconnue";
   return [
+    `Catégories disponibles : ${JSON.stringify(alert.categories ?? [])}`,
+    `Thèmes disponibles : ${JSON.stringify(alert.themes ?? [])}`,
     `Source : ${alert.sourceName}`,
     `URL : ${alert.url}`,
     `Date de publication : ${publishedAt}`,

@@ -98,6 +98,7 @@ async function createDraftArticle(input: {
   categoryId: string;
   authorId: string;
   alertId: string;
+  themeId?: string;
 }): Promise<GenerateArticleResult> {
   const base = slugify(input.title).slice(0, 90) || `article-${Date.now()}`;
 
@@ -105,6 +106,8 @@ async function createDraftArticle(input: {
     const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
     try {
       const article = await prisma.$transaction(async (tx) => {
+        const claimed = await tx.newsAlert.updateMany({ where: { id: input.alertId, status: "PENDING" }, data: { status: "DRAFT_GENERATED" } });
+        if (claimed.count !== 1) throw new Error("Alerte déjà traitée.");
         const created = await tx.article.create({
           data: {
             title: input.title,
@@ -117,6 +120,7 @@ async function createDraftArticle(input: {
             publishedAt: null,
             authorId: input.authorId,
             categoryId: input.categoryId,
+            ...(input.themeId ? { themes: { connect: { id: input.themeId } } } : {}),
           },
           select: { id: true },
         });
@@ -145,74 +149,43 @@ async function createDraftArticle(input: {
  * L'alerte n'est marquée DRAFT_GENERATED qu'après la création réussie de
  * l'article : un échec de l'IA la laisse en PENDING pour une nouvelle tentative.
  */
-export async function generateArticle(alertId: string): Promise<void> {
+export type AlertActionResult = { success: boolean; message: string; articleId?: string };
+
+export async function generateArticle(alertId: string): Promise<AlertActionResult> {
   const user = await requireBackofficeUser();
-
-  if (typeof alertId !== "string" || !alertId) {
-    fail("Alerte introuvable.");
-  }
-
-  if (!isAiConfigured()) {
-    fail(
-      "Clé IA absente : renseignez DEEPSEEK_API_KEY dans .env et sur Vercel.",
-    );
-  }
-
-  const alert = await prisma.newsAlert.findUnique({
-    where: { id: alertId },
-    include: { source: { select: { name: true } } },
-  });
-
-  if (!alert) fail("Cette alerte n'existe plus.");
-  if (alert.status !== "PENDING") {
-    fail("Cette alerte a déjà été traitée ou supprimée.");
-  }
-
-  const categoryId = await defaultCategoryId();
-  if (!categoryId) {
-    fail("Aucune catégorie n'existe : créez une rubrique dans le studio avant de générer un article.");
-  }
-
-  let generated: { title: string; excerpt: string; content: string };
+  if (typeof alertId !== "string" || !alertId || alertId.length > 200) return { success: false, message: "Alerte introuvable." };
+  if (!isAiConfigured()) return { success: false, message: "Clé IA absente." };
   try {
-    generated = await generateArticleFromAlert({
-      title: alert.titleFr ?? alert.title,
-      content: alert.content,
-      url: alert.url,
-      sourceName: alert.source.name,
-      publishedAt: alert.publishedAt,
-    });
+    const alert = await prisma.newsAlert.findUnique({ where: { id: alertId }, include: { source: { select: { name: true } } } });
+    if (!alert || alert.status !== "PENDING") return { success: false, message: "Cette alerte a déjà été traitée ou supprimée." };
+    const [categories, themes] = await Promise.all([
+      prisma.category.findMany({ select: { id: true, slug: true, name: true } }),
+      prisma.theme.findMany({ select: { id: true, slug: true, name: true } }),
+    ]);
+    if (!categories.length) return { success: false, message: "Créez une catégorie avant de générer un article." };
+    const generated = await generateArticleFromAlert({ title: alert.titleFr ?? alert.title, content: alert.content, url: alert.url, sourceName: alert.source.name, publishedAt: alert.publishedAt, categories, themes });
+    const categoryId = categories.find(category => category.slug === generated.categorySlug)?.id ?? await defaultCategoryId();
+    if (!categoryId) return { success: false, message: "Aucune catégorie disponible." };
+    const themeId = themes.find(theme => theme.slug === generated.themeSlug)?.id;
+    const result = await createDraftArticle({ ...generated, categoryId, themeId, authorId: user.id, alertId });
+    revalidatePath("/backoffice/veille");
+    revalidatePath("/studio/articles");
+    return { success: true, message: "Brouillon généré", articleId: result.articleId };
   } catch (error) {
-    console.error(
-      "[veille] échec de la génération IA :",
-      error instanceof Error ? error.message : error,
-    );
-    fail(
-      "La génération IA a échoué. L'alerte reste en attente ; vérifiez la clé et réessayez.",
-    );
+    console.error("[veille] génération interrompue :", error instanceof Error ? error.message : "Erreur inconnue");
+    return { success: false, message: "La génération a échoué. Actualisez la veille et réessayez les alertes encore en attente." };
   }
+}
 
-  let result: GenerateArticleResult;
+export async function ignoreSelectedAlert(alertId: string): Promise<AlertActionResult> {
+  await requireBackofficeUser();
+  if (typeof alertId !== "string" || !alertId || alertId.length > 200) return { success: false, message: "Alerte introuvable." };
   try {
-    result = await createDraftArticle({
-      title: generated.title,
-      excerpt: generated.excerpt,
-      content: generated.content,
-      categoryId,
-      authorId: user.id,
-      alertId: alert.id,
-    });
-  } catch (error) {
-    console.error(
-      "[veille] échec de la création du brouillon :",
-      error instanceof Error ? error.message : error,
-    );
-    fail("Le brouillon n'a pas pu être créé. L'alerte reste en attente.");
-  }
-
-  revalidatePath("/backoffice/veille");
-  revalidatePath("/studio/articles");
-  redirect(`/studio/articles/${result.articleId}/edit`);
+    const result = await prisma.newsAlert.deleteMany({ where: { id: alertId, status: "PENDING" } });
+    revalidatePath("/backoffice/veille");
+    revalidatePath("/backoffice/veille/sources");
+    return { success: result.count > 0, message: result.count ? "Alerte ignorée et supprimée." : "Alerte déjà traitée ou supprimée." };
+  } catch { return { success: false, message: "La suppression a échoué." }; }
 }
 
 /**
