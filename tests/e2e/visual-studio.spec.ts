@@ -45,8 +45,8 @@ test("Visual Studio : texte, formes et export PNG aux dimensions natives", async
   await page.getByLabel("Filtre du fond", { exact: true }).selectOption("gray");
   await page.getByLabel("Texte", { exact: true }).fill("PROMPTSPORT — LE MATCH");
   await page.getByRole("button", { name: "Ajouter le texte", exact: true }).click();
-  await page.getByLabel("Couleur du texte ou de la forme", { exact: true }).fill("#0055aa");
   await page.getByRole("button", { name: "Rectangle", exact: true }).click();
+  await page.getByLabel("Couleur du texte ou de la forme", { exact: true }).fill("#0055aa");
   await page.getByRole("button", { name: "Reculer", exact: true }).click();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Télécharger", exact: true }).click();
@@ -99,3 +99,4 @@ test("Visual Studio : retour en couverture, brouillon non perdu et messages étr
     await expect(page.getByLabel("Titre", { exact: true })).toHaveValue("Titre non encore enregistré");
   } finally { await popup.close(); }
 });
+
