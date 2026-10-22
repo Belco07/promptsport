@@ -67,11 +67,12 @@ function fixture({ autoPublish = true, facebook = true, instagram = true, failin
   return { engine, calls, updates, article, posts };
 }
 
-test('Instagram : couverture HTTPS, chemin relatif puis image Open Graph', () => {
+test('Instagram : couverture JPEG, sinon conversion de l’image Open Graph', () => {
   const { engine } = fixture();
   assert.equal(engine.resolveSocialImageUrl({ slug: 'test', coverImageUrl: 'https://cdn.test/cover.jpg' }), 'https://cdn.test/cover.jpg');
-  assert.equal(engine.resolveSocialImageUrl({ slug: 'test', coverImageUrl: '/uploads/cover.jpg' }), 'https://example.test/uploads/cover.jpg');
-  assert.equal(engine.resolveSocialImageUrl({ slug: 'test', coverImageUrl: null }), 'https://example.test/article/test/opengraph-image');
+  assert.equal(engine.resolveSocialImageUrl({ slug: 'test', coverImageUrl: '/uploads/cover.JPEG' }), 'https://example.test/uploads/cover.JPEG');
+  assert.equal(engine.resolveSocialImageUrl({ slug: 'test', coverImageUrl: '/uploads/cover.webp' }), 'https://example.test/article/test/instagram-image');
+  assert.equal(engine.resolveSocialImageUrl({ slug: 'test', coverImageUrl: null }), 'https://example.test/article/test/instagram-image');
 });
 
 test('auto-publication : source officielle, Facebook et Instagram envoyés', async () => {

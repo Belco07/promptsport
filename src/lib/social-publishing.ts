@@ -43,20 +43,33 @@ export function socialPublishingAvailability(): SocialPublishingAvailability {
   };
 }
 
+function isJpegUrl(value: string): boolean {
+  try {
+    return /\.jpe?g$/i.test(new URL(value, "https://example.invalid").pathname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Choisit une image publique pour Instagram.
  *
- * Une couverture téléversée est prioritaire. À défaut, l'image Open Graph
- * générée par l'article fournit un visuel de marque, ce qui évite de bloquer
- * une publication officielle pour une simple absence de couverture.
+ * Une couverture HTTPS déjà en JPEG est prioritaire. Sinon, la route
+ * `instagram-image` reprend l'image Open Graph de l'article et la convertit en
+ * JPEG, seul format accepté par l'API Meta. Cela couvre les couvertures WebP ou
+ * PNG et les articles sans visuel.
  */
 export function resolveSocialImageUrl(article: ArticleForPublishing): string {
   const cover = article.coverImageUrl?.trim();
-  if (cover && /^https:\/\//i.test(cover)) return cover;
-  if (cover && (cover.startsWith("/") || !/^[a-z][a-z0-9+.-]*:/i.test(cover))) {
-    return absoluteUrl(cover.startsWith("/") ? cover : `/${cover}`);
+  if (cover) {
+    const absolute = /^https:\/\//i.test(cover)
+      ? cover
+      : cover.startsWith("/") || !/^[a-z][a-z0-9+.-]*:/i.test(cover)
+        ? absoluteUrl(cover.startsWith("/") ? cover : `/${cover}`)
+        : null;
+    if (absolute && isJpegUrl(absolute)) return absolute;
   }
-  return absoluteUrl(`/article/${encodeURIComponent(article.slug)}/opengraph-image`);
+  return absoluteUrl(`/article/${encodeURIComponent(article.slug)}/instagram-image`);
 }
 
 function publicPublishError(error: unknown): string {
