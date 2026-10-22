@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Canvas, FabricImage, FabricObject, Textbox, Shadow, filters } from "fabric";
 
+import { backgroundLayer } from "./background-layer";
+
 const button = "rounded border border-border px-2 py-1 text-sm disabled:opacity-50";
 
 /** Operates on individual source layers; exports preserve all effects. */
@@ -20,7 +22,7 @@ export default function MontageTools({ canvas, onChange }: { canvas: Canvas; onC
     canvas.on("after:render", sync); sync();
     return () => { canvas.off("after:render", sync); };
   }, [canvas]);
-  const target = targetBackground ? canvas.backgroundImage : selected;
+  const target = targetBackground ? backgroundLayer(canvas) ?? canvas.backgroundImage : selected;
   const image = target instanceof FabricImage ? target : undefined;
   function changed() { canvas.requestRenderAll(); refresh(value => value+1); onChange(); }
   function apply(type: "Brightness" | "Contrast" | "Saturation", value: number) {
@@ -44,7 +46,7 @@ export default function MontageTools({ canvas, onChange }: { canvas: Canvas; onC
         </button>
       </li>)}
     </ol>
-    <button type="button" className={button} aria-pressed={targetBackground} disabled={!canvas.backgroundImage} onClick={() => setTargetBackground(value => !value)}>Régler le fond</button>
+    <button type="button" className={button} aria-pressed={targetBackground} disabled={!backgroundLayer(canvas) && !canvas.backgroundImage} onClick={() => setTargetBackground(value => !value)}>Régler le fond</button>
     <div className="flex flex-wrap gap-2">
       <button type="button" className={button} disabled={!selected || targetBackground} onClick={() => { if (selected) canvas.bringObjectToFront(selected); changed(); }}>Tout devant</button>
       <button type="button" className={button} disabled={!selected || targetBackground} onClick={() => { if (selected) canvas.sendObjectToBack(selected); changed(); }}>Tout derrière</button>

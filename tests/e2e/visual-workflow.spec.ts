@@ -23,9 +23,12 @@ test("Compositeur : outils graphiques, mosaïque et stickers", async ({ page }) 
   await page.goto("/studio/composer");
   await expect(page.getByRole("heading", { name: "Compositeur de fonds" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Enregistrer le fond", exact: true })).toBeEnabled({ timeout: 30000 });
+  await page.getByRole("button", { name: /Images et détourage/ }).click();
   await expect(page.getByLabel("Collage / mosaïque", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: /Formes et stickers/ }).click();
   await page.getByRole("button", { name: "Ajouter ⚽", exact: true }).click();
   await expect(page.getByRole("button", { name: "Supprimer la sélection", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: /Images et détourage/ }).click();
   await expect(page.getByRole("button", { name: "Détourer l’image sélectionnée" })).toBeVisible();
 });
 
@@ -98,12 +101,23 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     const composer = journalist.getByRole("region", { name: "1. Importer ou composer" });
     const application = journalist.getByRole("region", { name: "2. Appliquer le template" });
     await expect(journalist.getByRole("link", { name: "Templates", exact: true })).toHaveCount(0);
+    await composer.getByRole("button", { name: /Formes et stickers/ }).click();
     await expect(composer.getByRole("button", { name: "Ajouter ⚽", exact: true })).toBeEnabled({ timeout: 120000 });
     await composer.getByRole("button", { name: "Ajouter ⚽", exact: true }).click();
     await composer.getByRole("button", { name: "Enregistrer le fond", exact: true }).click();
     const backgroundUrl = composer.getByLabel("URL de l’image enregistrée", { exact: true });
     await expect(backgroundUrl).toHaveValue(/^\/uploads\/.+\.png$/); uploads.push(await backgroundUrl.inputValue());
     await expect(application.getByRole("status")).toContainText("Fond chargé");
+    await application.getByRole("button", { name: "Déplacer / redimensionner le fond", exact: true }).click();
+    const lowerCanvas = application.locator("canvas.lower-canvas");
+    const beforeMove = await lowerCanvas.evaluate((node: HTMLCanvasElement) => node.toDataURL());
+    const bounds = await application.locator("canvas.upper-canvas").boundingBox();
+    await journalist.mouse.move(bounds!.x + bounds!.width * .2, bounds!.y + bounds!.height * .2);
+    await journalist.mouse.down();
+    await journalist.mouse.move(bounds!.x + bounds!.width * .4, bounds!.y + bounds!.height * .3, { steps: 10 });
+    await journalist.mouse.up();
+    await expect.poll(() => lowerCanvas.evaluate((node: HTMLCanvasElement) => node.toDataURL())).not.toBe(beforeMove);
+    await expect(application.getByLabel("Titre", { exact: true })).toHaveValue("Mon visuel final");
     await application.getByRole("button", { name: "Générer le visuel final", exact: true }).click();
     const finalUrl = application.getByLabel("URL de l’image enregistrée", { exact: true });
     await expect(finalUrl).toHaveValue(/^\/uploads\/.+\.png$/); uploads.push(await finalUrl.inputValue());

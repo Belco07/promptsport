@@ -1,27 +1,31 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StaticCanvas, FabricImage, FabricObject } from "fabric";
+import { Canvas, FabricImage, FabricObject } from "fabric";
 import { lockTemplate, type TemplateDocument } from "@/lib/visual-template";
 
 import { uploadStudioImage as uploadImage } from "@/lib/upload-studio-image";
 import { isVisualImageUrl } from "./VisualStudioButton";
+import { loadEditorFonts } from "./editor-fonts";
+import { backgroundLayer, installBackground } from "./background-layer";
 import VisualEditor from "./VisualEditor";
 const button = "rounded-md border border-border bg-card px-4 py-2 font-semibold text-foreground disabled:opacity-50";
 const input = "block w-full rounded-md border border-border bg-background p-2 text-foreground";
 type FieldObject = FabricObject & { field?: string; text?: string };
 export default function TemplateEditor({ admin = false, document: initial, name, channel, backgroundUrl, compact = false }: { admin?: boolean; document?: TemplateDocument; name?: string; channel?: string; backgroundUrl?: string; compact?: boolean }) {
-  const element = useRef<HTMLCanvasElement>(null); const container = useRef<HTMLDivElement>(null); const canvas = useRef<StaticCanvas | null>(null);
+  const element = useRef<HTMLCanvasElement>(null); const container = useRef<HTMLDivElement>(null); const canvas = useRef<Canvas | null>(null);
   const [title, setTitle] = useState(""); const [subject, setSubject] = useState(""); const [ready, setReady] = useState(false);
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false); const [saved, setSaved] = useState("");
   const popup = useRef<Window | null>(null); const token = useRef("");
   useEffect(() => {
     if (admin || !initial || !element.current) return;
-    const c = new StaticCanvas(element.current); canvas.current = c; let active = true;
+    const c = new Canvas(element.current, { selection: false, preserveObjectStacking: true }); c.on("object:modified", () => setSaved("")); canvas.current = c; let active = true;
     function fit() { if (!container.current) return; const width = Math.max(1, Math.min(initial!.width, container.current.clientWidth, Math.max(140, Math.min(window.innerHeight - Math.max(0, container.current.getBoundingClientRect().top) - 35, window.innerHeight * (compact ? .32 : .62))) * initial!.width / initial!.height)); c.setDimensions({ width, height: width * initial!.height / initial!.width }); c.setZoom(width / initial!.width); c.requestRenderAll(); }
     const observer = new ResizeObserver(fit); observer.observe(container.current!); window.addEventListener("resize", fit);
     void (async () => { try {
-      const font = await new FontFace("Montserrat", "url(/fonts/Montserrat.ttf)", { weight: "100 900" }).load(); document.fonts.add(font); const condensed = await new FontFace("Barlow Condensed", "url(/fonts/BarlowCondensed-Bold.ttf)", { weight: "700" }).load(); document.fonts.add(condensed);
+      await loadEditorFonts();
       await c.loadFromJSON(lockTemplate(initial)); if (!active) return;
+      const photo = backgroundLayer(c) ?? c.backgroundImage;
+      if (photo instanceof FabricImage) installBackground(c, photo);
       for (const object of c.getObjects() as FieldObject[]) { if (object.field === "title") setTitle(object.text ?? ""); if (object.field === "subject") setSubject(object.text ?? ""); }
       fit(); setReady(true);
     } catch { if (active) setMessage("Impossible de charger le template. Contactez un administrateur."); } })();
@@ -33,7 +37,7 @@ export default function TemplateEditor({ admin = false, document: initial, name,
     if (image.width * image.height > 40_000_000) throw Error("Image trop grande : 40 mégapixels maximum.");
     const scale = Math.max(initial.width / image.width, initial.height / image.height);
     image.set({ originX: "left", originY: "top", left: (initial.width - image.width * scale) / 2, top: (initial.height - image.height * scale) / 2, scaleX: scale, scaleY: scale });
-    c.backgroundImage = image; c.requestRenderAll(); setSaved("");
+    installBackground(c, image); c.setActiveObject(image); c.requestRenderAll(); setSaved("");
   }, [initial]);
   useEffect(() => { function receive(event: MessageEvent) {
     if (event.origin !== window.location.origin || event.source !== popup.current || event.data?.channel !== token.current || event.data?.type !== "visual-studio:saved" || !isVisualImageUrl(event.data.url)) return;
@@ -46,7 +50,7 @@ export default function TemplateEditor({ admin = false, document: initial, name,
     const form = new FormData(); form.set("file", file); const result = await uploadImage(form); if (!result.ok) throw Error(result.error); await background(new URL(result.url, window.location.origin).href); setMessage("Fond chargé.");
   }
   async function exportFinal() {
-    const c = canvas.current; if (!c) return; const output = c.toCanvasElement(1 / c.getZoom());
+    const c = canvas.current; if (!c) return; c.discardActiveObject(); c.requestRenderAll(); const output = c.toCanvasElement(1 / c.getZoom());
     const blob = await new Promise<Blob | null>(resolve => output.toBlob(resolve, "image/png")); if (!blob) throw Error("Export impossible.");
     const form = new FormData(); form.set("file", new File([blob], "visual.png", { type: "image/png" })); const result = await uploadImage(form); if (!result.ok) throw Error(result.error);
     setSaved(result.url); setMessage("Visuel final enregistré.");
@@ -59,6 +63,8 @@ export default function TemplateEditor({ admin = false, document: initial, name,
       <label>Sujet<input className={input} maxLength={100} value={subject} onChange={event => { setSubject(event.target.value); change("subject", event.target.value); }} /></label>
       {!compact && <button type="button" className={button} onClick={() => { token.current = crypto.randomUUID(); popup.current = window.open(`/studio/composer?channel=${token.current}`, "_blank"); if (!popup.current) setMessage("Autorisez l’ouverture du Compositeur dans un nouvel onglet."); }}>Composer un fond</button>}
       <label>Charger un fond<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; void run(() => importFile(file)) }} /></label>
+      <button type="button" className={button} onClick={() => { const c = canvas.current; const photo = c && backgroundLayer(c); if (c && photo) { c.setActiveObject(photo); c.requestRenderAll(); } }}>Déplacer / redimensionner le fond</button>
+      <p className="text-xs text-muted-foreground">Glissez la photo ou utilisez ses poignées. Le logo, les textes et les éléments du template restent verrouillés.</p>
       <button type="button" className={button} onClick={() => void run(exportFinal)}>Générer le visuel final</button>
     </fieldset>
     {!ready && <p role="status">Chargement du template…</p>}
