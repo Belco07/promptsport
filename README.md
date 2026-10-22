@@ -1,5 +1,9 @@
 # promptsport
 
+## Visual Studio avancé — Compositeur et templates verrouillés
+
+`/studio/composer` permet de composer les fonds ; `/studio/templates` est réservé aux administrateurs pour préparer la mise en page. Les journalistes appliquent le template actif dans `/studio/visual-studio`, modifient Titre et Sujet et exportent le PNG. Les templates utilisent Fabric, sans abonnement Polotno. Configuration, migration et parcours de vérification : [documentation du Visual Studio avancé](docs/visual-studio-advanced.md).
+
 ## WP19a-bis — AllSportsApi (RapidAPI) : fournisseur actif
 
 API-Football est **en pause** : son offre gratuite ne couvre que les saisons

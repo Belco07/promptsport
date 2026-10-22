@@ -11,6 +11,8 @@ const LINKS = [
   { href: "/studio", label: "Tableau de bord" },
   { href: "/studio/articles", label: "Articles" },
   { href: "/studio/visual-studio", label: "Visual Studio" },
+  { href: "/studio/composer", label: "Compositeur" },
+  { href: "/studio/templates", label: "Templates" },
   { href: "/studio/une", label: "Une" },
   { href: "/studio/categories", label: "Catégories" },
 ];
@@ -25,10 +27,12 @@ export function StudioNav({ liveMatchId }: { liveMatchId?: string }) {
   const pathname = usePathname();
   const mounted = useMounted();
   const [canManageFeatured, setCanManageFeatured] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     let active = true;
     fetch("/api/auth/session").then(response => response.json()).then(session => {
       if (active) setCanManageFeatured(["ADMIN", "EDITOR"].includes(session?.user?.role));
+      if (active) setIsAdmin(session?.user?.role === "ADMIN");
     }).catch(() => {});
     return () => { active = false; };
   }, []);
@@ -49,6 +53,7 @@ export function StudioNav({ liveMatchId }: { liveMatchId?: string }) {
         </Link>
       )}
       {LINKS.map((link) => {
+        if (link.href === "/studio/templates" && !isAdmin) return null;
         if (link.href === "/studio/une" && !canManageFeatured) return null;
         const isActive =
           mounted &&

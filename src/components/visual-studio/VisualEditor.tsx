@@ -3,17 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas, Textbox, Rect, Circle, Polygon, Group, FabricImage, FabricObject, filters } from "fabric";
 import { saveVisualImage } from "@/app/studio/visual-studio/actions";
+import UnsplashPicker from "./UnsplashPicker";
+import { saveVisualTemplate } from "@/app/studio/templates/actions";
+import { uploadImage } from "@/app/studio/articles/actions";
+import type { TemplateDocument } from "@/lib/visual-template";
 
 const TOP_LEFT = { originX: "left", originY: "top" } as const;
 const FORMATS = [
   { label: "Article / X / Facebook — 1200 × 630", width: 1200, height: 630 },
+  { label: "Paysage 16:9 — 1920 × 1080", width: 1920, height: 1080 },
   { label: "Instagram — 1080 × 1080", width: 1080, height: 1080 },
   { label: "Story — 1080 × 1920", width: 1080, height: 1920 },
 ];
 const control = "w-full rounded-md border border-border bg-background p-2 text-sm text-foreground";
 const button = "rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
 
-export default function VisualEditor({ channel }: { channel?: string }) {
+export default function VisualEditor({ channel, composer = false, templateAdmin = false, initialDocument, initialName }: { channel?: string; composer?: boolean; templateAdmin?: boolean; initialDocument?: TemplateDocument; initialName?: string }) {
+  const [templateName, setTemplateName] = useState(initialName ?? "Édition PromptSport");
+  const initialTemplate = useRef(initialDocument);
   const element = useRef<HTMLCanvasElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const canvas = useRef<Canvas | null>(null);
@@ -62,8 +69,18 @@ export default function VisualEditor({ channel }: { channel?: string }) {
     resize.observe(container.current!); fit();
     let active = true;
     const face = new FontFace("Montserrat", "url(/fonts/Montserrat.ttf)", { weight: "100 900" });
-    face.load().then(loaded => {
-      if (active) { document.fonts.add(loaded); setReady(true); c.requestRenderAll(); }
+    face.load().then(async loaded => {
+      if (active) {
+        document.fonts.add(loaded);
+        if (initialTemplate.current) {
+          const json = structuredClone(initialTemplate.current);
+          function unlock(objects: Record<string, unknown>[]) { for (const object of objects) { Object.assign(object, { selectable: true, evented: true, editable: true, lockMovementX: false, lockMovementY: false, lockScalingX: false, lockScalingY: false, lockRotation: false }); if (Array.isArray(object.objects)) unlock(object.objects); } }
+          unlock(json.objects); await c.loadFromJSON(json);
+          size.current = { label: "Template", width: json.width, height: json.height };
+          setFormat(Math.max(0, FORMATS.findIndex(item => item.width === json.width && item.height === json.height))); fit();
+        }
+        if (active) { setReady(true); c.requestRenderAll(); }
+      }
     }).catch(() => { if (active) { setFont("Arial"); setReady(true); setError("Montserrat indisponible. La police Arial reste utilisable."); } });
     return () => { active = false; resize.disconnect(); canvas.current = null; void c.dispose(); };
   }, []);
@@ -80,6 +97,26 @@ export default function VisualEditor({ channel }: { channel?: string }) {
   function addText() {
     add(new Textbox(text || "Votre titre", { ...TOP_LEFT, left: 60, top: 60, width: size.current.width - 120, fontFamily: font, fontSize, fontWeight: weight, fill: color, textAlign: align }));
   }
+  function assignField(field: string) {
+    const c = canvas.current; const object = c?.getActiveObject();
+    if (!c || !(object instanceof Textbox)) { setError("Sélectionnez d’abord une zone de texte."); return; }
+    for (const item of c.getObjects()) if ((item as FabricObject & { field?: string }).field === field) (item as FabricObject & { field?: string }).field = undefined;
+    (object as Textbox & { field?: string }).field = field;
+    setMessage(`Zone associée au champ ${field === "title" ? "Titre" : "Sujet"}.`);
+  }
+  async function saveTemplate() {
+    const c = canvas.current; if (!c) return;
+    setBusy(true); setError("");
+    try { const json = { ...c.toObject(["field"]), width: size.current.width, height: size.current.height };
+      function portableImages(objects: Record<string, unknown>[]) { for (const object of objects) {
+        if (typeof object.src === "string") { const url = new URL(object.src, window.location.origin); if (url.origin === window.location.origin) object.src = url.pathname + url.search; }
+        if (Array.isArray(object.objects)) portableImages(object.objects);
+      } }
+      portableImages(json.objects); if (json.backgroundImage) portableImages([json.backgroundImage]);
+      const result = await saveVisualTemplate(templateName, JSON.stringify(json)); if (!result.ok) throw Error(result.error);
+      setMessage("Template enregistré et verrouillé pour les journalistes.");
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Enregistrement impossible."); } finally { setBusy(false); }
+  }
   function setDimensions(index: number) {
     const c = canvas.current; if (!c) return;
     const next = FORMATS[index]; const previous = size.current;
@@ -88,6 +125,51 @@ export default function VisualEditor({ channel }: { channel?: string }) {
       object.set({ left: object.left * next.width / previous.width, top: object.top * next.height / previous.height, scaleX: object.scaleX * scale, scaleY: object.scaleY * scale }); object.setCoords();
     }
     size.current = next; setFormat(index); fitBackground(); fit(); setSaved("");
+  }
+  async function collage(files: FileList | null) {
+    if (!files?.length) return;
+    const c = canvas.current; if (!c) return;
+    const inputs = Array.from(files).slice(0, 8);
+    if (inputs.some(file => !["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) { setError("Images PNG, JPEG ou WebP de 5 Mo maximum."); return; }
+    setBusy(true); setError("");
+    const urls = inputs.map(file => URL.createObjectURL(file));
+    try {
+      const images = await Promise.all(urls.map(url => FabricImage.fromURL(url)));
+      if (images.some(image => image.width * image.height > 40_000_000)) throw Error("Une image dépasse 40 mégapixels.");
+      const columns = images.length === 2 ? 2 : Math.ceil(Math.sqrt(images.length));
+      const rows = Math.ceil(images.length / columns);
+      const width = size.current.width / columns, height = size.current.height / rows;
+      images.forEach((image, index) => {
+        const x = index % columns * width, y = Math.floor(index / columns) * height;
+        const scale = Math.max(width / image.width, height / image.height);
+        image.set({ ...TOP_LEFT, left: x + (width - image.width * scale) / 2, top: y + (height - image.height * scale) / 2, scaleX: scale, scaleY: scale,
+          clipPath: new Rect({ ...TOP_LEFT, left: x + 3, top: y + 3, width: width - 6, height: height - 6, absolutePositioned: true }) });
+        c.add(image);
+      });
+      c.requestRenderAll(); setSaved("");
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Import impossible."); }
+    finally { urls.forEach(url => URL.revokeObjectURL(url)); setBusy(false); }
+  }
+  async function removeSelectedBackground() {
+    const c = canvas.current; const image = c?.getActiveObject();
+    if (!c || !(image instanceof FabricImage)) { setError("Sélectionnez une image superposée à détourer."); return; }
+    setBusy(true); setError(""); setMessage("Détourage en cours : le premier chargement du modèle peut prendre quelques minutes.");
+    let url = "";
+    try {
+      const { removeBackground } = await import("@imgly/background-removal");
+      // Feed untransformed pixels to the model; preserve the layer's rotation separately.
+      const source = document.createElement("canvas"); const scale = Math.min(1, 2048 / Math.max(image.width, image.height));
+      source.width = Math.max(1, Math.round(image.width * scale)); source.height = Math.max(1, Math.round(image.height * scale));
+      const context = source.getContext("2d"); if (!context) throw Error("Canvas indisponible.");
+      context.drawImage(image.getElement(), 0, 0, source.width, source.height);
+      const blob = await removeBackground(source.toDataURL("image/png"), { model: "isnet_quint8", output: { format: "image/png" }, progress: (_key, current, total) => { if (total > 0) setMessage(`Chargement du détourage : ${Math.round(current / total * 100)} %`); } });
+      url = URL.createObjectURL(blob);
+      const replacement = await FabricImage.fromURL(url);
+      if (canvas.current !== c) return;
+      replacement.set({ ...TOP_LEFT, left: image.left, top: image.top, angle: image.angle, scaleX: image.getScaledWidth() / replacement.width, scaleY: image.getScaledHeight() / replacement.height, clipPath: image.clipPath });
+      const index = c.getObjects().indexOf(image); c.remove(image); c.insertAt(index, replacement); c.setActiveObject(replacement); c.requestRenderAll(); setSaved(""); setMessage("Image détourée.");
+    } catch { setError("Détourage impossible. Vérifiez la connexion et réessayez avec une image plus petite."); setMessage(""); }
+    finally { if (url) URL.revokeObjectURL(url); setBusy(false); }
   }
   function fitBackground() {
     const c = canvas.current; const image = c?.backgroundImage;
@@ -107,6 +189,12 @@ export default function VisualEditor({ channel }: { channel?: string }) {
   async function fileImage(file: File | undefined, asBackground: boolean) {
     if (!file) return;
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) { setError("Choisissez un PNG, JPEG ou WebP de 5 Mo maximum."); return; }
+    if (templateAdmin) {
+      setBusy(true); setError("");
+      try { const form = new FormData(); form.set("file", file); const result = await uploadImage(form); if (!result.ok) throw Error(result.error); await loadImage(result.url, asBackground); }
+      catch (failure) { setError(failure instanceof Error ? failure.message : "Import impossible."); } finally { setBusy(false); }
+      return;
+    }
     const url = URL.createObjectURL(file); setBusy(true); setError("");
     try { await loadImage(url, asBackground); } catch { setError("Impossible de charger cette image."); }
     finally { URL.revokeObjectURL(url); setBusy(false); }
@@ -160,12 +248,17 @@ export default function VisualEditor({ channel }: { channel?: string }) {
     finally { setBusy(false); }
   }
   return <div>
+    {templateAdmin && <fieldset disabled={!ready || busy} className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-border p-4"><legend className="px-2 font-bold">Template verrouillé</legend><label>Nom du template<input className={control} maxLength={100} value={templateName} onChange={event => setTemplateName(event.target.value)} /></label><button type="button" className={button} onClick={() => assignField("title")}>Utiliser la sélection comme Titre</button><button type="button" className={button} onClick={() => assignField("subject")}>Utiliser la sélection comme Sujet</button><button type="button" className={button} onClick={() => void saveTemplate()}>Enregistrer et activer le template</button></fieldset>}
     {error && <p role="alert" className="mb-4 rounded-lg bg-status-error p-3 text-status-error-foreground">{error}</p>}
     {message && <p role="status" className="mb-4 rounded-lg bg-status-success p-3 text-status-success-foreground">{message}</p>}
     <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
       <aside aria-label="Outils du Visual Studio" className="space-y-5 rounded-xl border border-border bg-card p-4">
         <fieldset disabled={!ready || busy} className="space-y-4 disabled:opacity-60">
           <legend className="mb-3 font-bold">Composition</legend>
+          {composer && <UnsplashPicker onImage={url => loadImage(url, false)} />}
+          {composer && <button type="button" className={button} disabled={!selected} onClick={() => void removeSelectedBackground()}>Détourer l’image sélectionnée</button>}
+          {composer && <label className="block text-sm">Collage / mosaïque (8 images maximum)<input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 w-full text-xs" onChange={event => { void collage(event.target.files); event.target.value = ""; }} /></label>}
+          <div className="flex flex-wrap gap-2" aria-label="Stickers">{["⚽", "🏆", "🔥", "⭐", "💥", "🏀"].map(emoji => <button type="button" key={emoji} className={button} aria-label={`Ajouter ${emoji}`} onClick={() => add(new Textbox(emoji, { ...TOP_LEFT, left: 80, top: 80, width: 140, fontSize: 100, fontFamily: "Arial" }))}>{emoji}</button>)}</div>
           <label className="block text-sm">Format<select aria-label="Format du visuel" className={control} value={format} onChange={event => setDimensions(Number(event.target.value))}>{FORMATS.map((item, index) => <option key={item.label} value={index}>{item.label}</option>)}</select></label>
           <div><p className="mb-2 text-sm font-semibold">Modèles modifiables</p><div className="flex flex-wrap gap-2">{[["edito", "Édito"], ["mercato", "Mercato"], ["match", "Match"]].map(([value, label]) => <button type="button" className={button} key={value} onClick={() => template(value)}>{label}</button>)}</div></div>
           <label className="block text-sm">Couleur de fond<input aria-label="Couleur de fond" type="color" value={background} onChange={event => { setBackground(event.target.value); const c = canvas.current; if (c) { c.backgroundColor = event.target.value; c.requestRenderAll(); } }} /></label>
@@ -173,7 +266,7 @@ export default function VisualEditor({ channel }: { channel?: string }) {
           <div className="space-y-2"><a href="https://unsplash.com/fr/s/photos/football" target="_blank" rel="noopener noreferrer" className="text-sm text-editorial-link underline">Chercher sur Unsplash</a><label className="block text-sm">URL directe Unsplash<input className={control} type="url" value={unsplash} onChange={event => setUnsplash(event.target.value)} placeholder="https://images.unsplash.com/…" /></label><button type="button" className={button} onClick={remoteBackground}>Charger le fond Unsplash</button></div>
           <label className="block text-sm">Filtre du fond<select aria-label="Filtre du fond" className={control} defaultValue="normal" onChange={event => filterBackground(event.target.value)}><option value="normal">Original</option><option value="gray">Noir et blanc</option><option value="sepia">Sépia</option><option value="contrast">Contraste</option><option value="dark">Assombrir</option></select></label>
           <label className="block text-sm">Image superposée (PNG transparent accepté)<input className="mt-1 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { void fileImage(event.target.files?.[0], false); event.target.value = ""; }} /></label>
-          <button type="button" className={button} onClick={async () => { setError(""); try { await loadImage("/promptsport-logo.webp", false); } catch { setError("Logo indisponible."); } }}>Ajouter le logo PromptSport</button>
+          <button type="button" className={button} onClick={async () => { setBusy(true); setError(""); try { await loadImage("/promptsport-logo.webp", false); } catch { setError("Logo indisponible."); } finally { setBusy(false); } }}>Ajouter le logo PromptSport</button>
         </fieldset>
         <fieldset disabled={!ready || busy} className="space-y-3 disabled:opacity-60">
           <legend className="mb-2 font-bold">Texte et formes</legend>
@@ -195,8 +288,8 @@ export default function VisualEditor({ channel }: { channel?: string }) {
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
           <label className="text-sm">Export<select aria-label="Format d’export" className={control} value={exportType} onChange={event => setExportType(event.target.value)}><option value="image/png">PNG</option><option value="image/webp">WebP</option></select></label>
           <button type="button" className={button} disabled={!ready || busy} onClick={() => exportImage(false)}>Télécharger</button>
-          <button type="button" className="rounded-md bg-primary px-4 py-2 font-bold text-white disabled:opacity-50" disabled={!ready || busy} onClick={() => exportImage(true)}>{busy ? "Traitement en cours…" : "Enregistrer"}</button>
-          <span className="text-xs text-muted-foreground">{FORMATS[format].width} × {FORMATS[format].height} px</span>
+          <button type="button" className="rounded-md bg-primary px-4 py-2 font-bold text-white disabled:opacity-50" disabled={!ready || busy} onClick={() => exportImage(true)}>{busy ? "Traitement en cours…" : composer ? "Enregistrer le fond" : "Enregistrer"}</button>
+          <span className="text-xs text-muted-foreground">{size.current.width} × {size.current.height} px</span>
         </div>
         {!ready && <p role="status">Chargement du canvas et de Montserrat…</p>}
         <div ref={container} className="overflow-hidden rounded-lg border border-border bg-muted" aria-label="Zone de dessin"><canvas ref={element} aria-label="Canvas du visuel : sélectionnez et déplacez les éléments à la souris" /></div>

@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.3",
+    "@imgly/background-removal": "^1.7.0",
     "@mdxeditor/editor": "^4.3.2",
     "@neondatabase/serverless": "1.2.0",
     "@prisma/adapter-neon": "7.10.1",
