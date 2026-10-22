@@ -51,7 +51,8 @@
     "sharp": "^0.35.5",
     "stripe": "22.6.2",
     "svix": "^2.6.0",
-    "unist-util-visit": "^5.1.0"
+    "unist-util-visit": "^5.1.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
@@ -68,7 +69,8 @@
     "prisma": "7.10.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@types/web-push": "^3.6.4"
   },
   "overrides": {
     "next@15.5.28": {

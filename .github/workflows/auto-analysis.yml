@@ -1,0 +1,33 @@
+name: Analyse automatique des matchs
+on:
+  schedule:
+    # Lightweight hourly check. Only one article per 48h is allowed by the endpoint;
+    # this avoids a late scheduler run turning a 48h cadence into 72h.
+    - cron: '5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: auto-analysis
+  cancel-in-progress: false
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Générer une analyse si la fenêtre de 48 heures est ouverte
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://www.promptsport.net' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CRON_SECRET" || { echo 'Configurer CRON_SECRET dans GitHub Actions.'; exit 1; }
+          case "${SITE_URL%/}" in
+            https://promptsport.net) SITE_URL=https://www.promptsport.net ;;
+            https://*) ;;
+            *) echo 'SITE_URL doit utiliser HTTPS.'; exit 1 ;;
+          esac
+          curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 310 \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "${SITE_URL%/}/api/cron/auto-analysis"

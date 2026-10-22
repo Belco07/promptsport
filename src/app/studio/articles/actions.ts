@@ -13,6 +13,7 @@ import { distributeArticleSocialPosts } from "@/lib/distribution";
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { scheduleFlashPush } from "@/lib/push";
 import { notifyArticleFollowers } from "@/lib/notifications";
 import { resolveSlug } from "@/lib/slug";
 import { isArticleStatus, type ArticleStatus } from "@/lib/articleStatus";
@@ -259,6 +260,7 @@ export async function createArticle(
     });
     if (created.status === "PUBLISHED") {
       scheduleSocialPosts(created.id);
+      scheduleFlashPush(created.id);
       await notifyArticleFollowers(created.id);
     }
   } catch (error) {
@@ -344,6 +346,7 @@ export async function updateArticle(
   revalidatePath("/studio/articles");
   if (existing.status !== "PUBLISHED" && result.data.status === "PUBLISHED") {
     scheduleSocialPosts(id);
+    scheduleFlashPush(id);
     await notifyArticleFollowers(id);
   }
   // Un article publié avant ou après cette modification change l'accueil (titre,
@@ -397,6 +400,7 @@ export async function updateArticleStatus(
   revalidatePath(`/article/${existing.slug}`);
   if (existing.status !== "PUBLISHED" && newStatus === "PUBLISHED") {
     scheduleSocialPosts(articleId);
+    scheduleFlashPush(articleId);
     await notifyArticleFollowers(articleId);
   }
   // Le sélecteur de statut couvrait déjà l'accueil ; sitemap et RSS manquaient.

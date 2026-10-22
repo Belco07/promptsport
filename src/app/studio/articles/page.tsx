@@ -81,6 +81,7 @@ export default async function ArticlesPage() {
                   <tr key={article.id} className="hover:bg-muted">
                     <td className="px-4 py-3 font-medium text-foreground">
                       {article.title}
+                      <span className={`ml-2 inline-block rounded-full px-2 py-1 text-xs font-bold ${article.format === "FLASH" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200" : article.format === "ANALYSIS" ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200" : "bg-muted text-foreground"}`}>{article.format === "ANALYSIS" ? "ANALYSE" : article.format}</span>
                       {article.featuredSlots.length > 0 && <span className="ml-2 inline-block rounded bg-muted px-2 py-1 text-xs font-bold text-foreground">À la une</span>}
                       <span className="block text-xs font-normal text-muted-foreground">
                         /{article.slug}

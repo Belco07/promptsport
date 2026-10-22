@@ -31,6 +31,7 @@ datasource db {
 }
 
 model Author {
+  pushSubscriptions PushSubscription[]
   bookmarks Bookmark[]
   readingHistory ReadingHistory[]
   alertsEnabled Boolean @default(false)
@@ -132,6 +133,8 @@ enum ArticleFormat {
 }
 
 model Article {
+  pushNotifiedAt DateTime?
+  autoAnalysisKey String? @unique
   socialPosts SocialPost[]
   bookmarks Bookmark[]
   readingHistory ReadingHistory[]
@@ -1241,4 +1244,15 @@ model SiteConfig {
   siteDescription String   @default("L'actualité sportive en continu")
   maintenanceMode Boolean  @default(false)
   updatedAt       DateTime @updatedAt
+}
+
+model PushSubscription {
+  id String @id @default(cuid())
+  readerId String
+  reader Author @relation(fields: [readerId], references: [id], onDelete: Cascade)
+  endpoint String @unique
+  p256dh String
+  auth String
+  createdAt DateTime @default(now())
+  @@index([readerId])
 }

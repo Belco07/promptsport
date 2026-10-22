@@ -102,6 +102,7 @@ async function createDraftArticle(input: {
   newsSourceId: string;
   socialAutoPublish: boolean;
   themeId?: string;
+  format: "FLASH" | "NEWS" | "ANALYSIS";
 }): Promise<GenerateArticleResult> {
   const base = slugify(input.title).slice(0, 90) || `article-${Date.now()}`;
 
@@ -118,7 +119,7 @@ async function createDraftArticle(input: {
             content: input.content,
             excerpt: input.excerpt,
             status: "DRAFT",
-            format: "NEWS",
+            format: input.format,
             isPremium: false,
             publishedAt: null,
             authorId: input.authorId,
