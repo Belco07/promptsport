@@ -38,6 +38,31 @@ test("Templates : accès administrateur refusé au journaliste", async ({ page }
   await expect(page).toHaveURL(/\/studio$/);
 });
 
+test("Visual Studio mobile : pleine largeur, étapes et menu repliable", async ({ page }) => {
+  await login(page, { email: `${id}@example.test`, password, name: id });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/studio/composer");
+  await expect(page.getByRole("button", { name: "Enregistrer le fond", exact: true })).toBeEnabled();
+  await expect(page.getByRole("region", { name: "1. Importer ou composer" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "2. Appliquer le template" })).toHaveCount(0);
+  await page.getByRole("button", { name: /Textes et typographie/ }).click();
+  await page.getByLabel("Texte", { exact: true }).fill("Titre mobile conservé");
+  await page.getByRole("button", { name: "2. Appliquer", exact: true }).click();
+  await expect(page.getByLabel("Titre", { exact: true })).toBeEnabled();
+  await expect(page.getByRole("region", { name: "1. Importer ou composer" })).toHaveCount(0);
+  const canvas = await page.getByLabel("Aperçu du template verrouillé", { exact: true }).boundingBox();
+  expect(canvas!.width).toBeGreaterThan(180);
+  expect(canvas!.x + canvas!.width).toBeLessThanOrEqual(390);
+  await page.getByRole("button", { name: "1. Composer", exact: true }).click();
+  await expect(page.getByLabel("Texte", { exact: true })).toHaveValue("Titre mobile conservé");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByText("Menu de rédaction", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "Se déconnecter", exact: true })).toBeVisible();
+  await page.getByText("Menu de rédaction", { exact: true }).press("Escape");
+  await expect(page.getByRole("button", { name: "Se déconnecter", exact: true })).toHaveCount(0);
+  await page.screenshot({ path: "tmp-results/visual-composer-mobile.png", fullPage: true });
+});
+
 test("template par défaut disponible sans configuration administrateur", async ({ page }) => {
   const previous = (await sql<{ name: string; document: unknown }>('SELECT name,document FROM "VisualTemplate" WHERE id=\'active\''))[0];
   try {
@@ -92,6 +117,12 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     const inspector = await page.getByRole("complementary", { name: "Outils du Visual Studio", exact: true }).boundingBox();
     expect(inspector!.y + inspector!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
     await page.screenshot({ path: "tmp-results/visual-template-admin.png", fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    const mobilePreview = await page.getByLabel("Canvas du visuel : sélectionnez et déplacez les éléments à la souris", { exact: true }).boundingBox();
+    expect(mobilePreview!.width).toBeGreaterThan(180);
+    expect(mobilePreview!.x + mobilePreview!.width).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: "tmp-results/visual-template-mobile.png", fullPage: true });
     const journalist = await journalistContext.newPage();
     await login(journalist, { email: `${id}@example.test`, password, name: id });
     await journalist.goto("/studio/visual-studio");

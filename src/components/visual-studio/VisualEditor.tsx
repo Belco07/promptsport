@@ -21,8 +21,8 @@ const FORMATS = [
   { label: "Story — 1080 × 1920", width: 1080, height: 1920 },
   { label: "Portrait éditorial — 1080 × 1350", width: 1080, height: 1350 },
 ];
-const control = "w-full rounded-md border border-border bg-background p-2 text-sm text-foreground";
-const button = "rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
+const control = "min-h-11 w-full min-w-0 rounded-md border border-border bg-background p-2 text-sm text-foreground";
+const button = "min-h-11 rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function VisualEditor({ channel, composer = false, templateAdmin = false, initialDocument, initialName, compact = false, onSaved }: { channel?: string; composer?: boolean; templateAdmin?: boolean; initialDocument?: TemplateDocument; initialName?: string; compact?: boolean; onSaved?: (url: string) => void }) {
   const [logoVariant, setLogoVariant] = useState("white");
@@ -60,10 +60,10 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     const c = canvas.current;
     if (!c || !container.current) return;
     if (templateAdmin && toolsContainer.current) {
-      toolsContainer.current.style.maxHeight = `${Math.max(120, window.innerHeight - toolsContainer.current.getBoundingClientRect().top - 16)}px`;
+      toolsContainer.current.style.maxHeight = window.innerWidth >= 1024 ? `${Math.max(120, window.innerHeight - toolsContainer.current.getBoundingClientRect().top - 16)}px` : "none";
     }
     const remaining = window.innerHeight - Math.max(0, container.current.getBoundingClientRect().top) - 65;
-    const maxHeight = Math.max(60, Math.min(remaining, window.innerHeight * (compact ? .32 : .62)));
+    const maxHeight = window.innerWidth < 1024 ? window.innerHeight * .55 : Math.max(60, Math.min(remaining, window.innerHeight * (compact ? .32 : .62)));
     const width = Math.max(1, Math.min(container.current.clientWidth, size.current.width, maxHeight * size.current.width / size.current.height));
     c.setDimensions({ width, height: width * size.current.height / size.current.width });
     c.setZoom(width / size.current.width);
@@ -318,7 +318,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     {error && <p role="alert" className="mb-4 rounded-lg bg-status-error p-3 text-status-error-foreground">{error}</p>}
     {message && <p role="status" className="mb-4 rounded-lg bg-status-success p-3 text-status-success-foreground">{message}</p>}
     <div className={compact ? "flex min-w-0 flex-col gap-3" : "grid min-w-0 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]"}>
-      <aside ref={toolsContainer} aria-label="Outils du Visual Studio" className={`space-y-4 overflow-y-auto rounded-xl border border-border bg-card p-3 ${compact ? "order-2 max-h-[28dvh]" : templateAdmin ? "max-h-[calc(100dvh-300px)]" : "max-h-[calc(100dvh-350px)]"}`}>
+      <aside ref={toolsContainer} aria-label="Outils du Visual Studio" className={`space-y-4 overflow-y-auto rounded-xl border border-border bg-card p-3 ${compact ? "order-2 lg:max-h-[28dvh]" : templateAdmin ? "order-2 lg:order-none lg:max-h-[calc(100dvh-300px)]" : "order-2 lg:order-none lg:max-h-[calc(100dvh-350px)]"}`}>
         {templateAdmin ? <TemplateToolsPanel disabled={!ready || busy} groups={[
           { id: "model", title: "Modèle et format", description: "Commencez avec la base éditoriale ou adaptez les dimensions.", content: <><button type="button" className={button} onClick={() => void editorialTemplate()}>Créer une base éditoriale</button>          <label className="block text-sm">Format<select aria-label="Format du visuel" className={control} value={format} onChange={event => setDimensions(Number(event.target.value))}>{FORMATS.map((item, index) => <option key={item.label} value={index}>{item.label}</option>)}</select></label></> },
           { id: "background", title: "Fond et dégradé", description: "Le journaliste remplacera la photo ; le dégradé reste dans le template.", content: <>          <label className="block text-sm">Couleur de fond<input aria-label="Couleur de fond" type="color" value={background} onChange={event => { setBackground(event.target.value); const c = canvas.current; if (c) { c.backgroundColor = event.target.value; c.requestRenderAll(); } }} /></label>          <label className="block text-sm">Importer un fond<input className="mt-1 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { void fileImage(event.target.files?.[0], true); event.target.value = ""; }} /></label>          <button type="button" className={button} onClick={() => { const c = canvas.current; const image = c && backgroundLayer(c); if (c && image) { c.setActiveObject(image); c.requestRenderAll(); } }}>Déplacer / redimensionner le fond</button><button type="button" className={button} onClick={() => { fitBackground(); canvas.current?.requestRenderAll(); setSaved(""); }}>Recentrer le fond</button><label className="block text-sm">Filtre du fond<select aria-label="Filtre du fond" className={control} defaultValue="normal" onChange={event => filterBackground(event.target.value)}><option value="normal">Original</option><option value="gray">Noir et blanc</option><option value="sepia">Sépia</option><option value="contrast">Contraste</option><option value="dark">Assombrir</option></select></label><button type="button" className={button} onClick={() => { const c = canvas.current; const object = c?.getObjects().find(item => typeof item.fill === "object" && item.fill && "type" in item.fill && item.fill.type === "linear"); if (c && object) { c.setActiveObject(object); c.requestRenderAll(); } }}>Sélectionner le dégradé</button><label className="block text-sm">Opacité de la sélection<input aria-label="Opacité de la sélection" className="w-full" type="range" min="0" max="1" step="0.05" disabled={!selected} value={layerOpacity} onChange={event => { const value = Number(event.target.value); setLayerOpacity(value); update({ opacity: value }); }} /></label></> },
@@ -373,7 +373,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
         ]} />
 </>}
       </aside>
-      <section aria-label="Composition et export" className="min-w-0 self-start w-full">
+      <section aria-label="Composition et export" className="min-w-0 self-start w-full lg:order-none">
         {templateAdmin ? <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3"><div><p className="text-sm font-bold">Aperçu du template</p><p className="text-xs text-muted-foreground">{size.current.width} × {size.current.height} px</p></div><button type="button" className={button} disabled={!ready || busy} onClick={() => void exportImage(false)}>Télécharger un aperçu</button></div> : <>        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
           <label className="text-sm">Export<select aria-label="Format d’export" className={control} value={exportType} onChange={event => setExportType(event.target.value)}><option value="image/png">PNG</option><option value="image/webp">WebP</option></select></label>
           <button type="button" className={button} disabled={!ready || busy} onClick={() => exportImage(false)}>Télécharger</button>

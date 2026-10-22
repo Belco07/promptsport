@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 import { StudioNav } from "./StudioNav";
 import { logout } from "./logout-action";
+import StudioMobileMenu from "./StudioMobileMenu";
 
 /**
  * Layout de l'espace de rédaction (studio).
@@ -31,8 +32,16 @@ export default async function StudioLayout({
   const displayName = session.user.name ?? session.user.email ?? "auteur";
 
   return (
-    <div className="workspace-theme flex min-h-screen bg-background">
-      <aside className="sticky top-0 flex h-dvh w-44 shrink-0 flex-col border-r border-border bg-card p-3 md:w-60 md:p-4">
+    <div className="workspace-theme flex min-h-screen flex-col bg-background md:flex-row">
+      <StudioMobileMenu>
+        <StudioNav liveMatchId={liveMatch?.id} />
+        <div className="mt-4 space-y-2 border-t border-border pt-3">
+          <p className="break-words text-xs text-muted-foreground">Connecté : {displayName}</p>
+          <Link href="/" className="block rounded-md px-3 py-3 text-sm">Voir le site</Link>
+          <form action={logout}><button type="submit" className="w-full rounded-md border border-border px-3 py-3 text-left text-sm">Se déconnecter</button></form>
+        </div>
+      </StudioMobileMenu>
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border bg-card p-4 md:flex">
         <div className="min-h-0 flex-1 overflow-y-auto">
           <p className="mb-6 px-3 text-sm font-bold uppercase tracking-wide text-foreground">
             Rédaction
