@@ -400,6 +400,7 @@ Settings → Environment Variables, en cochant **Production** et **Preview**.
 | `META_ACCESS_TOKEN` | token Meta Graph API de longue durée, pour Facebook et Instagram |
 | `META_IG_USER_ID` | identifiant du compte Instagram Business/Creator authentifié |
 | `META_GRAPH_VERSION` | version Graph API optionnelle (défaut : `v23.0`) |
+| `YOUTUBE_API_KEY` | clé de l’API YouTube Data v3, pour les chaînes YouTube |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | identifiants OAuth Google, facultatifs |
 | `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET` | identifiants OAuth Facebook, facultatifs |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | clés Stripe (test ou live) ; le paiement passe par Stripe Checkout côté serveur, aucune clé publique n'est nécessaire |
@@ -411,15 +412,15 @@ Deux remarques sur les noms : le code lit `AUTH_SECRET` (Auth.js v5 accepte
 `ALLSPORTS_API_KEY` pour le fournisseur sportif actif. `AUTH_URL` / `NEXTAUTH_URL`
 sont inutiles ici : `trustHost: true` déduit l'URL de la requête.
 
-La veille X, Facebook et Instagram utilise les API officielles. Les sources sont
-préremplies par `npm run news:seed`, mais leur collecte nécessite les variables
-ci-dessus. Pour Facebook, un token utilisateur/page avec `pages_read_engagement`
-suffit pour les pages gérées ; les autres pages publiques exigent la validation
-**Page Public Content Access** de Meta. Pour Instagram, le compte cible doit être
-public et de type Business/Creator, et `business_discovery` nécessite
-`instagram_basic` + `business_management`. La page
-`/backoffice/veille/sources` affiche « token manquant » tant que l'accès n'est
-pas configuré.
+La veille X, Facebook, Instagram et YouTube utilise les API officielles. Les
+sources sont préremplies par `npm run news:seed`, mais leur collecte nécessite
+les variables ci-dessus. Pour Facebook, un token utilisateur/page avec
+`pages_read_engagement` suffit pour les pages gérées ; les autres pages publiques
+exigent la validation **Page Public Content Access** de Meta. Pour Instagram, le
+compte cible doit être public et de type Business/Creator, et
+`business_discovery` nécessite `instagram_basic` + `business_management`. Pour
+YouTube, `YOUTUBE_API_KEY` suffit. La page `/backoffice/veille/sources` affiche
+l’état de chaque source : active, en attente de token ou en attente de clé.
 
 ### 3 bis. Première mise en production : Neon → Vercel
 
