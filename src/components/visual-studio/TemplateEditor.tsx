@@ -11,7 +11,7 @@ import VisualEditor from "./VisualEditor";
 const button = "min-h-11 min-w-0 rounded-md border border-border bg-card px-4 py-2 font-semibold text-foreground disabled:opacity-50";
 const input = "block min-h-11 w-full min-w-0 rounded-md border border-border bg-background p-2 text-foreground";
 type FieldObject = FabricObject & { field?: string; text?: string };
-export default function TemplateEditor({ admin = false, document: initial, name, channel, backgroundUrl, compact = false }: { admin?: boolean; document?: TemplateDocument; name?: string; channel?: string; backgroundUrl?: string; compact?: boolean }) {
+export default function TemplateEditor({ admin = false, document: initial, name, channel, backgroundUrl, compact = false, templateId, saved: templateSaved = false }: { admin?: boolean; document?: TemplateDocument; name?: string; channel?: string; backgroundUrl?: string; compact?: boolean; templateId?: string; saved?: boolean }) {
   const element = useRef<HTMLCanvasElement>(null); const container = useRef<HTMLDivElement>(null); const canvas = useRef<Canvas | null>(null);
   const [title, setTitle] = useState(""); const [subject, setSubject] = useState(""); const [ready, setReady] = useState(false);
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false); const [saved, setSaved] = useState("");
@@ -56,7 +56,7 @@ export default function TemplateEditor({ admin = false, document: initial, name,
     setSaved(result.url); setMessage("Visuel final enregistré.");
     if (channel && window.opener && !window.opener.closed) window.opener.postMessage({ type: "visual-studio:saved", channel, url: result.url }, window.location.origin);
   }
-  if (admin) return <VisualEditor templateAdmin initialDocument={initial} initialName={name} />;
+  if (admin) return <VisualEditor templateAdmin initialMessage={templateSaved ? "Template enregistré et verrouillé pour les journalistes." : undefined} initialDocument={initial} initialName={name} initialTemplateId={templateId} />;
   return <div className="flex min-w-0 flex-col gap-4"><p role="status" aria-live="polite">{message}</p>
     <fieldset disabled={!ready || busy} className="order-2 grid min-w-0 gap-4 rounded-xl border border-border p-4 md:grid-cols-2 lg:order-none"><legend className="px-2 font-bold">{name}</legend>
       <label>Titre<textarea aria-label="Titre" rows={3} className={input} maxLength={200} value={title} onChange={event => { setTitle(event.target.value); change("title", event.target.value); }} /></label>

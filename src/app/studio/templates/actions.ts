@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { lockTemplate, validateTemplate } from "@/lib/visual-template";
 
-export async function saveVisualTemplate(name: string, raw: string) {
+export async function saveVisualTemplate(name: string, raw: string, templateId: string | null = "active") {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") return { ok: false as const, error: "Accès administrateur requis." };
   if (!name.trim() || name.length > 100 || raw.length > 1_000_000) return { ok: false as const, error: "Nom ou template invalide." };
@@ -14,9 +14,11 @@ export async function saveVisualTemplate(name: string, raw: string) {
     for (const field of ["title", "subject"]) {
       if (document.objects.filter(object => object.field === field && ["textbox", "text", "i-text"].includes(object.type.toLowerCase())).length !== 1) return { ok: false as const, error: "Associez une zone de texte au Titre et une autre au Sujet avant d’enregistrer." };
     }
-    // A fixed active slot avoids races between two simultaneous admin saves.
-    await prisma.visualTemplate.upsert({ where: { id: "active" }, create: { id: "active", name: name.trim(), document: JSON.parse(JSON.stringify(lockTemplate(document))) }, update: { name: name.trim(), document: JSON.parse(JSON.stringify(lockTemplate(document))) } });
-    revalidatePath("/studio/visual-studio"); revalidatePath("/studio/templates");
-    return { ok: true as const };
+    if (templateId !== null && (!/^[a-zA-Z0-9-]+$/.test(templateId) || templateId.length > 100)) return { ok: false as const, error: "Identifiant de template invalide." };
+    const id = templateId ?? crypto.randomUUID();
+    const data = { name: name.trim(), document: JSON.parse(JSON.stringify(lockTemplate(document))) };
+    await prisma.visualTemplate.upsert({ where: { id }, create: { id, ...data }, update: data });
+    revalidatePath("/studio/visual-studio"); revalidatePath("/studio/composer"); revalidatePath("/studio/templates");
+    return { ok: true as const, id };
   } catch { return { ok: false as const, error: "Impossible d’enregistrer le template." }; }
 }

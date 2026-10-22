@@ -38,6 +38,44 @@ test("Templates : accès administrateur refusé au journaliste", async ({ page }
   await expect(page).toHaveURL(/\/studio$/);
 });
 
+test("Bibliothèque : trois templates indépendants et choix du journaliste", async ({ page }) => {
+  test.setTimeout(180000);
+  await sql('UPDATE "Author" SET role=\'ADMIN\' WHERE id=$1', [id]);
+  try {
+    await login(page, { email: `${id}@example.test`, password, name: id });
+    await page.goto("/studio/templates?new=1");
+    await expect(page.getByRole("button", { name: "Enregistrer le template", exact: true })).toBeEnabled();
+    await page.getByLabel("Nom du template", { exact: true }).fill(`${id}-premier`);
+    await page.getByRole("button", { name: "Enregistrer le template", exact: true }).click();
+    await expect(page).toHaveURL(/template=[^&]+&saved=1/);
+    const first = new URL(page.url()).searchParams.get("template")!;
+    await expect(page.getByRole("button", { name: "Dupliquer ce template", exact: true })).toBeEnabled();
+    await page.getByRole("button", { name: "Dupliquer ce template", exact: true }).click();
+    await expect.poll(() => new URL(page.url()).searchParams.get("template")).not.toBe(first);
+    const second = new URL(page.url()).searchParams.get("template")!;
+    expect(second).toBeTruthy();
+    await expect(page.getByLabel("Nom du template", { exact: true })).toHaveValue(`${id}-premier — copie`);
+    await page.getByRole("link", { name: "Nouveau template", exact: true }).click();
+    await expect(page).toHaveURL(/\/studio\/templates\?new=1$/);
+    await expect(page.getByLabel("Nom du template", { exact: true })).toHaveValue("Nouveau template");
+    await expect(page.getByRole("button", { name: "Enregistrer le template", exact: true })).toBeEnabled();
+    await page.getByLabel("Nom du template", { exact: true }).fill(`${id}-troisieme`);
+    await page.getByRole("button", { name: "Enregistrer le template", exact: true }).click();
+    await expect(page).toHaveURL(/template=[^&]+&saved=1/);
+    const third = new URL(page.url()).searchParams.get("template")!;
+    const records = await sql<{id:string;name:string}>('SELECT id,name FROM "VisualTemplate" WHERE name LIKE $1', [`${id}%`]);
+    expect(records).toHaveLength(3);
+    expect(records.find(item => item.id === first)?.name).toBe(`${id}-premier`);
+    expect(new Set(records.map(item => item.id)).size).toBe(3);
+    await page.goto("/studio/visual-studio");
+    const picker = page.getByLabel("Template du visuel", { exact: true });
+    await picker.selectOption(second);
+    await expect(page.getByRole("region", { name: "2. Appliquer le template" }).locator("legend").filter({ hasText: `${id}-premier — copie` })).toBeVisible();
+    await picker.selectOption(third);
+    await expect(page.getByRole("region", { name: "2. Appliquer le template" }).locator("legend").filter({ hasText: `${id}-troisieme` })).toBeVisible();
+  } finally { await sql('DELETE FROM "VisualTemplate" WHERE name LIKE $1', [`${id}%`]); }
+});
+
 test("Visual Studio mobile : pleine largeur, étapes et menu repliable", async ({ page }) => {
   await login(page, { email: `${id}@example.test`, password, name: id });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -70,10 +108,11 @@ test("template par défaut disponible sans configuration administrateur", async 
     await login(page, { email: `${id}@example.test`, password, name: id });
     await page.goto("/studio/visual-studio");
     const application = page.getByRole("region", { name: "2. Appliquer le template" });
+    await application.getByLabel("Template du visuel", { exact: true }).selectOption("builtin");
     await expect(application.getByLabel("Titre", { exact: true })).toBeEnabled();
     await expect(application.getByLabel("Sujet", { exact: true })).toHaveValue("FOOTBALL");
     await expect(application.getByRole("button", { name: "Générer le visuel final", exact: true })).toBeEnabled();
-    await expect(application.getByText("Éditorial — Portrait", { exact: true })).toBeVisible();
+    await expect(application.locator("legend")).toHaveText("Éditorial — Portrait");
     await page.screenshot({ path: "tmp-results/visual-default-template.png", fullPage: true });
   } finally {
     if (previous) await sql('INSERT INTO "VisualTemplate" (id,name,document,"updatedAt") VALUES (\'active\',$1,$2,NOW()) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,document=EXCLUDED.document', [previous.name, JSON.stringify(previous.document)]);
@@ -83,14 +122,13 @@ test("template par défaut disponible sans configuration administrateur", async 
 test("Template admin → fond composé → export journaliste", async ({ page, browser }) => {
   test.skip(process.env.E2E_VISUAL_LOCAL !== "1", "Export réservé au stockage local isolé.");
   test.setTimeout(360000);
-  const previous = (await sql<{ name: string; document: unknown }>('SELECT name,document FROM "VisualTemplate" WHERE id=\'active\''))[0];
   const adminId = `${id}-admin`; const uploads: string[] = [];
   await sql('INSERT INTO "Author" (id,name,email,"passwordHash",role,"createdAt") VALUES ($1,$1,$2,$3,\'ADMIN\',NOW())', [adminId, `${adminId}@example.test`, await bcrypt.hash(password, 10)]);
   const journalistContext = await browser.newContext();
   await stubBrowserBlob(journalistContext);
   try {
     await login(page, { email: `${adminId}@example.test`, password, name: adminId });
-    await page.goto("/studio/templates");
+    await page.goto("/studio/templates?new=1");
     await expect(page.getByRole("button", { name: "Créer une base éditoriale", exact: true })).toBeEnabled();
     page.once("dialog", dialog => void dialog.accept());
     await page.getByRole("button", { name: "Créer une base éditoriale", exact: true }).click();
@@ -104,10 +142,12 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     await page.getByLabel("Importer un logo personnalisé", { exact: true }).setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8l8AAAAASUVORK5CYII=", "base64") });
     await expect(page.getByRole("status")).toContainText("Logo personnalisé appliqué");
     await page.getByLabel("Nom du template", { exact: true }).fill(id);
-    await expect(page.getByRole("button", { name: "Enregistrer et activer le template", exact: true })).toBeEnabled();
-    await page.getByRole("button", { name: "Enregistrer et activer le template", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Enregistrer le template", exact: true })).toBeEnabled();
+    await page.getByRole("button", { name: "Enregistrer le template", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Template enregistré");
-    const saved = (await sql<{ document: { objects: { selectable: boolean; field?: string; assetRole?: string; src?: string; fill?: { type?: string } }[] } }>('SELECT document FROM "VisualTemplate" WHERE id=\'active\''))[0];
+    await expect(page).toHaveURL(/template=[^&]+&saved=1/);
+    const savedId = new URL(page.url()).searchParams.get("template")!;
+    const saved = (await sql<{ document: { objects: { selectable: boolean; field?: string; assetRole?: string; src?: string; fill?: { type?: string } }[] } }>('SELECT document FROM "VisualTemplate" WHERE id=$1', [savedId]))[0];
     expect(saved.document.objects.every(object => object.selectable === false)).toBe(true);
     const logos = saved.document.objects.filter(object => object.assetRole === "logo");
     expect(logos).toHaveLength(1); expect(logos[0].src).toMatch(/^\/uploads\/.+\.png$/);
@@ -128,6 +168,7 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     const journalist = await journalistContext.newPage();
     await login(journalist, { email: `${id}@example.test`, password, name: id });
     await journalist.goto("/studio/visual-studio");
+    await journalist.getByLabel("Template du visuel", { exact: true }).selectOption(savedId);
     await expect(journalist.getByLabel("Titre", { exact: true })).toBeEnabled();
     await expect(journalist.getByRole("region", { name: "2. Appliquer le template" }).getByRole("button", { name: "Ajouter le texte", exact: true })).toHaveCount(0);
     await journalist.getByLabel("Titre", { exact: true }).fill("Mon visuel final");
@@ -143,11 +184,12 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     await expect(application.getByRole("status")).toContainText("Fond chargé");
     await application.getByRole("button", { name: "Déplacer / redimensionner le fond", exact: true }).click();
     const lowerCanvas = application.locator("canvas.lower-canvas");
+    await application.locator("canvas.upper-canvas").scrollIntoViewIfNeeded();
     const beforeMove = await lowerCanvas.evaluate((node: HTMLCanvasElement) => node.toDataURL());
     const bounds = await application.locator("canvas.upper-canvas").boundingBox();
-    await journalist.mouse.move(bounds!.x + bounds!.width * .2, bounds!.y + bounds!.height * .2);
+    await journalist.mouse.move(bounds!.x + bounds!.width * .3, bounds!.y + bounds!.height * .3);
     await journalist.mouse.down();
-    await journalist.mouse.move(bounds!.x + bounds!.width * .4, bounds!.y + bounds!.height * .3, { steps: 10 });
+    await journalist.mouse.move(bounds!.x + bounds!.width * .65, bounds!.y + bounds!.height * .6, { steps: 10 });
     await journalist.mouse.up();
     await expect.poll(() => lowerCanvas.evaluate((node: HTMLCanvasElement) => node.toDataURL())).not.toBe(beforeMove);
     await expect(application.getByLabel("Titre", { exact: true })).toHaveValue("Mon visuel final");
@@ -164,8 +206,7 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     await journalist.screenshot({ path: "tmp-results/visual-template-journalist.png", fullPage: true });
   } finally {
     await journalistContext.close();
-    if (previous) await sql('UPDATE "VisualTemplate" SET name=$1,document=$2 WHERE id=\'active\'', [previous.name, JSON.stringify(previous.document)]);
-    else await sql('DELETE FROM "VisualTemplate" WHERE id=\'active\' AND name=$1', [id]);
+    await sql('DELETE FROM "VisualTemplate" WHERE name=$1', [id]);
     await sql('DELETE FROM "Author" WHERE id=$1', [adminId]);
     for (const url of uploads) if (/^\/uploads\/[a-zA-Z0-9-]+\.png$/.test(url)) await unlink(path.join(process.cwd(), "public", url.slice(1))).catch(() => {});
   }

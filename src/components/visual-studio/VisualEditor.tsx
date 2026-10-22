@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Canvas, Textbox, Rect, Circle, Polygon, Group, FabricImage, FabricObject, filters } from "fabric";
 
+import { useRouter } from "next/navigation";
 import UnsplashPicker from "./UnsplashPicker";
 import { EDITOR_FONTS, fontWeights, loadEditorFonts } from "./editor-fonts";
 import { backgroundLayer, installBackground } from "./background-layer";
@@ -24,7 +25,8 @@ const FORMATS = [
 const control = "min-h-11 w-full min-w-0 rounded-md border border-border bg-background p-2 text-sm text-foreground";
 const button = "min-h-11 rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
 
-export default function VisualEditor({ channel, composer = false, templateAdmin = false, initialDocument, initialName, compact = false, onSaved }: { channel?: string; composer?: boolean; templateAdmin?: boolean; initialDocument?: TemplateDocument; initialName?: string; compact?: boolean; onSaved?: (url: string) => void }) {
+export default function VisualEditor({ channel, composer = false, templateAdmin = false, initialDocument, initialName, initialTemplateId, initialMessage, compact = false, onSaved }: { channel?: string; composer?: boolean; templateAdmin?: boolean; initialDocument?: TemplateDocument; initialName?: string; initialTemplateId?: string; initialMessage?: string; compact?: boolean; onSaved?: (url: string) => void }) {
+  const router = useRouter();
   const [logoVariant, setLogoVariant] = useState("white");
   const [templateName, setTemplateName] = useState(initialName ?? "Édition PromptSport");
   const initialTemplate = useRef(initialDocument);
@@ -51,7 +53,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
   const [, setLayerVersion] = useState(0);
   const [layerOpacity, setLayerOpacity] = useState(1);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage ?? "");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const [exportType, setExportType] = useState("image/png");
@@ -135,7 +137,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     (object as Textbox & { field?: string }).field = field;
     setMessage(`Zone associée au champ ${field === "title" ? "Titre" : "Sujet"}.`);
   }
-  async function saveTemplate() {
+  async function saveTemplate(duplicate = false) {
     const c = canvas.current; if (!c) return;
     setBusy(true); setError("");
     try { const json = { ...c.toObject(["field", "assetRole"]), width: size.current.width, height: size.current.height };
@@ -144,8 +146,9 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
         if (Array.isArray(object.objects)) portableImages(object.objects);
       } }
       portableImages(json.objects); if (json.backgroundImage) portableImages([json.backgroundImage]);
-      const result = await saveVisualTemplate(templateName, JSON.stringify(json)); if (!result.ok) throw Error(result.error);
+      const result = await saveVisualTemplate(duplicate ? `${templateName.slice(0, 90)} — copie` : templateName, JSON.stringify(json), duplicate ? null : initialTemplateId ?? null); if (!result.ok) throw Error(result.error);
       setMessage("Template enregistré et verrouillé pour les journalistes.");
+      router.replace(`/studio/templates?template=${encodeURIComponent(result.id)}&saved=1`, { scroll: false });
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Enregistrement impossible."); } finally { setBusy(false); }
   }
   function setDimensions(index: number) {
@@ -313,7 +316,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     finally { setBusy(false); }
   }
   return <div>
-    {templateAdmin && <fieldset disabled={!ready || busy} className="mb-4 flex flex-col items-stretch gap-3 rounded-xl sm:flex-row sm:flex-wrap sm:items-end border border-border bg-card p-3"><legend className="px-2 text-sm font-bold">Enregistrement</legend><label className="min-w-0 flex-1 text-sm sm:min-w-48">Nom du template<input className={control} maxLength={100} value={templateName} onChange={event => setTemplateName(event.target.value)} /></label><button type="button" className="rounded-md bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50" onClick={() => void saveTemplate()}>Enregistrer et activer le template</button></fieldset>}
+    {templateAdmin && <fieldset disabled={!ready || busy} className="mb-4 flex flex-col items-stretch gap-3 rounded-xl sm:flex-row sm:flex-wrap sm:items-end border border-border bg-card p-3"><legend className="px-2 text-sm font-bold">Enregistrement</legend><label className="min-w-0 flex-1 text-sm sm:min-w-48">Nom du template<input className={control} maxLength={100} value={templateName} onChange={event => setTemplateName(event.target.value)} /></label><button type="button" className="rounded-md bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50" onClick={() => void saveTemplate()}>Enregistrer le template</button><button type="button" className={button} onClick={() => void saveTemplate(true)}>Dupliquer ce template</button></fieldset>}
     {composer && <div className="mb-3"><label className="block rounded-lg border-2 border-dashed border-border p-3 text-sm font-bold">Importer depuis mon ordinateur<input className="mt-2 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={!ready || busy} onChange={event => { void fileImage(event.target.files?.[0], true); event.target.value = ""; }} /></label></div>}
     {error && <p role="alert" className="mb-4 rounded-lg bg-status-error p-3 text-status-error-foreground">{error}</p>}
     {message && <p role="status" className="mb-4 rounded-lg bg-status-success p-3 text-status-success-foreground">{message}</p>}

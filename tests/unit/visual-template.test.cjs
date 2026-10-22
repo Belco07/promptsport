@@ -59,6 +59,24 @@ test('template par défaut : portrait, dégradé, logo et deux champs verrouill�
   doc.objects[0].left=999;assert.equal(exportsObject.defaultVisualTemplate().objects[0].left,0);
 });
 
+test('bibliothèque : créer et modifier un modèle ne remplace pas les autres',async()=>{
+  const actions={}, records=new Map();
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/studio/templates/actions.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:actions,crypto:require('node:crypto'),require:name=>({
+    '@/lib/auth':{auth:async()=>({user:{id:'admin',role:'ADMIN'}})},
+    '@/lib/prisma':{prisma:{visualTemplate:{upsert:async ({where,create,update})=>{records.set(where.id,records.has(where.id)?update:create);}}}},
+    'next/cache':{revalidatePath:()=>{}},'@/lib/visual-template':exportsObject,
+  })[name]});
+  const first=await actions.saveVisualTemplate('Premier',JSON.stringify(document()),null);
+  const second=await actions.saveVisualTemplate('Deuxième',JSON.stringify(document()),null);
+  assert.equal(first.ok,true);assert.equal(second.ok,true);assert.notEqual(first.id,second.id);
+  assert.equal(records.size,2);
+  const savedSecond=JSON.stringify(records.get(second.id));
+  assert.equal((await actions.saveVisualTemplate('Premier modifié',JSON.stringify(document()),first.id)).ok,true);
+  assert.equal(records.get(first.id).name,'Premier modifié');
+  assert.equal(JSON.stringify(records.get(second.id)),savedSecond);
+  assert.equal(records.size,2);
+});
+
 test('dégradé du modèle : Fabric reçoit des couleurs avec transparence réelle',async()=>{
   const {Gradient}=require('fabric');
   const gradient=await Gradient.fromObject(exportsObject.defaultVisualTemplate().objects[0].fill);
