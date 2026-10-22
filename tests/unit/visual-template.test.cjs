@@ -45,3 +45,14 @@ test('template : un admin enregistre uniquement un document validé et verrouill
   assert.equal(writes[0].create.document.objects[0].selectable,false);
   assert.equal(writes[0].create.document.objects[0].field,'title');
 });
+
+test('template par défaut : portrait, dégradé, logo et deux champs verrouillés',()=>{
+  const doc=exportsObject.defaultVisualTemplate();
+  assert.equal(doc.width,1080);assert.equal(doc.height,1350);
+  assert.equal(validateTemplate(doc),true);
+  assert.deepEqual(Array.from(doc.objects.filter(o=>o.field),o=>o.field),['title','subject']);
+  assert.equal(doc.objects.some(o=>o.fill?.type==='linear'),true);
+  assert.equal(doc.objects.some(o=>o.type==='Image'&&o.src==='/promptsport-logo.webp'&&o.left>800),true);
+  assert.equal(doc.objects.every(o=>o.selectable===false&&o.lockMovementX===true),true);
+  doc.objects[0].left=999;assert.equal(exportsObject.defaultVisualTemplate().objects[0].left,0);
+});

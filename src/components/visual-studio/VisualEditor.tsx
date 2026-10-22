@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Canvas, Textbox, Rect, Circle, Polygon, Group, FabricImage, FabricObject, Gradient, filters } from "fabric";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Canvas, Textbox, Rect, Circle, Polygon, Group, FabricImage, FabricObject, filters } from "fabric";
 
 import UnsplashPicker from "./UnsplashPicker";
 import MontageTools from "./MontageTools";
 import { saveVisualTemplate } from "@/app/studio/templates/actions";
 import { uploadStudioImage as uploadImage } from "@/lib/upload-studio-image";
-import type { TemplateDocument } from "@/lib/visual-template";
+import { defaultVisualTemplate, type TemplateDocument } from "@/lib/visual-template";
 
 const TOP_LEFT = { originX: "left", originY: "top" } as const;
 const FORMATS = [
@@ -21,6 +21,7 @@ const control = "w-full rounded-md border border-border bg-background p-2 text-s
 const button = "rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function VisualEditor({ channel, composer = false, templateAdmin = false, initialDocument, initialName, compact = false, onSaved }: { channel?: string; composer?: boolean; templateAdmin?: boolean; initialDocument?: TemplateDocument; initialName?: string; compact?: boolean; onSaved?: (url: string) => void }) {
+  const [logoVariant, setLogoVariant] = useState("white");
   const [templateName, setTemplateName] = useState(initialName ?? "Édition PromptSport");
   const initialTemplate = useRef(initialDocument);
   const element = useRef<HTMLCanvasElement>(null);
@@ -49,7 +50,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     const c = canvas.current;
     if (!c || !container.current) return;
     const remaining = window.innerHeight - Math.max(0, container.current.getBoundingClientRect().top) - 65;
-    const maxHeight = Math.max(140, Math.min(remaining, window.innerHeight * (compact ? .32 : .62)));
+    const maxHeight = Math.max(60, Math.min(remaining, window.innerHeight * (compact ? .32 : .62)));
     const width = Math.max(1, Math.min(container.current.clientWidth, size.current.width, maxHeight * size.current.width / size.current.height));
     c.setDimensions({ width, height: width * size.current.height / size.current.width });
     c.setZoom(width / size.current.width);
@@ -90,6 +91,8 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     return () => { active = false; resize.disconnect(); window.removeEventListener("resize", fit); canvas.current = null; void c.dispose(); };
   }, [fit]);
 
+  useLayoutEffect(() => { if (ready) fit(); }, [ready, fit, message, error, saved]);
+
   function update(properties: Record<string, string | number>) {
     const c = canvas.current; const object = c?.getActiveObject();
     if (!c || !object) return;
@@ -112,7 +115,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
   async function saveTemplate() {
     const c = canvas.current; if (!c) return;
     setBusy(true); setError("");
-    try { const json = { ...c.toObject(["field"]), width: size.current.width, height: size.current.height };
+    try { const json = { ...c.toObject(["field", "assetRole"]), width: size.current.width, height: size.current.height };
       function portableImages(objects: Record<string, unknown>[]) { for (const object of objects) {
         if (typeof object.src === "string") { const url = new URL(object.src, window.location.origin); if (url.origin === window.location.origin) object.src = url.pathname + url.search; }
         if (Array.isArray(object.objects)) portableImages(object.objects);
@@ -224,17 +227,39 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     c.add(new Textbox("Votre titre à personnaliser", { ...TOP_LEFT, left: 48, top: h * .84, width: w - 96, fontFamily: font, fontSize: Math.round(w / 32), fill: "#d7ff00" }));
     c.requestRenderAll(); setSaved("");
   }
-  function editorialTemplate() {
+  async function replaceTemplateLogo(file?: File) {
+    const c = canvas.current; if (!c) return;
+    setBusy(true); setError("");
+    try {
+      let url = "/promptsport-logo.webp";
+      if (file) { const form = new FormData(); form.set("file", file); const result = await uploadImage(form); if (!result.ok) throw Error(result.error); url = result.url; }
+      const logo = await FabricImage.fromURL(url, { crossOrigin: "anonymous" }); if (canvas.current !== c) return;
+      if (logo.width * logo.height > 40_000_000) throw Error("Logo trop grand : 40 mégapixels maximum.");
+      const previous = c.getObjects().find(object => (object as FabricObject & { assetRole?: string }).assetRole === "logo" || (object instanceof FabricImage && /\/promptsport-logo(?:-night)?\.(webp|png)(?:$|\?)/.test(object.getSrc())));
+      const width = previous?.getScaledWidth() ?? size.current.width * .21;
+      const ratio = Math.min(width / logo.width, size.current.height * .1 / logo.height);
+      logo.set({ ...TOP_LEFT, left: previous?.left ?? size.current.width - width - 40, top: previous?.top ?? 40, scaleX: ratio, scaleY: ratio });
+      (logo as FabricImage & { assetRole: string }).assetRole = "logo";
+      if (!file && logoVariant === "white") { logo.filters = [new filters.BlendColor({ color: "#ffffff", mode: "tint", alpha: 1 })]; logo.applyFilters(); }
+      const index = previous ? c.getObjects().indexOf(previous) : c.getObjects().length;
+      if (previous) c.remove(previous); c.insertAt(index, logo); c.setActiveObject(logo); c.requestRenderAll(); setSaved(""); setMessage(`${file ? "Logo personnalisé" : logoVariant === "white" ? "Logo PromptSport blanc" : "Logo PromptSport couleur"} appliqué. Enregistrez le template pour le conserver.`);
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Import du logo impossible."); }
+    finally { setBusy(false); }
+  }
+  async function editorialTemplate() {
     const c = canvas.current; if (!c) return;
     if (c.getObjects().length && !window.confirm("Remplacer les éléments du template ?")) return;
-    c.remove(...c.getObjects()); setDimensions(4);
-    c.add(new Rect({ ...TOP_LEFT, left: 0, top: 400, width: 1080, height: 950, fill: new Gradient({ type: "linear", coords: { x1: 0, y1: 0, x2: 0, y2: 950 }, colorStops: [{ offset: 0, color: "rgba(0,0,0,0)" }, { offset: .55, color: "rgba(0,0,0,.8)" }, { offset: 1, color: "#000000" }] }) }));
-    const headline = new Textbox("VOTRE GRAND TITRE\nSUR PLUSIEURS LIGNES", { ...TOP_LEFT, left: 65, top: 700, width: 950, fontFamily: "Barlow Condensed", fontWeight: "700", fontSize: 100, lineHeight: 1.05, textAlign: "center", fill: "#ffffff" });
-    (headline as Textbox & { field: string }).field = "title";
-    c.add(headline, new Rect({ ...TOP_LEFT, left: 210, top: 1160, width: 660, height: 78, rx: 12, ry: 12, fill: "#102dff", stroke: "#ffffff", strokeWidth: 3 }));
-    const subject = new Textbox("FOOTBALL", { ...TOP_LEFT, left: 230, top: 1173, width: 620, fontFamily: "Montserrat", fontSize: 36, fontWeight: "700", textAlign: "center", fill: "#ffffff" });
-    (subject as Textbox & { field: string }).field = "subject"; c.add(subject); c.setActiveObject(headline); c.requestRenderAll(); setSaved("");
-    setMessage("Base éditoriale créée : ajoutez votre logo en haut, ajustez les éléments puis enregistrez le template.");
+    setBusy(true); setError("");
+    try {
+      const doc = defaultVisualTemplate();
+      for (const object of doc.objects) Object.assign(object, { selectable: true, evented: true, editable: true, lockMovementX: false, lockMovementY: false, lockScalingX: false, lockScalingY: false, lockRotation: false });
+      const backgroundImage = c.backgroundImage;
+      await c.loadFromJSON(doc); if (canvas.current !== c) return;
+      if (backgroundImage) c.backgroundImage = backgroundImage;
+      setDimensions(4); c.requestRenderAll(); setSaved("");
+      setMessage("Template éditorial prêt : personnalisez la mise en page puis enregistrez-le.");
+    } catch { setError("Impossible de charger le template éditorial."); }
+    finally { setBusy(false); }
   }
   function filterBackground(value: string) {
     const c = canvas.current; const image = c?.backgroundImage;
@@ -286,7 +311,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
           <div className="space-y-2"><a href="https://unsplash.com/fr/s/photos/football" target="_blank" rel="noopener noreferrer" className="text-sm text-editorial-link underline">Chercher sur Unsplash</a><label className="block text-sm">URL directe Unsplash<input className={control} type="url" value={unsplash} onChange={event => setUnsplash(event.target.value)} placeholder="https://images.unsplash.com/…" /></label><button type="button" className={button} onClick={remoteBackground}>Charger le fond Unsplash</button></div>
           <label className="block text-sm">Filtre du fond<select aria-label="Filtre du fond" className={control} defaultValue="normal" onChange={event => filterBackground(event.target.value)}><option value="normal">Original</option><option value="gray">Noir et blanc</option><option value="sepia">Sépia</option><option value="contrast">Contraste</option><option value="dark">Assombrir</option></select></label>
           <label className="block text-sm">Image superposée (PNG transparent accepté)<input className="mt-1 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { void fileImage(event.target.files?.[0], false); event.target.value = ""; }} /></label>
-          <button type="button" className={button} onClick={async () => { setBusy(true); setError(""); try { await loadImage("/promptsport-logo.webp", false); } catch { setError("Logo indisponible."); } finally { setBusy(false); } }}>Ajouter le logo PromptSport</button>
+          {templateAdmin ? <fieldset className="space-y-2 rounded-lg border border-border p-3"><legend className="px-1 font-bold">Logo du template</legend><label className="block text-sm">Version du logo<select aria-label="Version du logo" className={control} value={logoVariant} onChange={event => setLogoVariant(event.target.value)}><option value="color">PromptSport couleur</option><option value="white">PromptSport blanc</option></select></label><button type="button" className={button} onClick={() => void replaceTemplateLogo()}>Appliquer le logo PromptSport</button><label className="block text-sm">Importer un logo personnalisé<input className="mt-1 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void replaceTemplateLogo(file); }} /></label></fieldset> : <button type="button" className={button} onClick={async () => { setBusy(true); setError(""); try { await loadImage("/promptsport-logo.webp", false); } catch { setError("Logo indisponible."); } finally { setBusy(false); } }}>Ajouter le logo PromptSport</button>}
         </fieldset>
         <fieldset disabled={!ready || busy} className="space-y-3 disabled:opacity-60">
           <legend className="mb-2 font-bold">Texte et formes</legend>

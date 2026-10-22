@@ -19,6 +19,10 @@ Le premier détourage télécharge le modèle dans le navigateur : prévoir un d
 
 La base éditoriale administrateur propose un format portrait 1080×1350, un dégradé sombre, un titre centré en Barlow Condensed et un badge de sujet. Les couleurs, positions et dimensions sont modifiables par l’admin avant enregistrement. La police libre et sa licence sont livrées dans `public/fonts`.
 
+Sans template actif enregistré, cette base est disponible automatiquement dans le Visual Studio, le Compositeur et l’éditeur administrateur. Le logo blanc PromptSport est placé en haut à droite. Un template personnalisé enregistré reste prioritaire.
+
+Dans « Logo du template », l’admin peut remplacer le logo par sa version couleur, sa version blanche ou un fichier personnel. Le remplacement conserve la place du calque et évite d’empiler plusieurs logos. Le choix est conservé à l’enregistrement, puis verrouillé pour les journalistes.
+
 Le menu Templates est masqué aux journalistes et les pages/actions contrôlent le rôle ADMIN. Le menu du Studio reste fixé à la hauteur de l’écran, avec la déconnexion en bas. Les outils ont leur propre zone défilante et les aperçus sont réduits selon la largeur et la hauteur disponibles.
 
 Les images sont envoyées directement du navigateur vers Blob, avec un jeton temporaire limité aux images du dossier `uploads/` et à 5 Mo. Le jeton permanent reste côté serveur. Cette méthode évite la limite de requête des fonctions Vercel. Sans configuration Blob en production, un message explicite remplace la tentative d’écriture sur disque.

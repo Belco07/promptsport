@@ -35,6 +35,23 @@ test("Templates : accès administrateur refusé au journaliste", async ({ page }
   await expect(page).toHaveURL(/\/studio$/);
 });
 
+test("template par défaut disponible sans configuration administrateur", async ({ page }) => {
+  const previous = (await sql<{ name: string; document: unknown }>('SELECT name,document FROM "VisualTemplate" WHERE id=\'active\''))[0];
+  try {
+    await sql('DELETE FROM "VisualTemplate" WHERE id=\'active\'');
+    await login(page, { email: `${id}@example.test`, password, name: id });
+    await page.goto("/studio/visual-studio");
+    const application = page.getByRole("region", { name: "2. Appliquer le template" });
+    await expect(application.getByLabel("Titre", { exact: true })).toBeEnabled();
+    await expect(application.getByLabel("Sujet", { exact: true })).toHaveValue("FOOTBALL");
+    await expect(application.getByRole("button", { name: "Générer le visuel final", exact: true })).toBeEnabled();
+    await expect(application.getByText("Éditorial — Portrait", { exact: true })).toBeVisible();
+    await page.screenshot({ path: "tmp-results/visual-default-template.png", fullPage: true });
+  } finally {
+    if (previous) await sql('INSERT INTO "VisualTemplate" (id,name,document,"updatedAt") VALUES (\'active\',$1,$2,NOW()) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name,document=EXCLUDED.document', [previous.name, JSON.stringify(previous.document)]);
+  }
+});
+
 test("Template admin → fond composé → export journaliste", async ({ page, browser }) => {
   test.skip(process.env.E2E_VISUAL_LOCAL !== "1", "Export réservé au stockage local isolé.");
   test.setTimeout(360000);
@@ -47,14 +64,24 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     await login(page, { email: `${adminId}@example.test`, password, name: adminId });
     await page.goto("/studio/templates");
     await expect(page.getByRole("button", { name: "Ajouter le texte", exact: true })).toBeEnabled();
+    page.once("dialog", dialog => void dialog.accept());
     await page.getByRole("button", { name: "Créer une base éditoriale", exact: true }).click();
+    await page.getByLabel("Version du logo", { exact: true }).selectOption("color");
+    await page.getByRole("button", { name: "Appliquer le logo PromptSport", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("Logo PromptSport couleur appliqué");
+    await page.getByLabel("Version du logo", { exact: true }).selectOption("white");
+    await page.getByRole("button", { name: "Appliquer le logo PromptSport", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("Logo PromptSport blanc appliqué");
+    await page.getByLabel("Importer un logo personnalisé", { exact: true }).setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8l8AAAAASUVORK5CYII=", "base64") });
+    await expect(page.getByRole("status")).toContainText("Logo personnalisé appliqué");
     await page.getByLabel("Nom du template", { exact: true }).fill(id);
-    await page.getByRole("button", { name: "Ajouter le logo PromptSport", exact: true }).click();
     await expect(page.getByRole("button", { name: "Enregistrer et activer le template", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Enregistrer et activer le template", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Template enregistré");
-    const saved = (await sql<{ document: { objects: { selectable: boolean; field?: string; fill?: { type?: string } }[] } }>('SELECT document FROM "VisualTemplate" WHERE id=\'active\''))[0];
+    const saved = (await sql<{ document: { objects: { selectable: boolean; field?: string; assetRole?: string; src?: string; fill?: { type?: string } }[] } }>('SELECT document FROM "VisualTemplate" WHERE id=\'active\''))[0];
     expect(saved.document.objects.every(object => object.selectable === false)).toBe(true);
+    const logos = saved.document.objects.filter(object => object.assetRole === "logo");
+    expect(logos).toHaveLength(1); expect(logos[0].src).toMatch(/^\/uploads\/.+\.png$/);
     expect(saved.document.objects.some(object => object.fill?.type === "linear")).toBe(true);
     const adminCanvas = await page.getByLabel("Canvas du visuel : sélectionnez et déplacez les éléments à la souris", { exact: true }).boundingBox();
     expect(adminCanvas!.y + adminCanvas!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
