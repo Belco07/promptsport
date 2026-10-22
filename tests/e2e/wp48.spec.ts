@@ -6,6 +6,7 @@ import { login } from "../fixtures/helpers";
 let id: string;
 let endpoint: string;
 const password = "E2e-Wp48-2026!";
+test.skip(process.env.E2E_WP48 !== "1", "Utiliser npm run test:wp48 : IA et envois push restent sur la machine locale.");
 test.beforeEach(async ({ page, context }, testInfo) => {
   await sql("SELECT 1");
   const url = new URL(process.env.APP_DATABASE_URL || process.env.DATABASE_URL || "");

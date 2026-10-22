@@ -21,7 +21,8 @@
     "analytics:aggregate": "npx tsx scripts/analytics-aggregate.ts",
     "news:fetch": "npx tsx scripts/fetch-news.ts",
     "news:seed": "npx tsx scripts/seed-news-sources.ts",
-    "test:visual-studio": "node scripts/test-visual-studio.cjs"
+    "test:visual-studio": "node scripts/test-visual-studio.cjs",
+    "test:wp48": "node scripts/test-wp48.cjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.3",
