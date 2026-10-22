@@ -52,7 +52,18 @@ test('template par défaut : portrait, dégradé, logo et deux champs verrouill�
   assert.equal(validateTemplate(doc),true);
   assert.deepEqual(Array.from(doc.objects.filter(o=>o.field),o=>o.field),['title','subject']);
   assert.equal(doc.objects.some(o=>o.fill?.type==='linear'),true);
+  assert.equal(doc.objects[0].fill.colorStops[0].color,'rgba(0,0,0,0)');
+  assert.equal(doc.objects.find(o=>o.assetRole==='logo').filters[0].color,'#ffffff');
   assert.equal(doc.objects.some(o=>o.type==='Image'&&o.src==='/promptsport-logo.webp'&&o.left>800),true);
   assert.equal(doc.objects.every(o=>o.selectable===false&&o.lockMovementX===true),true);
   doc.objects[0].left=999;assert.equal(exportsObject.defaultVisualTemplate().objects[0].left,0);
+});
+
+test('dégradé du modèle : Fabric reçoit des couleurs avec transparence réelle',async()=>{
+  const {Gradient}=require('fabric');
+  const gradient=await Gradient.fromObject(exportsObject.defaultVisualTemplate().objects[0].fill);
+  const stops=[];
+  gradient.toLive({createLinearGradient:()=>({addColorStop:(offset,color)=>stops.push({offset,color})})});
+  assert.equal(stops[0].color,'rgba(0,0,0,0)');
+  assert.equal(stops[1].color,'rgba(0,0,0,.75)');
 });

@@ -63,9 +63,10 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
   try {
     await login(page, { email: `${adminId}@example.test`, password, name: adminId });
     await page.goto("/studio/templates");
-    await expect(page.getByRole("button", { name: "Ajouter le texte", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Créer une base éditoriale", exact: true })).toBeEnabled();
     page.once("dialog", dialog => void dialog.accept());
     await page.getByRole("button", { name: "Créer une base éditoriale", exact: true }).click();
+    await page.getByRole("button", { name: /Logo et images/ }).click();
     await page.getByLabel("Version du logo", { exact: true }).selectOption("color");
     await page.getByRole("button", { name: "Appliquer le logo PromptSport", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Logo PromptSport couleur appliqué");
@@ -85,6 +86,8 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     expect(saved.document.objects.some(object => object.fill?.type === "linear")).toBe(true);
     const adminCanvas = await page.getByLabel("Canvas du visuel : sélectionnez et déplacez les éléments à la souris", { exact: true }).boundingBox();
     expect(adminCanvas!.y + adminCanvas!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    const inspector = await page.getByRole("complementary", { name: "Outils du Visual Studio", exact: true }).boundingBox();
+    expect(inspector!.y + inspector!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
     await page.screenshot({ path: "tmp-results/visual-template-admin.png", fullPage: true });
     const journalist = await journalistContext.newPage();
     await login(journalist, { email: `${id}@example.test`, password, name: id });

@@ -23,6 +23,8 @@ Sans template actif enregistré, cette base est disponible automatiquement dans 
 
 Dans « Logo du template », l’admin peut remplacer le logo par sa version couleur, sa version blanche ou un fichier personnel. Le remplacement conserve la place du calque et évite d’empiler plusieurs logos. Le choix est conservé à l’enregistrement, puis verrouillé pour les journalistes.
 
+L’éditeur administrateur regroupe les outils en cinq panneaux : modèle et format, fond et dégradé, logo et images, textes, formes et calques. Un seul panneau est ouvert à la fois. Le nom et l’enregistrement du template sont réunis en haut ; le téléchargement d’un aperçu est distinct. Le titre du journaliste accepte plusieurs lignes.
+
 Le menu Templates est masqué aux journalistes et les pages/actions contrôlent le rôle ADMIN. Le menu du Studio reste fixé à la hauteur de l’écran, avec la déconnexion en bas. Les outils ont leur propre zone défilante et les aperçus sont réduits selon la largeur et la hauteur disponibles.
 
 Les images sont envoyées directement du navigateur vers Blob, avec un jeton temporaire limité aux images du dossier `uploads/` et à 5 Mo. Le jeton permanent reste côté serveur. Cette méthode évite la limite de requête des fonctions Vercel. Sans configuration Blob en production, un message explicite remplace la tentative d’écriture sur disque.

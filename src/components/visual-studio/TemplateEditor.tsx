@@ -55,7 +55,7 @@ export default function TemplateEditor({ admin = false, document: initial, name,
   if (admin) return <VisualEditor templateAdmin initialDocument={initial} initialName={name} />;
   return <div className="space-y-4"><p role="status" aria-live="polite">{message}</p>
     <fieldset disabled={!ready || busy} className="grid gap-4 rounded-xl border border-border p-4 md:grid-cols-2"><legend className="px-2 font-bold">{name}</legend>
-      <label>Titre<input className={input} maxLength={200} value={title} onChange={event => { setTitle(event.target.value); change("title", event.target.value); }} /></label>
+      <label>Titre<textarea aria-label="Titre" rows={3} className={input} maxLength={200} value={title} onChange={event => { setTitle(event.target.value); change("title", event.target.value); }} /></label>
       <label>Sujet<input className={input} maxLength={100} value={subject} onChange={event => { setSubject(event.target.value); change("subject", event.target.value); }} /></label>
       {!compact && <button type="button" className={button} onClick={() => { token.current = crypto.randomUUID(); popup.current = window.open(`/studio/composer?channel=${token.current}`, "_blank"); if (!popup.current) setMessage("Autorisez l’ouverture du Compositeur dans un nouvel onglet."); }}>Composer un fond</button>}
       <label>Charger un fond<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; void run(() => importFile(file)) }} /></label>

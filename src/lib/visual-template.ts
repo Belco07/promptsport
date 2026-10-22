@@ -11,7 +11,7 @@ export function defaultVisualTemplate(): TemplateDocument {
     objects: [
       { type: "Rect", ...position, left: 0, top: 380, width: 1080, height: 970, fill: {
         type: "linear", gradientUnits: "pixels", coords: { x1: 0, y1: 0, x2: 0, y2: 970 },
-        colorStops: [{ offset: 0, color: "#000000", opacity: 0 }, { offset: .5, color: "#000000", opacity: .75 }, { offset: 1, color: "#000000", opacity: 1 }],
+        colorStops: [{ offset: 0, color: "rgba(0,0,0,0)" }, { offset: .5, color: "rgba(0,0,0,.75)" }, { offset: 1, color: "#000000" }],
       } },
       { type: "Image", assetRole: "logo", filters: [{ type: "BlendColor", color: "#ffffff", mode: "tint", alpha: 1 }], ...position, left: 815, top: 42, width: 900, height: 198, scaleX: .25, scaleY: .25, src: "/promptsport-logo.webp", crossOrigin: "anonymous" },
       { type: "Textbox", ...position, field: "title", text: "VOTRE GRAND TITRE\nSUR TROIS LIGNES\nÀ PERSONNALISER", left: 55, top: 660, width: 970, fontFamily: "Barlow Condensed", fontWeight: "700", fontSize: 112, lineHeight: 1, textAlign: "center", fill: "#ffffff" },

@@ -5,6 +5,7 @@ import { Canvas, Textbox, Rect, Circle, Polygon, Group, FabricImage, FabricObjec
 
 import UnsplashPicker from "./UnsplashPicker";
 import MontageTools from "./MontageTools";
+import TemplateToolsPanel from "./TemplateToolsPanel";
 import { saveVisualTemplate } from "@/app/studio/templates/actions";
 import { uploadStudioImage as uploadImage } from "@/lib/upload-studio-image";
 import { defaultVisualTemplate, type TemplateDocument } from "@/lib/visual-template";
@@ -26,6 +27,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
   const initialTemplate = useRef(initialDocument);
   const element = useRef<HTMLCanvasElement>(null);
   const container = useRef<HTMLDivElement>(null);
+  const toolsContainer = useRef<HTMLElement>(null);
   const canvas = useRef<Canvas | null>(null);
   const size = useRef(FORMATS[0]);
   const observer = useRef<ResizeObserver | null>(null);
@@ -40,6 +42,8 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
   const [background, setBackground] = useState("#111410");
   const [unsplash, setUnsplash] = useState("");
   const [selected, setSelected] = useState(false);
+  const [, setLayerVersion] = useState(0);
+  const [layerOpacity, setLayerOpacity] = useState(1);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -49,19 +53,22 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
   const fit = useCallback(() => {
     const c = canvas.current;
     if (!c || !container.current) return;
+    if (templateAdmin && toolsContainer.current) {
+      toolsContainer.current.style.maxHeight = `${Math.max(120, window.innerHeight - toolsContainer.current.getBoundingClientRect().top - 16)}px`;
+    }
     const remaining = window.innerHeight - Math.max(0, container.current.getBoundingClientRect().top) - 65;
     const maxHeight = Math.max(60, Math.min(remaining, window.innerHeight * (compact ? .32 : .62)));
     const width = Math.max(1, Math.min(container.current.clientWidth, size.current.width, maxHeight * size.current.width / size.current.height));
     c.setDimensions({ width, height: width * size.current.height / size.current.width });
     c.setZoom(width / size.current.width);
     c.requestRenderAll();
-  }, [compact]);
+  }, [compact, templateAdmin]);
   useEffect(() => {
     const c = new Canvas(element.current!, { width: 1200, height: 630, backgroundColor: "#111410", preserveObjectStacking: true });
     canvas.current = c;
     function selection() {
       const object = c.getActiveObject();
-      setSelected(Boolean(object));
+      setSelected(Boolean(object)); setLayerOpacity(object?.opacity ?? 1); setLayerVersion(value => value+1);
       if (object instanceof Textbox) {
         setText(object.text); setFont(object.fontFamily); setFontSize(object.fontSize);
         setWeight(String(object.fontWeight)); setAlign(object.textAlign);
@@ -70,6 +77,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     }
     c.on("selection:created", selection); c.on("selection:updated", selection); c.on("selection:cleared", selection);
     c.on("text:changed", selection);
+    c.on("object:added", () => setLayerVersion(value => value+1)); c.on("object:removed", () => setLayerVersion(value => value+1));
     const resize = new ResizeObserver(fit); observer.current = resize;
     resize.observe(container.current!); window.addEventListener("resize", fit); fit();
     let active = true;
@@ -290,13 +298,29 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     finally { setBusy(false); }
   }
   return <div>
-    {templateAdmin && <fieldset disabled={!ready || busy} className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-border p-4"><legend className="px-2 font-bold">Mise en page administrateur</legend><button type="button" className={button} onClick={editorialTemplate}>Créer une base éditoriale</button><label>Nom du template<input className={control} maxLength={100} value={templateName} onChange={event => setTemplateName(event.target.value)} /></label><button type="button" className={button} onClick={() => assignField("title")}>Utiliser la sélection comme Titre</button><button type="button" className={button} onClick={() => assignField("subject")}>Utiliser la sélection comme Sujet</button><button type="button" className={button} onClick={() => void saveTemplate()}>Enregistrer et activer le template</button></fieldset>}
+    {templateAdmin && <fieldset disabled={!ready || busy} className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-3"><legend className="px-2 text-sm font-bold">Enregistrement</legend><label className="min-w-0 flex-1 text-sm">Nom du template<input className={control} maxLength={100} value={templateName} onChange={event => setTemplateName(event.target.value)} /></label><button type="button" className="rounded-md bg-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50" onClick={() => void saveTemplate()}>Enregistrer et activer le template</button></fieldset>}
     {composer && <div className="mb-3"><label className="block rounded-lg border-2 border-dashed border-border p-3 text-sm font-bold">Importer depuis mon ordinateur<input className="mt-2 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={!ready || busy} onChange={event => { void fileImage(event.target.files?.[0], true); event.target.value = ""; }} /></label></div>}
     {error && <p role="alert" className="mb-4 rounded-lg bg-status-error p-3 text-status-error-foreground">{error}</p>}
     {message && <p role="status" className="mb-4 rounded-lg bg-status-success p-3 text-status-success-foreground">{message}</p>}
     <div className={compact ? "flex min-w-0 flex-col gap-3" : "grid min-w-0 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]"}>
-      <aside aria-label="Outils du Visual Studio" className={`space-y-4 overflow-y-auto rounded-xl border border-border bg-card p-3 ${compact ? "order-2 max-h-[28dvh]" : "max-h-[calc(100dvh-350px)]"}`}>
-
+      <aside ref={toolsContainer} aria-label="Outils du Visual Studio" className={`space-y-4 overflow-y-auto rounded-xl border border-border bg-card p-3 ${compact ? "order-2 max-h-[28dvh]" : templateAdmin ? "max-h-[calc(100dvh-300px)]" : "max-h-[calc(100dvh-350px)]"}`}>
+        {templateAdmin ? <TemplateToolsPanel disabled={!ready || busy} groups={[
+          { id: "model", title: "Modèle et format", description: "Commencez avec la base éditoriale ou adaptez les dimensions.", content: <><button type="button" className={button} onClick={() => void editorialTemplate()}>Créer une base éditoriale</button>          <label className="block text-sm">Format<select aria-label="Format du visuel" className={control} value={format} onChange={event => setDimensions(Number(event.target.value))}>{FORMATS.map((item, index) => <option key={item.label} value={index}>{item.label}</option>)}</select></label></> },
+          { id: "background", title: "Fond et dégradé", description: "Le journaliste remplacera la photo ; le dégradé reste dans le template.", content: <>          <label className="block text-sm">Couleur de fond<input aria-label="Couleur de fond" type="color" value={background} onChange={event => { setBackground(event.target.value); const c = canvas.current; if (c) { c.backgroundColor = event.target.value; c.requestRenderAll(); } }} /></label>          <label className="block text-sm">Importer un fond<input className="mt-1 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { void fileImage(event.target.files?.[0], true); event.target.value = ""; }} /></label>          <label className="block text-sm">Filtre du fond<select aria-label="Filtre du fond" className={control} defaultValue="normal" onChange={event => filterBackground(event.target.value)}><option value="normal">Original</option><option value="gray">Noir et blanc</option><option value="sepia">Sépia</option><option value="contrast">Contraste</option><option value="dark">Assombrir</option></select></label><button type="button" className={button} onClick={() => { const c = canvas.current; const object = c?.getObjects().find(item => typeof item.fill === "object" && item.fill && "type" in item.fill && item.fill.type === "linear"); if (c && object) { c.setActiveObject(object); c.requestRenderAll(); } }}>Sélectionner le dégradé</button><label className="block text-sm">Opacité de la sélection<input aria-label="Opacité de la sélection" className="w-full" type="range" min="0" max="1" step="0.05" disabled={!selected} value={layerOpacity} onChange={event => { const value = Number(event.target.value); setLayerOpacity(value); update({ opacity: value }); }} /></label></> },
+          { id: "branding", title: "Logo et images", description: "Choisissez le logo de marque et ajoutez vos éléments fixes.", content: <>          {templateAdmin ? <fieldset className="space-y-2 rounded-lg border border-border p-3"><legend className="px-1 font-bold">Logo du template</legend><label className="block text-sm">Version du logo<select aria-label="Version du logo" className={control} value={logoVariant} onChange={event => setLogoVariant(event.target.value)}><option value="color">PromptSport couleur</option><option value="white">PromptSport blanc</option></select></label><button type="button" className={button} onClick={() => void replaceTemplateLogo()}>Appliquer le logo PromptSport</button><label className="block text-sm">Importer un logo personnalisé<input className="mt-1 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void replaceTemplateLogo(file); }} /></label></fieldset> : <button type="button" className={button} onClick={async () => { setBusy(true); setError(""); try { await loadImage("/promptsport-logo.webp", false); } catch { setError("Logo indisponible."); } finally { setBusy(false); } }}>Ajouter le logo PromptSport</button>}          <label className="block text-sm">Image superposée (PNG transparent accepté)<input className="mt-1 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { void fileImage(event.target.files?.[0], false); event.target.value = ""; }} /></label></> },
+          { id: "text", title: "Textes", description: "Titre et sujet seront modifiables ; leurs styles et positions restent fixes.", content: <><div className="grid grid-cols-2 gap-2"><button type="button" className={button} onClick={() => { const c = canvas.current; const object = c?.getObjects().find(item => (item as FabricObject & { field?: string }).field === "title"); if (c && object) { c.setActiveObject(object); c.requestRenderAll(); } }}>Sélectionner Titre</button><button type="button" className={button} onClick={() => { const c = canvas.current; const object = c?.getObjects().find(item => (item as FabricObject & { field?: string }).field === "subject"); if (c && object) { c.setActiveObject(object); c.requestRenderAll(); } }}>Sélectionner Sujet</button></div>          <label className="block text-sm">Texte<textarea aria-label="Texte" className={control} value={text} onChange={event => { setText(event.target.value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ text: event.target.value }); }} /></label>
+          <label className="block text-sm">Police<select aria-label="Police" className={control} value={font} onChange={event => { setFont(event.target.value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ fontFamily: event.target.value }); }}>{["Montserrat", "Barlow Condensed", "Arial", "Georgia"].map(value => <option key={value}>{value}</option>)}</select></label>
+          <div className="grid grid-cols-2 gap-2"><label className="text-sm">Taille<input className={control} type="number" min={12} max={240} value={fontSize} onChange={event => { const value = Math.max(12, Math.min(240, Number(event.target.value))); setFontSize(value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ fontSize: value }); }} /></label><label className="text-sm">Graisse<select aria-label="Graisse" className={control} value={weight} onChange={event => { setWeight(event.target.value); update({ fontWeight: event.target.value }); }}><option value="400">Normal</option><option value="700">Gras</option><option value="900">Très gras</option></select></label></div>
+          <label className="block text-sm">Alignement<select aria-label="Alignement" className={control} value={align} onChange={event => { setAlign(event.target.value as Textbox["textAlign"]); update({ textAlign: event.target.value }); }}><option value="left">Gauche</option><option value="center">Centre</option><option value="right">Droite</option></select></label>
+          <label className="block text-sm">Couleur du texte / de la forme<input aria-label="Couleur du texte ou de la forme" type="color" value={color} onChange={event => { setColor(event.target.value); update({ fill: event.target.value }); }} /></label>
+          <button type="button" className={button} onClick={addText}>Ajouter le texte</button>
+<div className="grid gap-2"><button type="button" className={button} onClick={() => assignField("title")}>Utiliser la sélection comme Titre</button><button type="button" className={button} onClick={() => assignField("subject")}>Utiliser la sélection comme Sujet</button></div></> },
+          { id: "layers", title: "Formes et calques", description: "Sélectionnez un élément, changez son ordre ou supprimez-le.", content: <><ol className="space-y-1">{[...(canvas.current?.getObjects() ?? [])].reverse().map((object,index) => <li key={index}><button type="button" aria-pressed={canvas.current?.getActiveObject() === object} className={button+" w-full text-left"} onClick={() => { canvas.current?.setActiveObject(object); canvas.current?.requestRenderAll(); }}>{object instanceof Textbox ? object.text.slice(0,35) : object instanceof FabricImage ? "Image / logo" : "Forme / dégradé"}</button></li>)}</ol>          <div className="flex flex-wrap gap-2">
+            <button type="button" className={button} onClick={() => add(new Rect({ ...TOP_LEFT, left: 80, top: 80, width: 300, height: 140, fill: color }))}>Rectangle</button>
+            <button type="button" className={button} onClick={() => add(new Circle({ ...TOP_LEFT, left: 80, top: 80, radius: 90, fill: color }))}>Cercle</button>
+            <button type="button" className={button} onClick={() => add(new Group([new Rect({ ...TOP_LEFT, width: 220, height: 20, top: 35, fill: color }), new Polygon([{ x: 0, y: 0 }, { x: 90, y: 45 }, { x: 0, y: 90 }], { ...TOP_LEFT, left: 200, top: 0, fill: color })], { ...TOP_LEFT, left: 80, top: 80 }))}>Flèche</button>
+          </div>          <div className="flex flex-wrap gap-2"><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; const object = c?.getActiveObject(); if (c && object) { c.bringObjectForward(object); c.requestRenderAll(); } }}>Avancer</button><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; const object = c?.getActiveObject(); if (c && object) { c.sendObjectBackwards(object); c.requestRenderAll(); } }}>Reculer</button><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; if (c) { c.remove(...c.getActiveObjects()); c.discardActiveObject(); c.requestRenderAll(); } }}>Supprimer la sélection</button></div></> },
+        ]} /> : <>
         {ready && composer && canvas.current && <MontageTools canvas={canvas.current} onChange={() => setSaved("")} />}
         <fieldset disabled={!ready || busy} className="space-y-4 disabled:opacity-60">
           <legend className="mb-3 font-bold">Composition</legend>
@@ -328,14 +352,15 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
           </div>
           <div className="flex flex-wrap gap-2"><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; const object = c?.getActiveObject(); if (c && object) { c.bringObjectForward(object); c.requestRenderAll(); } }}>Avancer</button><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; const object = c?.getActiveObject(); if (c && object) { c.sendObjectBackwards(object); c.requestRenderAll(); } }}>Reculer</button><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; if (c) { c.remove(...c.getActiveObjects()); c.discardActiveObject(); c.requestRenderAll(); } }}>Supprimer la sélection</button></div>
         </fieldset>
+</>}
       </aside>
       <section aria-label="Composition et export" className="min-w-0 self-start w-full">
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
+        {templateAdmin ? <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3"><div><p className="text-sm font-bold">Aperçu du template</p><p className="text-xs text-muted-foreground">{size.current.width} × {size.current.height} px</p></div><button type="button" className={button} disabled={!ready || busy} onClick={() => void exportImage(false)}>Télécharger un aperçu</button></div> : <>        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
           <label className="text-sm">Export<select aria-label="Format d’export" className={control} value={exportType} onChange={event => setExportType(event.target.value)}><option value="image/png">PNG</option><option value="image/webp">WebP</option></select></label>
           <button type="button" className={button} disabled={!ready || busy} onClick={() => exportImage(false)}>Télécharger</button>
           <button type="button" className="rounded-md bg-primary px-4 py-2 font-bold text-white disabled:opacity-50" disabled={!ready || busy} onClick={() => exportImage(true)}>{busy ? "Traitement en cours…" : composer ? "Enregistrer le fond" : "Enregistrer"}</button>
           <span className="text-xs text-muted-foreground">{size.current.width} × {size.current.height} px</span>
-        </div>
+        </div></>}
         {!ready && <p role="status">Chargement du canvas et de Montserrat…</p>}
         <div ref={container} className="flex justify-center overflow-hidden rounded-lg border border-border bg-muted" aria-label="Zone de dessin"><canvas ref={element} aria-label="Canvas du visuel : sélectionnez et déplacez les éléments à la souris" /></div>
         <p className="mt-3 text-sm text-muted-foreground">Glissez les éléments pour les déplacer. Utilisez leurs poignées pour les redimensionner ou les tourner. Double-cliquez sur un texte pour l’éditer.</p>
