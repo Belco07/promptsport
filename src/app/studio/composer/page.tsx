@@ -9,7 +9,7 @@ export default async function ComposerPage({ searchParams }: { searchParams: Pro
   const template = await prisma.visualTemplate.findUnique({ where: { id: "active" } });
   return <main className="min-w-0 max-w-full flex-1 p-3 text-foreground md:p-5">
     <h1 className="text-3xl font-black">Compositeur de fonds</h1>
-    <p className="my-2 text-sm text-muted-foreground">Votre image à gauche, votre visuel final à droite.</p>
+    <p className="my-2 text-sm text-muted-foreground">Importez ou composez votre fond, puis appliquez le template.</p>
     <ComposerWorkspace channel={channel} document={(template?.document as TemplateDocument | undefined) ?? defaultVisualTemplate()} name={template?.name ?? DEFAULT_TEMPLATE_NAME} />
   </main>;
 }

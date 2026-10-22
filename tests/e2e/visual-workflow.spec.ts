@@ -119,6 +119,8 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     await page.screenshot({ path: "tmp-results/visual-template-admin.png", fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    const nameInput = await page.getByLabel("Nom du template", { exact: true }).boundingBox();
+    expect(nameInput!.width).toBeGreaterThan(250);
     const mobilePreview = await page.getByLabel("Canvas du visuel : sélectionnez et déplacez les éléments à la souris", { exact: true }).boundingBox();
     expect(mobilePreview!.width).toBeGreaterThan(180);
     expect(mobilePreview!.x + mobilePreview!.width).toBeLessThanOrEqual(390);
