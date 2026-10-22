@@ -397,8 +397,10 @@ Settings → Environment Variables, en cochant **Production** et **Preview**.
 | `CRON_SECRET` | secret du cron (`openssl rand -base64 32`) |
 | `ALLSPORTS_API_KEY` | clé RapidAPI AllSportsApi utilisée par les synchronisations |
 | `X_BEARER_TOKEN` | Bearer Token X API v2 avec accès lecture, pour les sources X |
-| `META_ACCESS_TOKEN` | token Meta Graph API de longue durée, pour Facebook et Instagram |
+| `META_ACCESS_TOKEN` | token Meta Graph API de longue durée pour Instagram (lecture et `instagram_content_publish`) |
 | `META_IG_USER_ID` | identifiant du compte Instagram Business/Creator authentifié |
+| `META_FACEBOOK_TOKEN` | token de Page/System User avec `pages_manage_posts` pour publier sur Facebook |
+| `META_FACEBOOK_PAGE_ID` | identifiant de la Page Facebook cible |
 | `META_GRAPH_VERSION` | version Graph API optionnelle (défaut : `v23.0`) |
 | `YOUTUBE_API_KEY` | clé de l’API YouTube Data v3, pour les chaînes YouTube |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | identifiants OAuth Google, facultatifs |
@@ -1114,9 +1116,15 @@ Nettoyage Git WP23 : 17 branches locales codex/* et sauvegarde/* déjà contenue
 
 ### Distribution sociale — WP42
 
-La première publication d’un article génère après la réponse HTTP deux propositions (X et Facebook), à partir du titre et du résumé, avec DeepSeek (`DEEPSEEK_API_KEY`). L’onglet **Diffusion** de l’édition d’un article publié permet de copier chaque texte et de le marquer comme publié. Aucun appel de publication aux réseaux sociaux n’est effectué. Une republication conserve les propositions existantes ; une panne IA ne bloque pas l’article et les textes manquants peuvent être relancés dans cet onglet. `NEXT_PUBLIC_SITE_URL` doit désigner le site public pour les liens ajoutés aux posts.
+La première publication d’un article génère après la réponse HTTP trois propositions (X, Facebook et Instagram), à partir du titre et du résumé, avec DeepSeek (`DEEPSEEK_API_KEY`). L’onglet **Diffusion** de l’édition d’un article publié permet de copier chaque texte, de publier Facebook/Instagram via l’API Meta et, pour X, de marquer le post comme envoyé manuellement.
 
-Tests unitaires : `node --test tests/unit/distribution.test.cjs`.
+Les articles générés depuis une source marquée **officielle** sont distribués automatiquement sur Facebook et Instagram après leur publication dans le studio. Les articles issus d’autres sources conservent des brouillons : une personne autorisée doit cliquer sur **Publier** dans l’onglet Diffusion. Si un token manque, le réseau reste en attente sans bloquer l’article. X reste entièrement manuel.
+
+Variables de publication : `META_FACEBOOK_TOKEN` (permission `pages_manage_posts`, Page affectée au System User) et `META_FACEBOOK_PAGE_ID` pour Facebook ; `META_ACCESS_TOKEN` (permission `instagram_content_publish`) et `META_IG_USER_ID` pour Instagram. Instagram utilise l’image de couverture, ou à défaut l’image Open Graph générée par l’article ; `NEXT_PUBLIC_SITE_URL` doit être une URL HTTPS publique pour que Meta puisse la télécharger.
+
+Une republication conserve les propositions existantes ; une panne IA ne bloque pas l’article et les textes manquants peuvent être relancés dans cet onglet. Un échec Meta est enregistré sur le post et reste rejouable.
+
+Tests unitaires : `node --test tests/unit/distribution.test.cjs tests/unit/social-publishing.test.cjs tests/unit/meta-publishing.test.cjs`.
 
 E2E locaux : après les migrations et le seed des comptes E2E sur Docker (`localhost:5432`), lancer `node scripts/test-distribution.cjs` (parcours WP42) ou `node scripts/test-distribution.cjs tests/e2e` (suite complète). Le script démarre une IA simulée sur le port 5451 et un tunnel PostgreSQL WebSocket sur 5452 ; il neutralise les clés d’envoi et n’appelle pas DeepSeek. Le port 3002 doit être libre pour que le script démarre son serveur de test avec cette configuration.
 

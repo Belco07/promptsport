@@ -296,12 +296,12 @@ export async function translateTitlesToFrench(titles: string[]): Promise<string[
 export async function generateSocialPost(
   articleTitle: string,
   articleExcerpt: string | null,
-  platform: "X" | "FACEBOOK",
+  platform: "X" | "FACEBOOK" | "INSTAGRAM",
 ): Promise<string> {
   const provider = resolveProvider();
   const { default: OpenAI } = await import("openai");
   const client = new OpenAI({ apiKey: provider.apiKey, baseURL: provider.baseURL, timeout: 20_000, maxRetries: 0 });
-  const limit = platform === "X" ? 240 : 1200;
+  const limit = platform === "X" ? 240 : platform === "INSTAGRAM" ? 2000 : 1200;
   const completion = await client.chat.completions.create({
     model: provider.model,
     temperature: 0.5,

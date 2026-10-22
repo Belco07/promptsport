@@ -27,7 +27,7 @@ test.afterEach(async () => {
 });
 test.afterAll(closeDb);
 
-test("diffusion : copie et suivi des deux réseaux sans doublon", async ({ page, context }) => {
+test("diffusion : copie et suivi des trois réseaux sans doublon", async ({ page, context }) => {
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
   if (process.env.E2E_DISTRIBUTION_STUB === "1") {
     // Le runner local fournit l'IA simulée : tester aussi la publication réelle.
@@ -37,14 +37,16 @@ test("diffusion : copie et suivi des deux réseaux sans doublon", async ({ page,
   } else {
     // La suite standard reste indépendante d'une clé IA et ne consomme rien.
     await sql(`UPDATE "Article" SET status='PUBLISHED',"publishedAt"=NOW() WHERE id=$1`, [prefix]);
-    for (const platform of ["X", "FACEBOOK"]) await sql(`INSERT INTO "SocialPost" (id,"articleId",platform,content) VALUES ($1,$2,$3::"SocialPlatform",$4)`, [`${prefix}-${platform}`, prefix, platform, `Une actualité sportive. #Sport\n\nhttp://localhost/article/${prefix}`]);
+    for (const platform of ["X", "FACEBOOK", "INSTAGRAM"]) await sql(`INSERT INTO "SocialPost" (id,"articleId",platform,content) VALUES ($1,$2,$3::"SocialPlatform",$4)`, [`${prefix}-${platform}`, prefix, platform, `Une actualité sportive. #Sport\n\nhttp://localhost/article/${prefix}`]);
   }
-  await expect.poll(async () => (await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "SocialPost" WHERE "articleId"=$1`, [prefix]))?.count, { timeout: 60000 }).toBe(2);
+  await expect.poll(async () => (await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "SocialPost" WHERE "articleId"=$1`, [prefix]))?.count, { timeout: 60000 }).toBe(3);
   await page.goto(`/studio/articles/${prefix}/edit`);
   await page.getByRole("link", { name: "Diffusion", exact: true }).click();
   const x = page.getByRole("region", { name: "Post X", exact: true });
   const facebook = page.getByRole("region", { name: "Post Facebook", exact: true });
+  const instagram = page.getByRole("region", { name: "Post Instagram", exact: true });
   await expect(x).toContainText(`/article/${prefix}`);
+  await expect(instagram).toContainText(`/article/${prefix}`);
   await expect(facebook).toContainText("#Sport");
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await x.getByRole("button", { name: "Copier le texte X", exact: true }).click();
@@ -54,8 +56,8 @@ test("diffusion : copie et suivi des deux réseaux sans doublon", async ({ page,
   await expect(x.getByText("Publié", { exact: true })).toBeVisible();
   await page.reload();
   await expect(x.getByText("Publié", { exact: true })).toBeVisible();
-  await expect(facebook.getByText("Brouillon", { exact: true })).toBeVisible();
-  expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "SocialPost" WHERE "articleId"=$1`, [prefix]))?.count).toBe(2);
+  await expect(facebook.getByText("Validation requise", { exact: true })).toBeVisible();
+  expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "SocialPost" WHERE "articleId"=$1`, [prefix]))?.count).toBe(3);
 });
 
 test("la diffusion reste invisible pour un brouillon et inaccessible sans session", async ({ page, browser }) => {

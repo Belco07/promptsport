@@ -99,6 +99,8 @@ async function createDraftArticle(input: {
   categoryId: string;
   authorId: string;
   alertId: string;
+  newsSourceId: string;
+  socialAutoPublish: boolean;
   themeId?: string;
 }): Promise<GenerateArticleResult> {
   const base = slugify(input.title).slice(0, 90) || `article-${Date.now()}`;
@@ -121,6 +123,8 @@ async function createDraftArticle(input: {
             publishedAt: null,
             authorId: input.authorId,
             categoryId: input.categoryId,
+            newsSourceId: input.newsSourceId,
+            socialAutoPublish: input.socialAutoPublish,
             ...(input.themeId ? { themes: { connect: { id: input.themeId } } } : {}),
           },
           select: { id: true },
@@ -157,7 +161,10 @@ export async function generateArticle(alertId: string): Promise<AlertActionResul
   if (typeof alertId !== "string" || !alertId || alertId.length > 200) return { success: false, message: "Alerte introuvable." };
   if (!isAiConfigured()) return { success: false, message: "Clé IA absente." };
   try {
-    const alert = await prisma.newsAlert.findUnique({ where: { id: alertId }, include: { source: { select: { name: true } } } });
+    const alert = await prisma.newsAlert.findUnique({
+      where: { id: alertId },
+      include: { source: { select: { id: true, name: true, isOfficial: true } } },
+    });
     if (!alert || alert.status !== "PENDING") return { success: false, message: "Cette alerte a déjà été traitée ou supprimée." };
     const [categories, themes] = await Promise.all([
       prisma.category.findMany({ select: { id: true, slug: true, name: true } }),
@@ -168,7 +175,15 @@ export async function generateArticle(alertId: string): Promise<AlertActionResul
     const categoryId = categories.find(category => category.slug === generated.categorySlug)?.id ?? await defaultCategoryId();
     if (!categoryId) return { success: false, message: "Aucune catégorie disponible." };
     const themeId = themes.find(theme => theme.slug === generated.themeSlug)?.id;
-    const result = await createDraftArticle({ ...generated, categoryId, themeId, authorId: user.id, alertId });
+    const result = await createDraftArticle({
+      ...generated,
+      categoryId,
+      themeId,
+      authorId: user.id,
+      alertId,
+      newsSourceId: alert.source.id,
+      socialAutoPublish: alert.source.isOfficial,
+    });
     revalidatePath("/backoffice/veille");
     revalidatePath("/studio/articles");
     return { success: true, message: "Brouillon généré", articleId: result.articleId };

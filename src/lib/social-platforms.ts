@@ -563,3 +563,169 @@ export async function fetchInstagramItems(
 
   return sortAndSlice(items, count);
 }
+
+const GRAPH_WRITE_TIMEOUT_MS = 30_000;
+const INSTAGRAM_STATUS_ATTEMPTS = 8;
+const INSTAGRAM_STATUS_DELAY_MS = 1_500;
+
+function facebookPublishingCredentials(): { token: string; pageId: string } {
+  const token = process.env.META_FACEBOOK_TOKEN?.trim();
+  const pageId = process.env.META_FACEBOOK_PAGE_ID?.trim();
+  if (!token || !pageId) {
+    throw new Error(
+      "Publication Facebook non configurée : META_FACEBOOK_TOKEN et META_FACEBOOK_PAGE_ID sont requis.",
+    );
+  }
+  return { token, pageId };
+}
+
+function instagramPublishingCredentials(): { token: string; userId: string } {
+  const token = process.env.META_ACCESS_TOKEN?.trim();
+  const userId = process.env.META_IG_USER_ID?.trim();
+  if (!token || !userId) {
+    throw new Error(
+      "Publication Instagram non configurée : META_ACCESS_TOKEN et META_IG_USER_ID sont requis.",
+    );
+  }
+  return { token, userId };
+}
+
+/** La Page Facebook est-elle configurée pour publier via l'API ? */
+export function facebookPublishingConfigured(): boolean {
+  return Boolean(
+    process.env.META_FACEBOOK_TOKEN?.trim() &&
+      process.env.META_FACEBOOK_PAGE_ID?.trim(),
+  );
+}
+
+/** Le compte Instagram est-il configuré pour publier via l'API ? */
+export function instagramPublishingConfigured(): boolean {
+  return Boolean(
+    process.env.META_ACCESS_TOKEN?.trim() &&
+      process.env.META_IG_USER_ID?.trim(),
+  );
+}
+
+async function graphPost(
+  path: string,
+  params: Record<string, string>,
+  accessToken: string,
+  label: string,
+): Promise<unknown> {
+  const url = new URL(`https://graph.facebook.com/${graphVersion()}/${path}`);
+  const body = new URLSearchParams({ ...params, access_token: accessToken });
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": USER_AGENT,
+      Accept: "application/json",
+    },
+    body,
+    signal: AbortSignal.timeout(GRAPH_WRITE_TIMEOUT_MS),
+  });
+  const payload = await readJson(response, label);
+  if (!response.ok || asRecord(payload)?.error) {
+    throw new Error(
+      `${label} (${response.status}) : ${apiErrorMessage(payload, "requête refusée")}`,
+    );
+  }
+  return payload;
+}
+
+function graphRecord(payload: unknown): Record<string, unknown> | null {
+  const record = asRecord(payload);
+  return asRecord(record?.data) ?? record;
+}
+
+/** Publie un message sur la Page Facebook configurée. */
+export async function publishFacebookPost(
+  content: string,
+): Promise<{ id: string }> {
+  const message = content.trim();
+  if (!message) throw new Error("Le texte du post Facebook est vide.");
+
+  const { token, pageId } = facebookPublishingCredentials();
+  const payload = await graphPost(
+    `${encodeURIComponent(pageId)}/feed`,
+    { message },
+    token,
+    "Publication Facebook",
+  );
+  const id = asString(graphRecord(payload)?.id);
+  if (!id) throw new Error("Publication Facebook : identifiant du post absent.");
+  return { id };
+}
+
+/** Attend que Meta ait fini de traiter l'image du conteneur Instagram. */
+async function waitForInstagramContainer(
+  creationId: string,
+  token: string,
+): Promise<void> {
+  for (let attempt = 0; attempt < INSTAGRAM_STATUS_ATTEMPTS; attempt += 1) {
+    const payload = await graphGet(
+      encodeURIComponent(creationId),
+      { fields: "status_code" },
+      token,
+      "Publication Instagram",
+    );
+    const status = asString(graphRecord(payload)?.status_code);
+    if (status === "FINISHED") return;
+    if (status === "ERROR" || status === "EXPIRED") {
+      throw new Error(`Publication Instagram : traitement de l'image en échec (${status}).`);
+    }
+    if (attempt < INSTAGRAM_STATUS_ATTEMPTS - 1) {
+      await new Promise((resolve) => setTimeout(resolve, INSTAGRAM_STATUS_DELAY_MS));
+    }
+  }
+  throw new Error("Publication Instagram : l'image n'est pas encore prête. Réessayez dans quelques minutes.");
+}
+
+/**
+ * Publie une image avec légende sur le compte Instagram Business/Creator
+ * configuré. Meta impose deux appels : création du conteneur puis publication.
+ */
+export async function publishInstagramPost(
+  content: string,
+  imageUrl: string,
+): Promise<{ id: string }> {
+  const caption = content.trim().slice(0, 2_200);
+  if (!caption) throw new Error("La légende du post Instagram est vide.");
+
+  let image: URL;
+  try {
+    image = new URL(imageUrl.trim());
+  } catch {
+    throw new Error("Publication Instagram : l'URL de l'image est invalide.");
+  }
+  if (image.protocol !== "https:") {
+    throw new Error(
+      "Publication Instagram : l'image doit être servie en HTTPS public (vérifiez NEXT_PUBLIC_SITE_URL).",
+    );
+  }
+
+  const { token, userId } = instagramPublishingCredentials();
+  const containerPayload = await graphPost(
+    `${encodeURIComponent(userId)}/media`,
+    { image_url: image.toString(), caption },
+    token,
+    "Publication Instagram",
+  );
+  const creationId = asString(graphRecord(containerPayload)?.id);
+  if (!creationId) {
+    throw new Error("Publication Instagram : conteneur média non créé.");
+  }
+
+  await waitForInstagramContainer(creationId, token);
+
+  const publishedPayload = await graphPost(
+    `${encodeURIComponent(userId)}/media_publish`,
+    { creation_id: creationId },
+    token,
+    "Publication Instagram",
+  );
+  const id = asString(graphRecord(publishedPayload)?.id);
+  if (!id) throw new Error("Publication Instagram : identifiant du média absent.");
+  return { id };
+}

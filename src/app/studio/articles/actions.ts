@@ -8,7 +8,7 @@ import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { generateArticleSocialPosts } from "@/lib/distribution";
+import { distributeArticleSocialPosts } from "@/lib/distribution";
 
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
@@ -57,10 +57,13 @@ function revalidatePublicSurfaces(): void {
 function scheduleSocialPosts(articleId: string): void {
   after(async () => {
     try {
-      await generateArticleSocialPosts(articleId);
+      // Génère les trois textes, puis envoie Facebook et Instagram si
+      // l'article provient d'une source officielle. Les autres restent en
+      // brouillon jusqu'à validation dans l'onglet Diffusion.
+      await distributeArticleSocialPosts(articleId);
       revalidatePath(`/studio/articles/${articleId}/edit`);
     } catch {
-      console.error("[distribution] Génération indisponible ; l'article reste publié.");
+      console.error("[distribution] Distribution indisponible ; l'article reste publié.");
     }
   });
 }

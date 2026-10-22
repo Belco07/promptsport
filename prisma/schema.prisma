@@ -152,6 +152,14 @@ model Article {
   /// Réservé aux abonnés (WP7c) : le public n'en voit que l'extrait.
   isPremium     Boolean       @default(false)
 
+  /// Source de veille d'origine, si l'article a été généré depuis une alerte.
+  newsSourceId   String?
+  newsSource     NewsSource? @relation(fields: [newsSourceId], references: [id], onDelete: SetNull)
+  /// Instantané éditorial : vrai si la source était officielle au moment de la
+  /// génération. Les posts Facebook/Instagram sont alors publiés sans revue
+  /// supplémentaire après la publication de l'article.
+  socialAutoPublish Boolean  @default(false)
+
   authorId   String
   author     Author   @relation(fields: [authorId], references: [id])
   categoryId String
@@ -169,6 +177,7 @@ model Article {
 
   @@index([authorId])
   @@index([categoryId])
+  @@index([newsSourceId])
   @@index([matchId, status, publishedAt])
   @@index([status])
 }
@@ -176,11 +185,14 @@ model Article {
 enum SocialPlatform {
   X
   FACEBOOK
+  INSTAGRAM
 }
 
 enum SocialPostStatus {
   DRAFT
+  PUBLISHING
   POSTED
+  FAILED
 }
 
 model SocialPost {
@@ -190,9 +202,19 @@ model SocialPost {
   platform  SocialPlatform
   content   String
   status    SocialPostStatus @default(DRAFT)
+  /// Identifiant renvoyé par Meta après une publication réussie.
+  externalId String?
+  /// Dernière erreur de publication, affichée dans le studio.
+  error      String?
+  /// Vrai si le post a été envoyé automatiquement (article issu d'une source
+  /// officielle), faux s'il a été validé manuellement.
+  autoPublished Boolean @default(false)
+  publishedAt DateTime?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([articleId, platform])
+  @@index([status])
 }
 
 /// Thème éditorial (WP16a).
@@ -1144,6 +1166,7 @@ model NewsSource {
   isOfficial Boolean  @default(false)
 
   alerts NewsAlert[]
+  articles Article[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

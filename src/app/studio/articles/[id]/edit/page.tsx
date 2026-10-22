@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { allowedArticleStatuses, canEditArticle, canSetPremium, readOnlyReason } from "@/lib/roles";
+import { socialPublishingAvailability } from "@/lib/social-publishing";
 
 import { updateArticle } from "../../actions";
 import { ArticleForm } from "../../ArticleForm";
@@ -32,7 +33,25 @@ export default async function EditArticlePage({
   const viewer = { id: session?.user?.id ?? "", role: session?.user?.role ?? null };
 
   const [article, categories, themes] = await Promise.all([
-    prisma.article.findUnique({ where: { id }, include: { themes: { select: { id: true } }, socialPosts: { select: { id: true, platform: true, content: true, status: true } } } }),
+    prisma.article.findUnique({
+      where: { id },
+      include: {
+        themes: { select: { id: true } },
+        newsSource: { select: { name: true, isOfficial: true } },
+        socialPosts: {
+          select: {
+            id: true,
+            platform: true,
+            content: true,
+            status: true,
+            error: true,
+            externalId: true,
+            autoPublished: true,
+            publishedAt: true,
+          },
+        },
+      },
+    }),
     prisma.category.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -65,7 +84,19 @@ export default async function EditArticlePage({
         <Link scroll={false} href={`/studio/articles/${id}/edit?tab=diffusion`} aria-current={tab === "diffusion" ? "page" : undefined} className={`border-b-2 px-2 py-3 ${tab === "diffusion" ? "border-editorial-link text-editorial-link" : "border-transparent text-muted-foreground"}`}>Diffusion</Link>
       </nav>}
 
-      {article.status === "PUBLISHED" && tab === "diffusion" ? <DistributionPanel articleId={article.id} posts={article.socialPosts} editable={editable} /> : editable ? (
+      {article.status === "PUBLISHED" && tab === "diffusion" ? (
+        <DistributionPanel
+          articleId={article.id}
+          posts={article.socialPosts.map((post) => ({
+            ...post,
+            publishedAt: post.publishedAt?.toISOString() ?? null,
+          }))}
+          editable={editable}
+          autoPublish={article.socialAutoPublish}
+          sourceName={article.newsSource?.name ?? null}
+          availability={socialPublishingAvailability()}
+        />
+      ) : editable ? (
         // La Server Action d'édition reçoit l'identifiant en première position.
         <ArticleForm
           action={updateArticle.bind(null, article.id)}

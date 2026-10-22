@@ -1,6 +1,10 @@
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
+import {
+  facebookPublishingConfigured,
+  instagramPublishingConfigured,
+} from "@/lib/social-platforms";
 
 import { ActionButton } from "../ActionButton";
 import { addNewsSource, deleteNewsSource } from "../actions";
@@ -101,6 +105,19 @@ export default async function VeilleSourcesPage({
     },
   ];
 
+  const publishingAccess = [
+    {
+      label: "Facebook",
+      ready: facebookPublishingConfigured(),
+      missing: "META_FACEBOOK_TOKEN + META_FACEBOOK_PAGE_ID",
+    },
+    {
+      label: "Instagram",
+      ready: instagramPublishingConfigured(),
+      missing: "META_ACCESS_TOKEN + META_IG_USER_ID",
+    },
+  ];
+
   return (
     <div className="px-8 py-10">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -167,12 +184,37 @@ export default async function VeilleSourcesPage({
             </p>
           ))}
         </div>
+        <div className="mt-3 border-t border-border pt-3">
+          <h3 className="text-xs font-semibold text-foreground">Publication Meta</h3>
+          <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+            {publishingAccess.map((access) => (
+              <p key={access.label} className="text-muted-foreground">
+                <span className="font-medium text-foreground">{access.label}</span> :{" "}
+                <span
+                  className={
+                    access.ready
+                      ? "font-medium text-status-success-foreground"
+                      : "font-medium text-status-error-foreground"
+                  }
+                >
+                  {access.ready ? "configuré" : "non configuré"}
+                </span>
+                {access.ready ? null : (
+                  <>
+                    {" "}
+                    (<code>{access.missing}</code>)
+                  </>
+                )}
+              </p>
+            ))}
+          </div>
+        </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Les sources X, Facebook, Instagram et YouTube sans identifiant sont
           conservées dans la liste mais restent inactives : elles ne provoquent
-          pas d&apos;échec de collecte. Après configuration des variables, relancez{" "}
-          <code>npm run news:seed</code> pour les activer. Les tokens ne sont
-          jamais affichés dans le backoffice.
+          pas d&apos;échec de collecte. Après configuration des variables,
+          redéployez puis activez uniquement les sources concernées. Les tokens ne
+          sont jamais affichés dans le backoffice.
         </p>
       </section>
 

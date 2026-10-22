@@ -33,6 +33,7 @@ test('IA : réponse vide et clé absente refusées', async () => {
 function distribution({ status = 'PUBLISHED', failing, existing = [] } = {}) {
   const posts = [...existing];
   const article = { title: 'Titre', excerpt: 'Résumé', slug: 'article-test', status, socialPosts: posts };
+  const calls = { auto: 0 };
   const db = {
     article: { findUnique: async () => article },
     $executeRaw: async (_sql, id, platform, text, base, articleId) => {
@@ -43,16 +44,17 @@ function distribution({ status = 'PUBLISHED', failing, existing = [] } = {}) {
     '@/lib/prisma': { prisma: db },
     '@/lib/ai': { generateSocialPost: async (_title, _excerpt, platform) => { if (platform === failing) throw Error('Provider unavailable'); return `Post ${platform}`; } },
     '@/lib/seo': { absoluteUrl: path => `https://example.test${path}` },
+    '@/lib/social-publishing': { autoPublishOfficialSocialPosts: async () => { calls.auto += 1; return { attempted: 0, published: 0, failed: 0 }; } },
     'node:crypto': { randomUUID: () => 'fixture-uuid' },
   });
-  return { posts, article, engine };
+  return { posts, article, engine, calls };
 }
 
-test('publication : deux posts avec lien canonique, relance sans doublons', async () => {
+test('publication : trois posts avec lien canonique, relance sans doublons', async () => {
   const { engine, posts } = distribution();
   assert.equal(await engine.generateArticleSocialPosts('id'), true);
   assert.equal(await engine.generateArticleSocialPosts('id'), true);
-  assert.equal(posts.length, 2);
+  assert.equal(posts.length, 3);
   assert.ok(posts.every(post => post.content.endsWith('https://example.test/article/article-test')));
 });
 
@@ -61,14 +63,20 @@ test('une proposition déjà publiée est conservée intacte', async () => {
   const { engine, posts } = distribution({ existing: [saved] });
   await engine.generateArticleSocialPosts('id');
   assert.equal(posts[0], saved);
-  assert.equal(posts.length, 2);
+  assert.equal(posts.length, 3);
 });
 
 test('panne partielle : un réseau est conservé, résultat incomplet signalé', async () => {
   const { engine, posts } = distribution({ failing: 'X' });
   assert.equal(await engine.generateArticleSocialPosts('id'), false);
-  assert.equal(posts.length, 1);
+  assert.equal(posts.length, 2);
   assert.equal(posts[0].platform, 'FACEBOOK');
+});
+
+test('distribution : la publication automatique est déclenchée après génération', async () => {
+  const { engine, calls } = distribution();
+  await engine.distributeArticleSocialPosts('id');
+  assert.equal(calls.auto, 1);
 });
 
 test('un brouillon ne produit aucun post', async () => {
@@ -83,9 +91,10 @@ test('les actions refusent un lecteur et un journaliste sans droit sur cet artic
     const actions = load('src/app/studio/articles/distribution-actions.ts', {
       'next/cache': { revalidatePath() {} },
       '@/lib/auth': { auth: async () => ({ user: { id: 'other', role } }) },
-      '@/lib/prisma': { prisma: { article: { findUnique: async () => ({ authorId: 'owner', status: 'PUBLISHED' }) }, socialPost: { updateMany: async () => { writes++; return { count: 1 }; } } } },
+      '@/lib/prisma': { prisma: { article: { findUnique: async () => ({ authorId: 'owner', status: 'PUBLISHED' }) }, socialPost: { findFirst: async () => null, updateMany: async () => { writes++; return { count: 1 }; } } } },
       '@/lib/roles': { canAccessStudio: value => value !== 'READER', canEditArticle: (viewer, article) => viewer.id === article.authorId },
-      '@/lib/distribution': { generateArticleSocialPosts: async () => { writes++; return true; } },
+      '@/lib/distribution': { distributeArticleSocialPosts: async () => { writes++; return true; } },
+      '@/lib/social-publishing': { publishSocialPostRecord: async () => { writes++; return { externalId: 'fixture', alreadyPublished: false }; } },
     });
     assert.equal((await actions.markSocialPostPosted('article', 'post')).error, 'Action non autorisée.');
     assert.equal((await actions.retrySocialPosts('article')).error, 'Action non autorisée.');
