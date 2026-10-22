@@ -11,7 +11,6 @@ const LINKS = [
   { href: "/studio", label: "Tableau de bord" },
   { href: "/studio/articles", label: "Articles" },
   { href: "/studio/visual-studio", label: "Visual Studio" },
-  { href: "/studio/composer", label: "Compositeur" },
   { href: "/studio/templates", label: "Templates" },
   { href: "/studio/une", label: "Une" },
   { href: "/studio/categories", label: "Catégories" },

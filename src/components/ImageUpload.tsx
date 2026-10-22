@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { uploadImage } from "@/app/studio/articles/actions";
+import { uploadStudioImage as uploadImage } from "@/lib/upload-studio-image";
 
 type UploadResult = { ok: true; url: string } | { ok: false; error: string };
 

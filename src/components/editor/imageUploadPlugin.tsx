@@ -4,7 +4,7 @@ import { insertMarkdown$, usePublisher } from "@mdxeditor/editor";
 import { ImagePlus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { uploadImage } from "@/app/studio/articles/actions";
+import { uploadStudioImage as uploadImage } from "@/lib/upload-studio-image";
 
 /**
  * Bouton « Insérer une image » de la toolbar MDXEditor (WP15b).

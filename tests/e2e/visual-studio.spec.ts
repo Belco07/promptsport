@@ -1,3 +1,4 @@
+import { stubBrowserBlob } from "../fixtures/visual-blob-browser";
 import { test, expect } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { readFile, unlink } from "node:fs/promises";
@@ -14,6 +15,7 @@ let uploads: string[] = [];
 let previousTemplate: { name: string; document: unknown } | undefined;
 const password = "VisualStudio-2026!pw";
 test.beforeEach(async ({ page }) => {
+  await stubBrowserBlob(page.context());
   local = false;
   const url = new URL(process.env.APP_DATABASE_URL || process.env.DATABASE_URL || "");
   if (!["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "5432") throw Error("Docker local requis.");
@@ -40,6 +42,23 @@ test.afterEach(async () => {
 });
 test.afterAll(closeDb);
 
+test("rédaction : couverture de 5 Mo envoyée directement vers Blob", async ({ page }) => {
+  test.skip(process.env.E2E_VISUAL_BLOB_STUB !== "1", "Stockage externe simulé requis.");
+  await page.goto(`/studio/articles/${id}/edit`);
+  const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8l8AAAAASUVORK5CYII=", "base64");
+  const image = Buffer.alloc(5 * 1024 * 1024);
+  pixel.copy(image);
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Choisir une image", exact: true }).click();
+  await (await chooser).setFiles({ name: "couverture.png", mimeType: "image/png", buffer: image });
+  const cover = page.locator('input[name="coverImageUrl"]');
+  await expect(cover).toHaveValue(/^\/uploads\/.+\.png$/);
+  const url = await cover.inputValue(); uploads.push(url);
+  const response = await page.request.get(url);
+  expect(response.status()).toBe(200);
+  expect((await response.body()).length).toBe(5 * 1024 * 1024);
+});
+
 test("Visual Studio : texte, formes et export PNG aux dimensions natives", async ({ page }) => {
   await page.goto("/studio/composer");
   await expect(page.getByRole("heading", { name: "Compositeur de fonds", exact: true })).toBeVisible();
@@ -52,6 +71,12 @@ test("Visual Studio : texte, formes et export PNG aux dimensions natives", async
   await page.getByLabel("Importer un fond", { exact: true }).setInputFiles({ name: "fond.png", mimeType: "image/png", buffer: Buffer.from(photo, "base64") });
   await expect(page.getByRole("button", { name: "Ajouter le texte", exact: true })).toBeEnabled();
   await page.getByLabel("Filtre du fond", { exact: true }).selectOption("gray");
+  await page.getByRole("button", { name: "Régler le fond", exact: true }).click();
+  const brightness = page.getByLabel("Luminosité", { exact: true });
+  await expect(brightness).toBeEnabled();
+  await brightness.press("ArrowLeft");
+  await expect(brightness).toHaveValue("-0.05");
+  await page.getByLabel("Effet de détachement", { exact: true }).selectOption("shadow");
   await page.getByLabel("Texte", { exact: true }).fill("PROMPTSPORT — LE MATCH");
   await page.getByRole("button", { name: "Ajouter le texte", exact: true }).click();
   await page.getByRole("button", { name: "Rectangle", exact: true }).click();

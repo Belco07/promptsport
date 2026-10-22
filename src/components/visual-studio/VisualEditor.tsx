@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Canvas, Textbox, Rect, Circle, Polygon, Group, FabricImage, FabricObject, filters } from "fabric";
-import { saveVisualImage } from "@/app/studio/visual-studio/actions";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Canvas, Textbox, Rect, Circle, Polygon, Group, FabricImage, FabricObject, Gradient, filters } from "fabric";
+
 import UnsplashPicker from "./UnsplashPicker";
+import MontageTools from "./MontageTools";
 import { saveVisualTemplate } from "@/app/studio/templates/actions";
-import { uploadImage } from "@/app/studio/articles/actions";
+import { uploadStudioImage as uploadImage } from "@/lib/upload-studio-image";
 import type { TemplateDocument } from "@/lib/visual-template";
 
 const TOP_LEFT = { originX: "left", originY: "top" } as const;
@@ -14,11 +15,12 @@ const FORMATS = [
   { label: "Paysage 16:9 — 1920 × 1080", width: 1920, height: 1080 },
   { label: "Instagram — 1080 × 1080", width: 1080, height: 1080 },
   { label: "Story — 1080 × 1920", width: 1080, height: 1920 },
+  { label: "Portrait éditorial — 1080 × 1350", width: 1080, height: 1350 },
 ];
 const control = "w-full rounded-md border border-border bg-background p-2 text-sm text-foreground";
 const button = "rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
 
-export default function VisualEditor({ channel, composer = false, templateAdmin = false, initialDocument, initialName }: { channel?: string; composer?: boolean; templateAdmin?: boolean; initialDocument?: TemplateDocument; initialName?: string }) {
+export default function VisualEditor({ channel, composer = false, templateAdmin = false, initialDocument, initialName, compact = false, onSaved }: { channel?: string; composer?: boolean; templateAdmin?: boolean; initialDocument?: TemplateDocument; initialName?: string; compact?: boolean; onSaved?: (url: string) => void }) {
   const [templateName, setTemplateName] = useState(initialName ?? "Édition PromptSport");
   const initialTemplate = useRef(initialDocument);
   const element = useRef<HTMLCanvasElement>(null);
@@ -43,14 +45,16 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
   const [saved, setSaved] = useState("");
   const [exportType, setExportType] = useState("image/png");
 
-  function fit() {
+  const fit = useCallback(() => {
     const c = canvas.current;
     if (!c || !container.current) return;
-    const width = Math.max(180, Math.min(container.current.clientWidth, size.current.width));
+    const remaining = window.innerHeight - Math.max(0, container.current.getBoundingClientRect().top) - 65;
+    const maxHeight = Math.max(140, Math.min(remaining, window.innerHeight * (compact ? .32 : .62)));
+    const width = Math.max(1, Math.min(container.current.clientWidth, size.current.width, maxHeight * size.current.width / size.current.height));
     c.setDimensions({ width, height: width * size.current.height / size.current.width });
     c.setZoom(width / size.current.width);
     c.requestRenderAll();
-  }
+  }, [compact]);
   useEffect(() => {
     const c = new Canvas(element.current!, { width: 1200, height: 630, backgroundColor: "#111410", preserveObjectStacking: true });
     canvas.current = c;
@@ -66,12 +70,13 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     c.on("selection:created", selection); c.on("selection:updated", selection); c.on("selection:cleared", selection);
     c.on("text:changed", selection);
     const resize = new ResizeObserver(fit); observer.current = resize;
-    resize.observe(container.current!); fit();
+    resize.observe(container.current!); window.addEventListener("resize", fit); fit();
     let active = true;
     const face = new FontFace("Montserrat", "url(/fonts/Montserrat.ttf)", { weight: "100 900" });
     face.load().then(async loaded => {
       if (active) {
         document.fonts.add(loaded);
+        const condensed = await new FontFace("Barlow Condensed", "url(/fonts/BarlowCondensed-Bold.ttf)", { weight: "700" }).load(); if (!active) return; document.fonts.add(condensed);
         if (initialTemplate.current) {
           const json = structuredClone(initialTemplate.current);
           function unlock(objects: Record<string, unknown>[]) { for (const object of objects) { Object.assign(object, { selectable: true, evented: true, editable: true, lockMovementX: false, lockMovementY: false, lockScalingX: false, lockScalingY: false, lockRotation: false }); if (Array.isArray(object.objects)) unlock(object.objects); } }
@@ -82,8 +87,8 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
         if (active) { setReady(true); c.requestRenderAll(); }
       }
     }).catch(() => { if (active) { setFont("Arial"); setReady(true); setError("Montserrat indisponible. La police Arial reste utilisable."); } });
-    return () => { active = false; resize.disconnect(); canvas.current = null; void c.dispose(); };
-  }, []);
+    return () => { active = false; resize.disconnect(); window.removeEventListener("resize", fit); canvas.current = null; void c.dispose(); };
+  }, [fit]);
 
   function update(properties: Record<string, string | number>) {
     const c = canvas.current; const object = c?.getActiveObject();
@@ -219,6 +224,18 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     c.add(new Textbox("Votre titre à personnaliser", { ...TOP_LEFT, left: 48, top: h * .84, width: w - 96, fontFamily: font, fontSize: Math.round(w / 32), fill: "#d7ff00" }));
     c.requestRenderAll(); setSaved("");
   }
+  function editorialTemplate() {
+    const c = canvas.current; if (!c) return;
+    if (c.getObjects().length && !window.confirm("Remplacer les éléments du template ?")) return;
+    c.remove(...c.getObjects()); setDimensions(4);
+    c.add(new Rect({ ...TOP_LEFT, left: 0, top: 400, width: 1080, height: 950, fill: new Gradient({ type: "linear", coords: { x1: 0, y1: 0, x2: 0, y2: 950 }, colorStops: [{ offset: 0, color: "rgba(0,0,0,0)" }, { offset: .55, color: "rgba(0,0,0,.8)" }, { offset: 1, color: "#000000" }] }) }));
+    const headline = new Textbox("VOTRE GRAND TITRE\nSUR PLUSIEURS LIGNES", { ...TOP_LEFT, left: 65, top: 700, width: 950, fontFamily: "Barlow Condensed", fontWeight: "700", fontSize: 100, lineHeight: 1.05, textAlign: "center", fill: "#ffffff" });
+    (headline as Textbox & { field: string }).field = "title";
+    c.add(headline, new Rect({ ...TOP_LEFT, left: 210, top: 1160, width: 660, height: 78, rx: 12, ry: 12, fill: "#102dff", stroke: "#ffffff", strokeWidth: 3 }));
+    const subject = new Textbox("FOOTBALL", { ...TOP_LEFT, left: 230, top: 1173, width: 620, fontFamily: "Montserrat", fontSize: 36, fontWeight: "700", textAlign: "center", fill: "#ffffff" });
+    (subject as Textbox & { field: string }).field = "subject"; c.add(subject); c.setActiveObject(headline); c.requestRenderAll(); setSaved("");
+    setMessage("Base éditoriale créée : ajoutez votre logo en haut, ajustez les éléments puis enregistrez le template.");
+  }
   function filterBackground(value: string) {
     const c = canvas.current; const image = c?.backgroundImage;
     if (!c || !(image instanceof FabricImage)) { setError("Chargez d’abord une image de fond."); return; }
@@ -237,9 +254,9 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
       }
       if (blob.size > 5 * 1024 * 1024) throw Error("Export supérieur à 5 Mo : essayez le format WebP.");
       const data = new FormData(); data.set("file", new File([blob], `visual.${extension}`, { type: blob.type }));
-      const result = await saveVisualImage(data);
+      const result = await uploadImage(data);
       if (!result.ok) throw Error(result.error);
-      setSaved(result.url); setMessage("Image enregistrée. Vous pouvez copier son URL.");
+      setSaved(result.url); onSaved?.(result.url); setMessage("Image enregistrée. Vous pouvez copier son URL.");
       if (channel && window.opener && !window.opener.closed) {
         window.opener.postMessage({ type: "visual-studio:saved", channel, url: result.url }, window.location.origin);
         setMessage("Image enregistrée et envoyée à votre article. Enregistrez aussi l’article pour conserver l’insertion.");
@@ -248,17 +265,20 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
     finally { setBusy(false); }
   }
   return <div>
-    {templateAdmin && <fieldset disabled={!ready || busy} className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-border p-4"><legend className="px-2 font-bold">Template verrouillé</legend><label>Nom du template<input className={control} maxLength={100} value={templateName} onChange={event => setTemplateName(event.target.value)} /></label><button type="button" className={button} onClick={() => assignField("title")}>Utiliser la sélection comme Titre</button><button type="button" className={button} onClick={() => assignField("subject")}>Utiliser la sélection comme Sujet</button><button type="button" className={button} onClick={() => void saveTemplate()}>Enregistrer et activer le template</button></fieldset>}
+    {templateAdmin && <fieldset disabled={!ready || busy} className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-border p-4"><legend className="px-2 font-bold">Mise en page administrateur</legend><button type="button" className={button} onClick={editorialTemplate}>Créer une base éditoriale</button><label>Nom du template<input className={control} maxLength={100} value={templateName} onChange={event => setTemplateName(event.target.value)} /></label><button type="button" className={button} onClick={() => assignField("title")}>Utiliser la sélection comme Titre</button><button type="button" className={button} onClick={() => assignField("subject")}>Utiliser la sélection comme Sujet</button><button type="button" className={button} onClick={() => void saveTemplate()}>Enregistrer et activer le template</button></fieldset>}
+    {composer && <div className="mb-3"><label className="block rounded-lg border-2 border-dashed border-border p-3 text-sm font-bold">Importer depuis mon ordinateur<input className="mt-2 w-full text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={!ready || busy} onChange={event => { void fileImage(event.target.files?.[0], true); event.target.value = ""; }} /></label></div>}
     {error && <p role="alert" className="mb-4 rounded-lg bg-status-error p-3 text-status-error-foreground">{error}</p>}
     {message && <p role="status" className="mb-4 rounded-lg bg-status-success p-3 text-status-success-foreground">{message}</p>}
-    <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-      <aside aria-label="Outils du Visual Studio" className="space-y-5 rounded-xl border border-border bg-card p-4">
+    <div className={compact ? "flex min-w-0 flex-col gap-3" : "grid min-w-0 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]"}>
+      <aside aria-label="Outils du Visual Studio" className={`space-y-4 overflow-y-auto rounded-xl border border-border bg-card p-3 ${compact ? "order-2 max-h-[28dvh]" : "max-h-[calc(100dvh-350px)]"}`}>
+
+        {ready && composer && canvas.current && <MontageTools canvas={canvas.current} onChange={() => setSaved("")} />}
         <fieldset disabled={!ready || busy} className="space-y-4 disabled:opacity-60">
           <legend className="mb-3 font-bold">Composition</legend>
           {composer && <UnsplashPicker onImage={url => loadImage(url, false)} />}
           {composer && <button type="button" className={button} disabled={!selected} onClick={() => void removeSelectedBackground()}>Détourer l’image sélectionnée</button>}
           {composer && <label className="block text-sm">Collage / mosaïque (8 images maximum)<input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 w-full text-xs" onChange={event => { void collage(event.target.files); event.target.value = ""; }} /></label>}
-          <div className="flex flex-wrap gap-2" aria-label="Stickers">{["⚽", "🏆", "🔥", "⭐", "💥", "🏀"].map(emoji => <button type="button" key={emoji} className={button} aria-label={`Ajouter ${emoji}`} onClick={() => add(new Textbox(emoji, { ...TOP_LEFT, left: 80, top: 80, width: 140, fontSize: 100, fontFamily: "Arial" }))}>{emoji}</button>)}</div>
+          <div className="flex flex-wrap gap-2" aria-label="Stickers">{["⚽", "🏆", "🔥", "⭐", "💥", "🏀", "🥇", "🥈", "🥉", "🎯", "🚨", "🔴", "🟡", "🟢", "🔵", "⚪", "⚫", "✅", "❌", "🔁", "✍️", "💰", "⏱️", "📣", "💪", "👏", "🙌", "😱", "😎", "❤️", "💔", "🏟️", "🎾", "🏉", "🥊", "🏁"].map(emoji => <button type="button" key={emoji} className={button} aria-label={`Ajouter ${emoji}`} onClick={() => add(new Textbox(emoji, { ...TOP_LEFT, left: 80, top: 80, width: 140, fontSize: 100, fontFamily: "Arial" }))}>{emoji}</button>)}</div>
           <label className="block text-sm">Format<select aria-label="Format du visuel" className={control} value={format} onChange={event => setDimensions(Number(event.target.value))}>{FORMATS.map((item, index) => <option key={item.label} value={index}>{item.label}</option>)}</select></label>
           <div><p className="mb-2 text-sm font-semibold">Modèles modifiables</p><div className="flex flex-wrap gap-2">{[["edito", "Édito"], ["mercato", "Mercato"], ["match", "Match"]].map(([value, label]) => <button type="button" className={button} key={value} onClick={() => template(value)}>{label}</button>)}</div></div>
           <label className="block text-sm">Couleur de fond<input aria-label="Couleur de fond" type="color" value={background} onChange={event => { setBackground(event.target.value); const c = canvas.current; if (c) { c.backgroundColor = event.target.value; c.requestRenderAll(); } }} /></label>
@@ -271,7 +291,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
         <fieldset disabled={!ready || busy} className="space-y-3 disabled:opacity-60">
           <legend className="mb-2 font-bold">Texte et formes</legend>
           <label className="block text-sm">Texte<textarea aria-label="Texte" className={control} value={text} onChange={event => { setText(event.target.value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ text: event.target.value }); }} /></label>
-          <label className="block text-sm">Police<select aria-label="Police" className={control} value={font} onChange={event => { setFont(event.target.value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ fontFamily: event.target.value }); }}>{["Montserrat", "Arial", "Georgia"].map(value => <option key={value}>{value}</option>)}</select></label>
+          <label className="block text-sm">Police<select aria-label="Police" className={control} value={font} onChange={event => { setFont(event.target.value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ fontFamily: event.target.value }); }}>{["Montserrat", "Barlow Condensed", "Arial", "Georgia"].map(value => <option key={value}>{value}</option>)}</select></label>
           <div className="grid grid-cols-2 gap-2"><label className="text-sm">Taille<input className={control} type="number" min={12} max={240} value={fontSize} onChange={event => { const value = Math.max(12, Math.min(240, Number(event.target.value))); setFontSize(value); if (canvas.current?.getActiveObject() instanceof Textbox) update({ fontSize: value }); }} /></label><label className="text-sm">Graisse<select aria-label="Graisse" className={control} value={weight} onChange={event => { setWeight(event.target.value); update({ fontWeight: event.target.value }); }}><option value="400">Normal</option><option value="700">Gras</option><option value="900">Très gras</option></select></label></div>
           <label className="block text-sm">Alignement<select aria-label="Alignement" className={control} value={align} onChange={event => { setAlign(event.target.value as Textbox["textAlign"]); update({ textAlign: event.target.value }); }}><option value="left">Gauche</option><option value="center">Centre</option><option value="right">Droite</option></select></label>
           <label className="block text-sm">Couleur du texte / de la forme<input aria-label="Couleur du texte ou de la forme" type="color" value={color} onChange={event => { setColor(event.target.value); update({ fill: event.target.value }); }} /></label>
@@ -284,7 +304,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
           <div className="flex flex-wrap gap-2"><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; const object = c?.getActiveObject(); if (c && object) { c.bringObjectForward(object); c.requestRenderAll(); } }}>Avancer</button><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; const object = c?.getActiveObject(); if (c && object) { c.sendObjectBackwards(object); c.requestRenderAll(); } }}>Reculer</button><button type="button" disabled={!selected} className={button} onClick={() => { const c = canvas.current; if (c) { c.remove(...c.getActiveObjects()); c.discardActiveObject(); c.requestRenderAll(); } }}>Supprimer la sélection</button></div>
         </fieldset>
       </aside>
-      <section aria-label="Composition et export" className="min-w-0 xl:sticky xl:top-4 xl:self-start">
+      <section aria-label="Composition et export" className="min-w-0 self-start w-full">
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
           <label className="text-sm">Export<select aria-label="Format d’export" className={control} value={exportType} onChange={event => setExportType(event.target.value)}><option value="image/png">PNG</option><option value="image/webp">WebP</option></select></label>
           <button type="button" className={button} disabled={!ready || busy} onClick={() => exportImage(false)}>Télécharger</button>
@@ -292,7 +312,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
           <span className="text-xs text-muted-foreground">{size.current.width} × {size.current.height} px</span>
         </div>
         {!ready && <p role="status">Chargement du canvas et de Montserrat…</p>}
-        <div ref={container} className="overflow-hidden rounded-lg border border-border bg-muted" aria-label="Zone de dessin"><canvas ref={element} aria-label="Canvas du visuel : sélectionnez et déplacez les éléments à la souris" /></div>
+        <div ref={container} className="flex justify-center overflow-hidden rounded-lg border border-border bg-muted" aria-label="Zone de dessin"><canvas ref={element} aria-label="Canvas du visuel : sélectionnez et déplacez les éléments à la souris" /></div>
         <p className="mt-3 text-sm text-muted-foreground">Glissez les éléments pour les déplacer. Utilisez leurs poignées pour les redimensionner ou les tourner. Double-cliquez sur un texte pour l’éditer.</p>
         {saved && <div className="mt-4 space-y-2 rounded-xl border border-border bg-card p-4"><label className="block text-sm">URL de l’image enregistrée<input readOnly className={control} value={saved} /></label><button type="button" className={button} onClick={async () => { try { await navigator.clipboard.writeText(saved); setMessage("URL copiée."); } catch { setError("Copie indisponible : sélectionnez l’URL pour la copier."); } }}>Copier l’URL</button></div>}
       </section>

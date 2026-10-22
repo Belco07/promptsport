@@ -33,10 +33,14 @@ export function MatchPickerModal({ articleId, title, content, onSelect, onClose 
     const timer = setTimeout(async () => {
       setLoading(true); setError("");
       try {
-        const [suggested, found] = await Promise.all([
+        const [suggestionResult, searchResult] = await Promise.allSettled([
           suggestMatches(articleId, { title, content }), searchMatches(query, date),
         ]);
         if (!cancelled) {
+          if (searchResult.status === "rejected") throw searchResult.reason;
+          const found = searchResult.value;
+          const suggested = suggestionResult.status === "fulfilled" ? suggestionResult.value : [];
+          if (suggestionResult.status === "rejected") setError("Suggestions indisponibles. La recherche manuelle reste disponible.");
           // Explicit filters narrow results; suggestions remain first when browsing.
           const visible = suggested.filter(match => (!date || new Date(match.scheduledAt).toLocaleDateString("en-CA", {timeZone:"Africa/Lagos"}) === date) && (!query.trim() || found.some(result => result.id === match.id)));
           setSuggestions(visible);

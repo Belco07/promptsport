@@ -32,15 +32,15 @@ export default async function StudioLayout({
 
   return (
     <div className="workspace-theme flex min-h-screen bg-background">
-      <aside className="flex w-60 shrink-0 flex-col justify-between border-r border-border bg-card p-4">
-        <div>
+      <aside className="sticky top-0 flex h-dvh w-44 shrink-0 flex-col border-r border-border bg-card p-3 md:w-60 md:p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <p className="mb-6 px-3 text-sm font-bold uppercase tracking-wide text-foreground">
             Rédaction
           </p>
           <StudioNav liveMatchId={liveMatch?.id} />
         </div>
 
-        <div className="space-y-2 border-t border-border pt-4">
+        <div className="shrink-0 space-y-2 border-t border-border pt-4">
           <p className="px-3 text-xs text-muted-foreground">
             Connecté : <span className="font-medium text-foreground">{displayName}</span>
           </p>

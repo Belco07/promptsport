@@ -509,17 +509,15 @@ export async function suggestMatches(articleId?: string, draft?: { title: string
   const normalized = ` ${text.slice(0, 200000).replace(/<[^>]*>/g, " ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
   if (!normalized.trim()) return [];
   const now = new Date();
-  const rows = await prisma.$queryRaw<Array<Omit<MatchPickerOption, "scheduledAt"> & { scheduledAt: Date }>>(Prisma.sql`
-    SELECT m."id", h."name" AS "homeName", a."name" AS "awayName", m."scheduledAt", m."homeScore", m."awayScore", m."status"
-    FROM "Match" m JOIN "Team" h ON h."id" = m."homeTeamId" JOIN "Team" a ON a."id" = m."awayTeamId"
-    WHERE m."scheduledAt" BETWEEN ${new Date(now.getTime()-30*86400000)} AND ${new Date(now.getTime()+30*86400000)}
-    AND EXISTS (
-      SELECT 1 FROM (VALUES (h."name"), (h."shortName"), (a."name"), (a."shortName")) AS names(name)
-      CROSS JOIN LATERAL (SELECT trim(regexp_replace(translate(lower(names.name), 'àâäéèêëîïôöùûüç', 'aaaeeeeiioouuuc'), '[^a-z0-9]+', ' ', 'g')) AS value) n
-      WHERE length(n.value) >= 2 AND strpos(${normalized}, ' ' || n.value || ' ') > 0
-    ) ORDER BY abs(extract(epoch FROM (m."scheduledAt" - ${now}::timestamp))), m."id" LIMIT 10
-  `);
-  return rows.map(row => ({ ...row, scheduledAt: row.scheduledAt.toISOString() }));
+  // ORM selection avoids driver-specific raw enum/date decoding after migration.
+  const rows = await prisma.match.findMany({
+    where: { scheduledAt: { gte: new Date(now.getTime()-30*86400000), lte: new Date(now.getTime()+30*86400000) } },
+    select: { ...pickerSelect, homeTeam: { select: { name: true, shortName: true } }, awayTeam: { select: { name: true, shortName: true } } },
+  });
+  const phrase = (name: string | null) => (name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return rows.filter(match => [match.homeTeam.name, match.homeTeam.shortName, match.awayTeam.name, match.awayTeam.shortName].some(name => {
+    const value = phrase(name); return value.length >= 2 && normalized.includes(` ${value} `);
+  })).sort((a,b) => Math.abs(a.scheduledAt.getTime()-now.getTime())-Math.abs(b.scheduledAt.getTime()-now.getTime()) || a.id.localeCompare(b.id)).slice(0,10).map(pickerOption);
 }
 
 type UploadImageResult =
@@ -604,6 +602,10 @@ export async function uploadImage(
         error: "L'envoi de l'image a échoué. Réessayez dans un instant.",
       };
     }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return { ok: false, error: "Le stockage des images n’est pas configuré. Vérifiez BLOB_READ_WRITE_TOKEN dans Vercel puis redéployez." };
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
