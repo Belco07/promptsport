@@ -5,6 +5,7 @@ import { fetchFacebookItems, fetchInstagramItems, fetchXItems } from "@/lib/soci
 import { fetchFlashscoreItems } from "@/lib/flashscore";
 import { fetchJsonItems } from "@/lib/news-json";
 import { fetchOfficialSiteItems } from "@/lib/official-sites";
+import { computeViralScore } from "@/lib/news-virality";
 import { fetchSitemapItems } from "@/lib/sitemap";
 import { isAiConfigured, translateTitlesToFrench } from "@/lib/ai";
 import { cleanupOldNewsAlerts, isRecentNewsItem, purgeIgnoredNewsAlerts } from "@/lib/news";
@@ -308,6 +309,7 @@ export async function fetchNews(options: NewsFetchOptions = {}): Promise<NewsFet
             url: item.url,
             content: item.content,
             publishedAt: item.publishedAt,
+            viralScore: computeViralScore({ title: item.title, publishedAt: item.publishedAt, isOfficial: source.isOfficial }),
           })),
           skipDuplicates: true,
         });

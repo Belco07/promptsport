@@ -16,7 +16,7 @@ export type ArticleCardData = {
   coverImageUrl: string | null;
   publishedAt: Date | null;
   isPremium: boolean;
-  category: { name: string } | null;
+  category: { name: string; color?: string | null } | null;
   author: { name: string; slug?: string | null } | null;
 };
 

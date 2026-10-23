@@ -59,6 +59,10 @@ export default async function VeillePage({
   const page = Math.min(readPage(params.page), pageCount);
   const skip = (page - 1) * PAGE_SIZE;
 
+  const categories = await prisma.category.findMany({ select: { name: true, slug: true } });
+  const normalize = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const inferCategory = (text: string) => categories.find(category => new RegExp(`\\b${category.slug.replace(/[^a-z0-9-]/gi, "")}\\b`, "i").test(normalize(text))) ?? null;
+
   const [alerts, pending, generated, activeSources, officialSources, untranslated] =
     await Promise.all([
       prisma.newsAlert.findMany({
@@ -195,7 +199,7 @@ export default async function VeillePage({
           </p>
         </div>
       ) : (
-        <AlertList alerts={alerts.map(alert => ({ ...alert, publishedAt: alert.publishedAt.toISOString() }))} aiReady={aiReady} />
+        <AlertList alerts={alerts.map(alert => ({ ...alert, category: inferCategory(`${alert.title} ${alert.content ?? ""}`), publishedAt: alert.publishedAt.toISOString() }))} aiReady={aiReady} />
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">

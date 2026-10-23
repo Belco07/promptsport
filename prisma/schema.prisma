@@ -1179,6 +1179,8 @@ model NewsSource {
 
 /// Alerte détectée par la veille, en attente de décision éditoriale.
 model NewsAlert {
+  /// Estimation éditoriale 1–5 ; null pour les alertes historiques non évaluées.
+  viralScore Int?
   id       String   @id @default(cuid())
   sourceId String
   source   NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)

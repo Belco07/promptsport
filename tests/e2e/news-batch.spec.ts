@@ -38,7 +38,7 @@ test.afterAll(closeDb);
 
 test("génération sans redirection, catégorie et thème liés, puis traitement par lot", async ({ page }) => {
   test.skip(process.env.E2E_DISTRIBUTION_STUB !== "1", "Nécessite le fournisseur IA local simulé.");
-  await page.getByRole("row").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
+  await page.getByRole("listitem").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
   await expect(page.getByRole("status")).toHaveText("1 brouillon(s) généré(s).");
   await expect(page).toHaveURL(/\/backoffice\/veille$/);
   const article = await sqlOne<{ id: string; categoryId: string; status: string }>(`SELECT id,"categoryId",status FROM "Article" WHERE "authorId"=$1`, [prefix]);
@@ -61,7 +61,7 @@ test("ignorer une sélection conserve les autres alertes", async ({ page }) => {
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Ignorer les alertes sélectionnées" }).click();
   await expect(page.getByRole("status")).toHaveText("2 alerte(s) ignorée(s).");
-  await expect(page.getByRole("row").filter({ hasText: `${prefix}-bad` })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-bad` })).toBeVisible();
   expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "NewsAlert" WHERE "sourceId"=$1`, [prefix]))?.count).toBe(1);
 });
 
@@ -81,16 +81,16 @@ test("pagine les alertes par 50", async ({ page }) => {
   await page.reload();
 
   await expect(page.getByRole("navigation", { name: "Pagination de la veille" })).toBeVisible();
-  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
-  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-00` })).toHaveCount(0);
+  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-00` })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Page suivante →" }).click();
   await expect(page).toHaveURL(/\/backoffice\/veille\?page=2$/);
-  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-00` })).toBeVisible();
-  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-50` })).toHaveCount(0);
+  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-00` })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toHaveCount(0);
 
   await page.getByRole("link", { name: "← Page précédente" }).click();
   await expect(page).toHaveURL(/\/backoffice\/veille$/);
-  await expect(page.getByRole("row").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
 });
 

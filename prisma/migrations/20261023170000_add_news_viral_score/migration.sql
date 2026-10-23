@@ -1,0 +1,1 @@
+ALTER TABLE "NewsAlert" ADD COLUMN IF NOT EXISTS "viralScore" INTEGER;

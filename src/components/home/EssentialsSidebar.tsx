@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TimelineBadge } from "@/components/TimelineBadge";
 import type { ArticleCardData } from "@/components/ArticleCard";
 import { SectionHeading } from "@/components/SectionHeading";
 
@@ -11,7 +12,7 @@ export function WireAside({ wire }: { wire: ArticleCardData[] }) {
   return <aside aria-label="Le fil info" data-home-wire className="order-3 min-w-0 animate-fade-up stagger-1 lg:col-start-4 lg:row-start-2 lg:border-l lg:border-border lg:pl-6">
     <section aria-labelledby="fil-info" className="lg:sticky lg:top-[120px]">
       <SectionHeading id="fil-info" title="Le Fil Info" />
-      <ol aria-label="Dernières brèves" className="divide-y divide-border">{wire.slice(0, 5).map(article => <li key={article.slug} className="py-4 first:pt-0">{article.publishedAt && <time dateTime={article.publishedAt.toISOString()} className="text-[11px] font-bold tabular-nums text-editorial-link">{article.publishedAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Africa/Lagos" })} · {article.publishedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" })}</time>}<h3 className="mt-2 text-sm font-semibold leading-snug text-foreground"><Link href={`/article/${article.slug}`} className="underline-offset-4 hover:underline">{article.title}</Link></h3></li>)}</ol>
+      <ol aria-label="Dernières brèves" className="ml-1 mt-5 border-l border-border">{wire.slice(0, 5).map(article => <li key={article.slug} className="relative min-w-0 pb-6 pl-4 last:pb-0"><span aria-hidden="true" className="absolute -left-1 top-1.5 h-2 w-2 rounded-full border border-border bg-background" /><div className="flex flex-wrap items-center gap-2">{article.publishedAt && <time dateTime={article.publishedAt.toISOString()} title={article.publishedAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", timeZone: "Africa/Lagos" })} className="text-[11px] tabular-nums text-muted-foreground">{article.publishedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" })}</time>}<TimelineBadge category={article.category} /></div><h3 className="mt-2 text-sm font-semibold leading-snug text-foreground"><Link href={`/article/${article.slug}`} className="underline-offset-4 hover:underline">{article.title}</Link></h3></li>)}</ol>
       {!wire.length && <p className="mt-4 text-sm text-muted-foreground">Aucune brève publiée pour le moment.</p>}
       <Link href="#derniers-articles" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-editorial-link hover:underline">Toutes les dernières infos →</Link>
     </section>
