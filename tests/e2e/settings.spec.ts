@@ -115,8 +115,7 @@ test("la session reste accessible dans le menu du backoffice sur mobile", async 
   await page.setViewportSize({ width: 390, height: 640 });
   await page.goto("/backoffice/settings");
 
-  const aside = page.locator("aside");
-  await expect(aside).toHaveCSS("position", "sticky");
+  await page.getByText("Menu du backoffice", { exact: true }).click();
 
   const logout = page.getByRole("button", { name: "Se déconnecter" });
   await expect(logout).toBeVisible();

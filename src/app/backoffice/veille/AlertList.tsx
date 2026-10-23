@@ -85,7 +85,6 @@ export function AlertList({ alerts, aiReady }: { alerts: Alert[]; aiReady: boole
           const displayTitle = alert.titleFr ?? alert.title;
           const score = typeof alert.viralScore === "number" && alert.viralScore >= 1 && alert.viralScore <= 5 ? Math.floor(alert.viralScore) : null;
           return <li key={alert.id} data-alert-id={alert.id} className="relative min-w-0 border-b border-border pb-5 pl-5 pt-5 first:pt-0 last:border-b-0 last:pb-0">
-            <span aria-hidden="true" className="absolute -left-1 top-6 h-2 w-2 rounded-full border border-border bg-card first:top-1" />
             <div className="relative flex flex-wrap items-center gap-x-3 gap-y-2">
               <span aria-hidden="true" className="absolute -left-6 top-2 h-2 w-2 rounded-full border border-border bg-card" />
               {alert.status === "PENDING" && !completed.includes(alert.id) && <input type="checkbox" aria-label={`Sélectionner ${displayTitle}`} checked={selected.includes(alert.id)} disabled={busy} onChange={() => toggle(alert.id)} />}

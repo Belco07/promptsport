@@ -48,6 +48,8 @@ test.describe("Hub club : club préféré et vote", () => {
     await page.getByRole("radio", { name: new RegExp(playerName) }).check();
     await clickActionButton(page, "Voter");
     await expect(page.getByText("Votre vote est enregistré.", { exact: true })).toBeVisible();
+    // Le message de succès précède la fin du router.refresh : attendre son résultat.
+    await expect(page.getByRole("button", { name: "Modifier mon vote", exact: true })).toBeEnabled({ timeout: 90000 });
     await expect(page.getByText(/1 vote · 100/)).toBeVisible();
     await clickActionButton(page, "Modifier mon vote");
     const count = await sqlOne<{ count: string }>('SELECT count(*) FROM "ManOfTheMatchVote" WHERE "matchId"=$1 AND "readerId"=$2', [matchId, readerId]);

@@ -71,9 +71,12 @@ test.describe("Commentaire sur un article", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: articleTitle }),
     ).toBeVisible();
-    await page.locator("#commentaires summary").click();
-    await expect(page.locator("#commentaires details")).toHaveAttribute("open", "");
-    await expect(page.getByText("Votre commentaire")).toBeVisible();
+    // Le résumé HTML peut être cliqué avant la fin de l’hydratation.
+    await expect(async () => {
+      const field = page.locator("#champ-commentaire");
+      if (!(await field.isVisible())) await page.locator("#commentaires summary").click();
+      await expect(field).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 30000 });
 
     await page.locator("#champ-commentaire").fill(commentText);
     await submitActionForm(page, "Publier", /commentaire=en-attente/);
