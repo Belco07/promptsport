@@ -44,6 +44,8 @@ import { PublicShell } from "@/components/PublicShell";
  * évite de télécharger une seconde police pour un gain visuel marginal.
  */
 const inter = localFont({
+  // Load only the faces actually used; do not preload the large unused italic font.
+  preload: false,
   src: [
     { path: "./fonts/Inter-roman.var.woff2", weight: "100 900", style: "normal" },
     { path: "./fonts/Inter-italic.var.woff2", weight: "100 900", style: "italic" },

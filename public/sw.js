@@ -21,10 +21,11 @@ async function savePublicPage(pathname) {
   if (html.length > 2_000_000) return;
   // The first visit loaded before worker activation: save its hashed JS/CSS/fonts
   // as well, otherwise a fresh offline reload could not hydrate or show its status.
-  const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => new URL(match[1].replaceAll("&amp;", "&"), url)).filter(asset => asset.origin === self.location.origin && asset.pathname.startsWith("/_next/static/"));
+  const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => new URL(match[1].replaceAll("&amp;", "&"), url)).filter(asset => asset.origin === self.location.origin && (asset.pathname.startsWith("/_next/static/") || asset.pathname === "/_next/image" && !(asset.searchParams.get("url") || "").startsWith("/api/")));
   const assetCache = await caches.open(ASSET_CACHE);
-  await Promise.all([...new Set(assets.map(asset => asset.href))].slice(0, 80).map(async asset => {
-    if (await assetCache.match(asset)) return;
+  let images = 0;
+  await Promise.all([...new Set(assets.filter(asset => asset.pathname !== "/_next/image" || images++ < 6).map(asset => asset.href))].slice(0, 80).map(async asset => {
+    if (await assetCache.match(asset, { ignoreVary: true })) return;
     try { const response = await fetch(asset, { credentials: "omit" }); if (response.ok) await storeBounded(ASSET_CACHE, asset, response, 160); } catch { /* Reading still has a document fallback. */ }
   }));
   const headers = new Headers({ "Content-Type": "text/html; charset=utf-8", "X-PromptSport-Saved": String(Date.now()) });
@@ -59,7 +60,7 @@ self.addEventListener("fetch", event => {
       } catch {
         const cache = await caches.open(PAGE_CACHE);
         const saved = !url.search && await cache.match(pageKey(url.pathname));
-        if (saved && Date.now() - Number(saved.headers.get("X-PromptSport-Saved")) < PAGE_AGE) return saved;
+        if (saved && Date.now() - Number(saved.headers.get("X-PromptSport-Saved")) < PAGE_AGE) return new Response((await saved.text()).replace(/<html(?=[\s>])/i, '<html data-pwa-offline="true"'), { headers: saved.headers });
         return await caches.match("/offline.html") || new Response("Hors connexion", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
       }
     })());
@@ -71,13 +72,24 @@ self.addEventListener("fetch", event => {
   if (!staticAsset && !publicImage) return;
   event.respondWith((async () => {
     const cache = await caches.open(ASSET_CACHE);
-    const cached = await cache.match(request);
+    const cached = await cache.match(request, { ignoreVary: staticAsset });
     if (staticAsset && cached) return cached;
     try {
       const response = await fetch(request);
       if (response.ok && response.type !== "opaque") event.waitUntil(storeBounded(ASSET_CACHE, request, response.clone(), 160).catch(() => {}));
       return response;
-    } catch { return cached || Response.error(); }
+    } catch {
+      if (cached) return cached;
+      // A responsive image may request another width after an offline reload.
+      // Reuse a saved public rendition of the same source instead of a broken image.
+      if (publicImage) for (const key of await cache.keys()) {
+        const candidate = new URL(key.url);
+        if (candidate.pathname === "/_next/image" && candidate.searchParams.get("url") === url.searchParams.get("url")) {
+          const image = await cache.match(key, { ignoreVary: true }); if (image) return image;
+        }
+      }
+      return Response.error();
+    }
   })());
 });
 

@@ -12,6 +12,9 @@ test.beforeEach(async () => {
 test.afterEach(async()=>{await sql('DELETE FROM "AnalyticsPageView" WHERE "articleId"=$1',[id]);await sql('DELETE FROM "Article" WHERE id=$1',[id]);await sql('DELETE FROM "Category" WHERE id=$1',[id]);await sql('DELETE FROM "Author" WHERE id=$1',[id]);await closeDb();});
 
 test('PWA : manifeste, lecture sauvegardée hors ligne et retour réseau',async({page,context})=>{
+  // Some devices keep onLine=true when the uplink fails. The saved document
+  // must still identify itself as offline without relying on that heuristic.
+  await page.addInitScript(()=>Object.defineProperty(Navigator.prototype,'onLine',{get:()=>true}));
   await page.goto('/article/'+id);
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href','/manifest.json');
   await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content','yes');
