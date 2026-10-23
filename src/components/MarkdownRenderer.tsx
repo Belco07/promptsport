@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { isValidElement, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkDirective from "remark-directive";
@@ -68,10 +69,9 @@ const markdownComponents = {
     if (isValidElement<{ src?: string; title?: string }>(child) && child.props.src && (!Array.isArray(children) || children.length === 1)) return <figure className="my-8">{children}{child.props.title && <figcaption className="mt-2 text-sm text-muted-foreground">{child.props.title}</figcaption>}</figure>;
     return <p {...props}>{children}</p>;
   },
-  img: (props: React.ComponentProps<"img">) => (
-    // eslint-disable-next-line @next/next/no-img-element -- images Markdown distantes
-    <img className="my-5 h-auto w-full" loading="lazy" alt="" {...props} />
-  ),
+  img: ({ src, alt, title }: React.ComponentProps<"img">) => typeof src === "string" && src ? (
+    <Image src={src} alt={alt ?? ""} title={title} width={1200} height={800} sizes="(max-width: 768px) 100vw, 820px" unoptimized={!(src.startsWith("/") || /^https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\//.test(src))} className="my-5 h-auto w-full" />
+  ) : null,
   hr: () => <hr className="my-8 border-border" style={{ borderColor: "hsl(var(--border))" }} />,
   pre: (props: React.ComponentProps<"pre">) => (
     <pre className="scroll-x my-5 rounded-xl bg-muted p-4 text-sm text-foreground" {...props} />

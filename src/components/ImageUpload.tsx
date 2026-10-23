@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { useEffect, useRef, useState } from "react";
 
 import { uploadStudioImage as uploadImage } from "@/lib/upload-studio-image";
@@ -117,8 +119,7 @@ export function ImageUpload({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <div className="flex w-full items-center justify-center overflow-hidden rounded-md border border-border bg-muted sm:w-64">
           {displayedImage ? (
-            // eslint-disable-next-line @next/next/no-img-element -- aperçu client (blob) ou chemin public
-            <img
+            <Image width={512} height={384} unoptimized
               src={displayedImage}
               alt="Aperçu de l'image de couverture"
               className="max-h-48 w-full object-contain"

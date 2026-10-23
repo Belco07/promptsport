@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import localFont from "next/font/local";
 import { Sora } from "next/font/google";
 
+import { PwaClient } from "@/components/PwaClient";
 import { Analytics } from "@/components/Analytics";
 import { AdSlot } from "@/components/AdSlot";
 import { AdSlotGate } from "@/components/AdSlotGate";
@@ -94,6 +95,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     applicationName: siteName,
+    manifest: "/manifest.json",
+    appleWebApp: { capable: true, title: siteName, statusBarStyle: "default" },
     openGraph: {
       type: "website",
       locale: "fr_FR",
@@ -132,7 +135,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * navigation, tiroir « EN DIRECT »). Next complète l'entrée par défaut
  * (`width=device-width, initial-scale=1`).
  */
-export const viewport: Viewport = { viewportFit: "cover" };
+export const viewport: Viewport = { viewportFit: "cover", themeColor: "#111410" };
 
 /**
  * Compétitions du menu déroulant de la barre publique (WP9).
@@ -267,6 +270,7 @@ export default async function RootLayout({
   return (
     <html lang="fr" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         {/* Découverte automatique du flux RSS (WP8b). Déclarée ici plutôt que
             dans `metadata.alternates` : chaque page publique remplace
             `alternates` par son URL canonique, ce qui effacerait la balise. */}
@@ -291,6 +295,7 @@ export default async function RootLayout({
           Aller au contenu principal
         </a>
         <ThemeProvider>
+          <PwaClient />
           <PublicShell header={<PublicNav
             competitions={competitions}
             urgentBar={urgent ? <UrgentBanner article={urgent} /> : null}

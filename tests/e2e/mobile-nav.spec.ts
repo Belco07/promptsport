@@ -14,7 +14,12 @@ test('LiveDrawer ouvre les directs et un match rejoint sa fiche',async({page,spo
   await sql(`UPDATE "Match" SET status='LIVE' WHERE id=$1`,[s.matchId]);
   await page.goto('/competition/'+s.competitionId+'?tab=live');
   const trigger=page.getByRole('button',{name:'Ouvrir les matchs en direct',exact:true});
-  await expect(trigger).toBeVisible({timeout:90000});
+  // A previous page can have cached an empty live list for 30 seconds.
+  // Re-render after expiry rather than waiting on unchanged initial props.
+  await expect(async () => {
+    await page.reload();
+    await expect(trigger).toBeVisible({timeout:3000});
+  }).toPass({timeout:90000,intervals:[10000]});
   const drawer=page.getByRole('dialog',{name:'Matchs en direct',exact:true});
   // WP33 caches the shared list for 30s. Reopening refreshes it, including
   // when another parallel test populated the cache before our fixture existed.

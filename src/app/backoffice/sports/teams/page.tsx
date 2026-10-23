@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { SportTabs } from "@/components/SportTabs";
@@ -56,8 +57,7 @@ export default async function TeamsPage() {
                   <td className="px-4 py-3 text-muted-foreground">{t.country ?? "—"}</td>
                   <td className="px-4 py-3">
                     {t.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- logo externe
-                      <img src={t.logoUrl} alt="" className="h-8 w-8 rounded-full object-contain" />
+                      <Image width={32} height={32} unoptimized src={t.logoUrl} alt="" className="h-8 w-8 rounded-full object-contain" />
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}

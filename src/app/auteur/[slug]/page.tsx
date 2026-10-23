@@ -149,8 +149,7 @@ export default async function AuthorPage({ params }: Props) {
                 className="h-28 w-28 rounded-full object-cover"
               />
             ) : author.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- photo distante non déclarée dans next.config.ts
-              <img
+              <Image width={112} height={112} unoptimized
                 src={author.photoUrl}
                 alt={`Portrait de ${author.name}`}
                 className="h-28 w-28 rounded-full object-cover"

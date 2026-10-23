@@ -2,7 +2,8 @@
 
 import { Activity, Home, Search, Star, User } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useMounted } from "@/lib/use-mounted";
 
@@ -39,7 +40,15 @@ const HIDDEN_ROUTES =
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const mounted = useMounted();
+  const [standalone, setStandalone] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(display-mode: standalone)");
+    const update = () => setStandalone(media.matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+    update(); media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   if (HIDDEN_ROUTES.test(pathname)) {
     return null;
@@ -53,13 +62,15 @@ export function BottomNav() {
       {/* Réserve d'espace en fin de flux : le dernier contenu de la page ne
           passe pas sous la barre fixe (équivalent d'un `pb-20` sur le <main>,
           qui vit dans chaque page et n'est pas modifié). */}
-      <div aria-hidden="true" className="h-[var(--mobile-nav-height)] md:hidden" />
+      <div aria-hidden="true" className="md:hidden" style={{ height: `calc(var(--mobile-nav-height) + ${standalone ? "22px" : "0px"})` }} />
 
       <nav
+        data-standalone={standalone ? "true" : undefined}
         role="navigation"
         aria-label="Navigation mobile"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
+        {standalone && <p className="border-b border-border py-1 text-center text-[10px] font-semibold text-muted-foreground">Application PromptSport</p>}
         <ul className="mx-auto flex max-w-xl items-stretch">
           {ITEMS.map(({ href, label, icon: Icon }) => {
             const active = isActive(href);
@@ -67,6 +78,9 @@ export function BottomNav() {
               <li key={href} className="flex-1">
                 <Link
                   href={href}
+                  prefetch={false}
+                  onMouseEnter={() => router.prefetch(href)}
+                  onTouchStart={() => router.prefetch(href)}
                   aria-current={active ? "page" : undefined}
                   className={`relative flex flex-col items-center gap-1 pb-2 pt-2.5 text-[11px] font-bold leading-none transition-colors ${
                     active ? "text-editorial-link" : "text-muted-foreground hover:text-foreground"

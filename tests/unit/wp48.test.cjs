@@ -80,11 +80,11 @@ test('Cron : choisit le match le plus documenté et conserve DRAFT par défaut',
   const result=await (await api.GET(new Request('http://localhost/api/cron/auto-analysis',{headers:{Authorization:'Bearer secret'}}))).json();
   assert.equal(result.generated,true);assert.equal(created.status,'DRAFT');assert.equal(created.format,'ANALYSIS');assert.equal(created.matchId,'documented');assert.equal(created.publishedAt,null);assert.match(created.autoAnalysisKey,/^period-/);
 });
-test('Service Worker : notification sûre, sans fetch ni navigation externe',async()=>{
+test('Service Worker : notification sûre avec cache public et sans navigation externe',async()=>{
   const handlers={};let displayed,opened;
   const scope={location:{origin:'https://www.promptsport.net'},addEventListener:(event,handler)=>handlers[event]=handler,registration:{showNotification:async(title,options)=>{displayed={title,...options}}},clients:{matchAll:async()=>[],openWindow:async url=>{opened=url}}};
   vm.runInNewContext(fs.readFileSync('public/sw.js','utf8'),{self:scope,URL});
-  assert.equal(handlers.fetch,undefined);
+  assert.equal(typeof handlers.fetch,"function");
   let pending;handlers.push({data:{json:()=>({title:'Flash',body:'Résumé',url:'https://evil.test'})},waitUntil:promise=>pending=promise});await pending;assert.equal(displayed.data.url,'/');
   handlers.push({data:{json:()=>null},waitUntil:promise=>pending=promise});await pending;assert.equal(displayed.title,'PromptSport');
   handlers.notificationclick({notification:{close:()=>{},data:{url:'https://evil.test'}},waitUntil:promise=>pending=promise});await pending;assert.equal(opened,'https://www.promptsport.net/');
