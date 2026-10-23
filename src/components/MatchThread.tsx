@@ -59,7 +59,7 @@ export function MatchThread({ matchId, live, phase, counts, comments, userId, ba
           tabs.current[next]?.focus();
           tabs.current[next]?.click();
         }
-      }} className={`min-h-11 shrink-0 border-b-2 px-3 py-3 text-sm font-bold ${selectedPhase === item.key ? "border-editorial-link text-editorial-link" : "border-transparent text-muted-foreground"}`}>{item.label} ({displayedCounts[item.key] ?? 0})</Link>)}
+      }} className={`min-h-11 shrink-0 border-b-2 px-3 py-3 text-sm font-bold ${selectedPhase === item.key ? "border-accent text-editorial-link" : "border-transparent text-muted-foreground"}`}>{item.label} ({displayedCounts[item.key] ?? 0})</Link>)}
     </div>
     <div id="thread-panel" role="tabpanel" aria-busy={!snapshot} aria-labelledby={`phase-${selectedPhase}`} tabIndex={0} className="space-y-4">
       {error ? <p role="alert">{error}</p> : !snapshot ? <p role="status">Chargement de la discussion…</p> : displayedComments.length ? displayedComments.map(comment => <MatchCommentItem key={comment.id} comment={comment} matchId={matchId} userId={snapshot.userId} onPosted={onPosted} />) : <p className="text-muted-foreground">Aucun commentaire pour cette phase. Lancez la discussion !</p>}

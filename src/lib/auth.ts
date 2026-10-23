@@ -105,10 +105,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const isStale = Date.now() - checkedAt > PREMIUM_REFRESH_MS;
 
       if (typeof token.id === "string" && (user || trigger === "update" || isStale)) {
-        const author = await prisma.author.findUnique({
-          where: { id: token.id },
-          select: { role: true, isPremium: true },
-        });
+        const author = await prisma.author
+          .findUnique({
+            where: { id: token.id },
+            select: { role: true, isPremium: true },
+          })
+          .catch((error: unknown) => {
+            // Base momentanément injoignable : on garde le jeton tel quel (rôle
+            // et abonnement déjà connus) et on réessaiera à la prochaine
+            // requête, plutôt que de faire échouer la page (JWTSessionError).
+            // À la connexion, sans valeurs connues, l'erreur est remontée.
+            if (user) throw error;
+            console.error("[auth] rafraîchissement de la session impossible :", error);
+            return undefined;
+          });
+        if (author === undefined) return token;
         if (author) {
           token.role = author.role;
           token.isPremium = author.isPremium;

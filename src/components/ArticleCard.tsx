@@ -1,6 +1,6 @@
 import { BookmarkButton } from "@/components/BookmarkButton";
-import { Clock } from "lucide-react";
 import { FormatBadge, type ArticleFormat } from "@/components/FormatBadge";
+import { Newspaper } from "@/components/icons";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -49,7 +49,7 @@ export function ArticleCard({
     <Card
       as="article"
       interactive
-      className="editorial-card animate-fade-up flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm hover:shadow-card-hover transition-shadow duration-200"
+      className="editorial-card animate-fade-up flex flex-col overflow-hidden border border-border bg-card transition-shadow duration-200"
     >
       <Link
         href={href}
@@ -76,19 +76,20 @@ export function ArticleCard({
             className="object-cover transition-transform duration-300 hover:scale-[1.03] motion-reduce:transition-none motion-reduce:hover:scale-100"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-muted text-4xl text-muted-foreground">
-            ⚽
+          <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+            <Newspaper aria-hidden="true" size={40} />
           </div>
         )}
       </Link>
 
-      <CardBody className="flex flex-1 flex-col bg-muted p-0 py-[17px]">
+      <CardBody className="flex flex-1 flex-col bg-muted p-5">
         {article.format || article.category || article.isPremium ? (
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="mb-2.5 flex flex-wrap items-center gap-2">
             {article.format && <FormatBadge format={article.format} />}
-            {/* Rubrique : libellé éditorial (olive en clair, lime en sombre), sans pastille. */}
+            {/* Rubrique précédée d'une pastille ronde, comme la référence (couleurs du site). */}
             {article.category ? (
-              <span className="text-[10px] font-extrabold uppercase tracking-[.6px] text-editorial-link">
+              <span className="inline-flex items-center gap-[7px] text-[11px] font-semibold uppercase tracking-[.5px] text-editorial-link">
+                <span aria-hidden="true" className="h-[10px] w-[10px] rounded-full bg-accent" />
                 {article.category.name}
               </span>
             ) : null}
@@ -98,7 +99,7 @@ export function ArticleCard({
 
         <Heading
           className={`mb-2 font-heavy leading-tight text-foreground ${
-            featured ? "text-2xl" : "text-xl tracking-[-.6px]"
+            featured ? "text-2xl" : "text-[17px] leading-[1.3] tracking-[-.4px]"
           }`}
         >
           <Link href={href} className="transition-colors hover:text-editorial-link">
@@ -107,12 +108,14 @@ export function ArticleCard({
         </Heading>
 
         {article.excerpt ? (
-          <p className="mb-4 line-clamp-3 text-sm leading-6 text-muted-foreground">
+          <p className="mb-3 line-clamp-2 text-sm leading-6 text-muted-foreground">
             {article.excerpt}
           </p>
         ) : null}
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+        {/* Ligne « Par auteur · date », sans filet, comme la référence. */}
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-2 text-[13px] text-muted-foreground">
+          <span>Par</span>
           <span className="font-semibold text-foreground">
             {authorHref ? (
               <Link href={authorHref} className="transition-colors hover:text-editorial-link">
@@ -122,11 +125,10 @@ export function ArticleCard({
               (article.author?.name ?? "Rédaction")
             )}
           </span>
-          <span aria-hidden="true" className="text-muted-foreground/60">
-            •
+          <span aria-hidden="true" className="text-muted-foreground">
+            ·
           </span>
           <span className="inline-flex items-center gap-1">
-            <Clock aria-hidden="true" className="h-3.5 w-3.5" />
             <time dateTime={article.publishedAt?.toISOString()}>
               {formatDate(article.publishedAt)}
             </time>

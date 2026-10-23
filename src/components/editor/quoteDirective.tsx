@@ -8,7 +8,7 @@ import {
   type DirectiveEditorProps,
 } from "@mdxeditor/editor";
 import type { Directives } from "mdast-util-directive";
-import { Quote } from "lucide-react";
+import { Quote } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 
 /**

@@ -19,7 +19,7 @@ import {
   TrendingUp,
   Trophy,
   type LucideIcon,
-} from "lucide-react";
+} from "@/components/icons";
 
 /** Couleur de repli : le vert-lime de la charte éditoriale. */
 export const THEME_FALLBACK_COLOR = "#d7ff00";

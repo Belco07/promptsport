@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Home, Search, Star, User } from "lucide-react";
+import { Activity, Home, Search, Star, User } from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";

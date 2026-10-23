@@ -95,7 +95,7 @@ export function ArticleReactions({
             }
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               active
-                ? "border-editorial-link bg-secondary text-editorial-link"
+                ? "border-accent bg-secondary text-editorial-link"
                 : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground"
             }`}
           >

@@ -166,7 +166,7 @@
 .dark .public-site .social-embed--light .social-embed-frame { padding: 12px; background: #fff; }
 .dark .public-site .social-embed--light .social-embed-loading { border-color: #d8d8d8; background: #fff; color: #444; }
 .public-site .social-embed-link { display: grid; gap: 6px; width: 100%; padding: 16px 18px; border: 1px solid var(--ed-line); background: var(--ed-surface); color: var(--ed-ink); }
-.public-site .social-embed-link:hover { border-color: var(--ed-link); color: var(--ed-link); }
+.public-site .social-embed-link:hover { border-color: var(--ed-lime); color: var(--ed-link); }
 .public-site .social-embed-link-label { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .4px; }
 .public-site .social-embed-link-url { color: var(--ed-muted); font-size: 11px; word-break: break-all; }
 

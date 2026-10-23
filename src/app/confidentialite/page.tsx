@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { Footer } from "@/components/Footer";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody } from "@/components/ui/Card";
 import { SITE_NAME, buildPageMetadata } from "@/lib/seo";
+import { PageBand } from "@/components/PageBand";
 
 /**
  * Politique de confidentialité (WP9).
@@ -54,28 +54,12 @@ const COOKIES = [
 export default function PrivacyPage() {
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-10">
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
-        >
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-          Retour à l&apos;accueil
-        </Link>
-
-        <header className="mb-8">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-status-warning-foreground">
-            <ShieldCheck aria-hidden="true" className="h-4 w-4" />
-            Vie privée
-          </p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-            Politique de confidentialité
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Principe directeur : collecter le minimum, ne rien revendre, et ne pas suivre les
-            lecteurs d&apos;un site à l&apos;autre.
-          </p>
-        </header>
+      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 pb-10">
+        <PageBand
+          title="Politique de confidentialité"
+          kicker="Vie privée"
+          description="Principe directeur : collecter le minimum, ne rien revendre, et ne pas suivre les lecteurs d'un site à l'autre."
+        />
 
         <Card>
           <CardBody className="space-y-8 p-6 sm:p-8">

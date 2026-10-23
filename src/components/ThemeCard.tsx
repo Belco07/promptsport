@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "@/components/icons";
 
 import { themeBadgeStyle, themeIcon } from "@/lib/themes";
 
@@ -26,14 +26,14 @@ export function ThemeCard({
   return (
     <Link
       href={`/theme/${theme.slug}`}
-      className="group flex min-w-0 flex-col gap-3 border border-border bg-card p-5 transition-colors hover:border-editorial-link"
+      className="group flex min-w-0 flex-col gap-3 rounded-[13px] border border-border bg-card p-5 shadow-[0_4px_20px_rgb(0_0_0/7%)] transition-shadow hover:shadow-[0_6px_28px_rgb(0_0_0/12%)]"
     >
       <span className="theme-badge w-fit" style={themeBadgeStyle(theme.color)}>
         <Icon size={14} aria-hidden="true" />
         {theme.name}
       </span>
 
-      <span className="text-lg font-black uppercase tracking-tight text-foreground group-hover:underline">
+      <span className="text-lg font-black tracking-tight text-foreground group-hover:underline">
         {theme.name}
       </span>
 

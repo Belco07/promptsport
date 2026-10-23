@@ -92,7 +92,7 @@ export function CommentReactions({
             aria-label={`${REACTION_LABELS[type]} ${count}`}
             className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               active
-                ? "border-editorial-link bg-secondary text-editorial-link"
+                ? "border-accent bg-secondary text-editorial-link"
                 : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground"
             }`}
           >

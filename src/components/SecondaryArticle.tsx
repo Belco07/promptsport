@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Trophy } from "lucide-react";
+import { Trophy } from "@/components/icons";
 import type { ArticleCardData } from "@/components/ArticleCard";
 import { PremiumBadge } from "@/components/PremiumBadge";
 

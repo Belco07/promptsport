@@ -1,12 +1,16 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, TrendingUp } from "@/components/icons";
+import { EntityLogo } from "@/components/EntityLogo";
+import { SocialLinks } from "@/components/SocialLinks";
 import { NavSearch } from "@/components/NavSearch";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import type { OAuthProviders } from "@/components/LoginCard";
+import { MobileHeader } from "@/components/MobileHeader";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MonSportNavLink, UserMenu } from "@/components/UserMenu";
 import { useMounted } from "@/lib/use-mounted";
@@ -36,14 +40,17 @@ import { useMounted } from "@/lib/use-mounted";
  * couche CSS dédiée.
  */
 
-export type NavCompetition = { slug: string; name: string };
+export type NavCompetition = { slug: string; name: string; logoUrl?: string | null };
 
 export function PublicNav({
   competitions = [],
+  oauthProviders = { google: false, facebook: false },
   scoresBar = null,
   urgentBar = null,
 }: {
   competitions?: NavCompetition[];
+  /** Modes de connexion externes disponibles, pour la fenêtre de connexion. */
+  oauthProviders?: OAuthProviders;
   /**
    * Bandeau de scores rendu par le serveur (layout) et inséré tout en haut.
    * Passé en `ReactNode` : un composant client ne peut pas importer un composant
@@ -107,14 +114,9 @@ export function PublicNav({
     mounted &&
     (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
-  /** Rubrique du menu : l'onglet actif est olive/lime, sans fond arrondi. */
-  const linkClass = (href: string) =>
-    [
-      "editorial-nav-link px-3 py-2 text-sm font-strong transition-colors",
-      isActive(href)
-        ? "bg-muted text-editorial-link"
-        : "text-foreground hover:bg-muted hover:text-editorial-link",
-    ].join(" ");
+  /** Rubrique du menu : texte seul, sans icône ni surlignage vert, au survol
+      comme sur la page en cours (voir skin.css). */
+  const linkClass = () => "editorial-nav-link px-3 py-2 text-sm font-strong text-foreground transition-opacity";
 
   return (
     <>
@@ -125,13 +127,19 @@ export function PublicNav({
           barre sur /login, /studio et /backoffice). */}
       {scoresBar}
 
-      {/* WP33 : la barre est réservée au desktop — le mobile utilise la barre
-          fixe `BottomNav` et le tiroir « EN DIRECT ». */}
-      <header className="editorial-header sticky top-0 z-30 hidden border-b border-border border-t-4 border-t-editorial-link bg-background/95 backdrop-blur md:block">
+      {/* En-tête mobile (< 768 px), disposé comme la référence ; la barre fixe
+          `BottomNav` et le tiroir « EN DIRECT » restent en place. */}
+      <MobileHeader competitions={competitions} />
+
+      {/* En-tête desktop (≥ 768 px). */}
+      <header className="editorial-header sticky top-0 z-30 hidden border-b border-border border-t-4 border-t-accent bg-background/95 backdrop-blur md:block">
       <nav
         aria-label="Navigation principale"
         className="relative mx-auto flex h-[55px] max-w-[1280px] items-center justify-between gap-4 px-4 max-[600px]:h-[44px]"
       >
+        {/* Disposition Digital Haven : logo à gauche ; à droite, rubriques en
+            capitales avec icône (séparées par de petits carrés), réseaux, bascule
+            jour/nuit, séparateur, recherche, puis compte. */}
         <Link
           href="/"
           className="editorial-logo flex shrink-0 items-center"
@@ -157,15 +165,16 @@ export function PublicNav({
           />
         </Link>
 
+        <div className="ml-auto flex min-w-0 items-center gap-4">
         {/* Rubriques : affichées à partir de 768 px. */}
-        <div className="hidden items-center gap-1 md:flex">
-          <MonSportNavLink className={linkClass("/mon-sport")} />
-          <Link href="/" className={linkClass("/")} aria-current={isActive("/") ? "page" : undefined}>
+        <div className="nav-items hidden items-center md:flex">
+          <MonSportNavLink showIcon={false} className={linkClass()} />
+          <Link href="/" className={linkClass()} aria-current={isActive("/") ? "page" : undefined}>
             Accueil
           </Link>
           <Link
             href="/scores"
-            className={linkClass("/scores")}
+            className={linkClass()}
             aria-current={isActive("/scores") ? "page" : undefined}
           >
             Scores
@@ -178,7 +187,7 @@ export function PublicNav({
               aria-expanded={competitionsOpen}
               aria-controls="menu-competitions"
               onClick={() => setCompetitionsOpen((open) => !open)}
-              className="editorial-nav-link inline-flex items-center gap-1 px-3 py-2 text-sm font-strong text-foreground transition-colors hover:bg-muted hover:text-editorial-link"
+              className="editorial-nav-link inline-flex items-center gap-1.5 px-3 py-2 text-sm font-strong text-foreground transition-opacity"
             >
               Compétitions
               <ChevronDown
@@ -211,46 +220,57 @@ export function PublicNav({
             ) : null}
           </div>
 
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Réseaux (sans RSS), bascule jour/nuit, séparateur, recherche, compte. */}
+          <SocialLinks showRss={false} className="hidden xl:flex" />
+          <ThemeToggle />
+          <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+          <NavSearch />
+
+          {/* Compte utilisateur (desktop : la barre est masquée sur mobile). */}
+          <UserMenu showSportLink={false} oauthProviders={oauthProviders} />
+        </div>
+        </div>
+      </nav>
+
+      {/* Ligne 2, comme les « Quick Links » de la référence : libellé « À suivre »
+          avec icône, compétitions (avec leur logo) séparées par des tirets, et
+          bouton Abonnement à droite. */}
+      <nav aria-label="Accès rapide aux compétitions" className="editorial-competition-nav quicklinks border-t border-border bg-background">
+        <div className="mx-auto flex max-w-[1280px] items-center gap-4 px-4 py-2">
+          <span className="quicklinks-label inline-flex shrink-0 items-center gap-1.5 text-[13px]">
+            <TrendingUp aria-hidden="true" size={16} />
+            À suivre
+          </span>
+          <ul className="flex min-w-0 flex-1 items-center overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {competitions.map((competition, index) => {
+              const active = mounted && pathname === `/competition/${competition.slug}`;
+              return (
+                <li key={competition.slug} className="flex shrink-0 items-center">
+                  {index > 0 && <span aria-hidden="true" className="px-2.5 text-foreground">-</span>}
+                  <Link
+                    href={`/competition/${competition.slug}`}
+                    aria-current={active ? "page" : undefined}
+                    className="inline-flex items-center gap-2 py-1"
+                  >
+                    <EntityLogo kind="competition" name={competition.name} logoUrl={competition.logoUrl} slug={competition.slug} size={20} />
+                    {competition.name}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
           <Link
             href="/abonnement"
-            className={linkClass("/abonnement")}
             aria-current={isActive("/abonnement") ? "page" : undefined}
+            className="editorial-subscribe ml-auto inline-flex h-8 shrink-0 items-center rounded-[10px] bg-accent px-5 text-[13px] font-bold text-[#111211] transition-opacity hover:opacity-85"
           >
             Abonnement
           </Link>
         </div>
-
-        <div className="flex items-center gap-2">
-          <NavSearch />
-          {/* Sélecteur de thème (WP13a), à côté du compte. */}
-          <ThemeToggle />
-
-          {/* Compte utilisateur (desktop : la barre est masquée sur mobile). */}
-          <UserMenu showSportLink={false} />
-        </div>
       </nav>
-
-      {/* Bandeau « À suivre » : accès direct aux compétitions suivies. */}
-      {competitions.length > 0 ? (
-        <nav aria-label="Accès rapide aux compétitions" className="editorial-competition-nav border-t border-border bg-background">
-          <div className="mx-auto flex max-w-[1280px] items-center gap-[27px] overflow-x-auto whitespace-nowrap px-4 py-3 text-xs font-bold [scrollbar-width:thin] max-[600px]:gap-[22px] max-[600px]:py-2.5">
-            <span className="text-[10px] uppercase tracking-[1px] text-editorial-link">À suivre</span>
-            {competitions.map((competition) => {
-              const active = mounted && pathname === `/competition/${competition.slug}`;
-              return (
-                <Link
-                  key={competition.slug}
-                  href={`/competition/${competition.slug}`}
-                  aria-current={active ? "page" : undefined}
-                  className={active ? "text-editorial-link" : "transition-colors hover:text-editorial-link"}
-                >
-                  {competition.name}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      ) : null}
 
       </header>
     </>

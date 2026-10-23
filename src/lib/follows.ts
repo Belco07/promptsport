@@ -71,8 +71,8 @@ export function getReaderFollows(userId: string) {
   return prisma.author.findUnique({
     where: { id: userId },
     select: {
-      followedTeams: { select: { id: true, name: true, shortName: true, slug: true }, orderBy: { name: "asc" } },
-      followedCompetitions: { select: { id: true, name: true, slug: true }, orderBy: { name: "asc" } },
+      followedTeams: { select: { id: true, name: true, shortName: true, slug: true, logoUrl: true }, orderBy: { name: "asc" } },
+      followedCompetitions: { select: { id: true, name: true, slug: true, logoUrl: true }, orderBy: { name: "asc" } },
     },
   });
 }

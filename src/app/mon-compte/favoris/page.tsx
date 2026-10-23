@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EntityLogo } from "@/components/EntityLogo";
 import { redirect } from "next/navigation";
 import { ArticleCard } from "@/components/ArticleCard";
 import { Footer } from "@/components/Footer";
@@ -19,7 +20,7 @@ export default async function FavoritesPage() {
     }),
     prisma.author.findUnique({ where: { id: session.user.id }, select: { favoriteCompetitions: true } }),
   ]);
-  const competitions = await prisma.competition.findMany({ where: { slug: { in: reader?.favoriteCompetitions ?? [] } }, select: { slug: true, name: true }, orderBy: { name: "asc" } });
+  const competitions = await prisma.competition.findMany({ where: { slug: { in: reader?.favoriteCompetitions ?? [] } }, select: { slug: true, name: true, logoUrl: true }, orderBy: { name: "asc" } });
   return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 py-10 text-foreground">
     <h1 className="text-3xl font-black">Mes favoris</h1>
     <nav aria-label="Mes lectures" className="my-6 flex flex-wrap gap-4 text-sm font-semibold text-editorial-link"><Link href="/mon-compte">Mon compte</Link><Link href="/mon-compte/historique">Historique</Link></nav>
@@ -29,7 +30,7 @@ export default async function FavoritesPage() {
     </section>
     <section aria-labelledby="favorite-competitions-heading" className="mt-12 border-t border-border pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="favorite-competitions-heading" className="text-xl font-bold">Mes compétitions favorites</h2><Link href="/mon-compte/favoris/personnaliser" className="text-sm font-semibold text-editorial-link hover:underline">Personnaliser</Link></div>
-      {competitions.length ? <ul className="mt-4 flex flex-wrap gap-3">{competitions.map(competition => <li key={competition.slug}><Link href={`/competition/${competition.slug}`} className="inline-block rounded-full bg-muted px-4 py-2 text-sm font-semibold hover:underline">{competition.name}</Link></li>)}</ul> : <p className="mt-3 text-sm text-muted-foreground">Choisissez vos compétitions pour retrouver leurs résultats et classements ici.</p>}
+      {competitions.length ? <ul className="mt-4 flex flex-wrap gap-3">{competitions.map(competition => <li key={competition.slug}><Link href={`/competition/${competition.slug}`} className="inline-flex items-center gap-2 rounded-full bg-muted py-1.5 pl-1.5 pr-4 text-sm font-semibold hover:underline"><EntityLogo kind="competition" name={competition.name} logoUrl={competition.logoUrl} slug={competition.slug} size={24} />{competition.name}</Link></li>)}</ul> : <p className="mt-3 text-sm text-muted-foreground">Choisissez vos compétitions pour retrouver leurs résultats et classements ici.</p>}
     </section>
   </main><Footer /></>;
 }

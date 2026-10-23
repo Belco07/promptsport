@@ -5,7 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ArticleCard, type ArticleCardData } from "@/components/ArticleCard";
 import { HeroSection } from "@/components/home/HeroSection";
 import { EditionSection } from "@/components/home/EditionSection";
-import { EssentialsSidebar } from "@/components/home/EssentialsSidebar";
+import { EssentialsAside, WireAside } from "@/components/home/EssentialsSidebar";
 import { LiveBanner } from "@/components/home/LiveBanner";
 import { CompetitionsGrid } from "@/components/CompetitionsGrid";
 import { MostReadList } from "@/components/MostReadList";
@@ -120,7 +120,7 @@ const getEditorial = unstable_cache(async () => {
     // WP16d : le bloc « Mercato » suit le thème éditorial, tous sports confondus.
     prisma.$queryRaw<HomeArticle[]>(Prisma.sql`SELECT ${columns} ${joins} WHERE ${published} AND ${condition("mercato")} ORDER BY a."publishedAt" DESC, a.id DESC LIMIT 5`),
     prisma.$queryRaw<HomeArticle[]>(Prisma.sql`SELECT ${columns} ${joins} WHERE ${published} AND ${condition("analyses")} ORDER BY a."publishedAt" DESC, a.id DESC LIMIT 4`),
-    prisma.competition.findMany({ where: { slug: { in: competitionSlugs } }, select: { slug: true, name: true } }),
+    prisma.competition.findMany({ where: { slug: { in: competitionSlugs } }, select: { slug: true, name: true, logoUrl: true } }),
     prisma.analyticsPageView.groupBy({ by: ["articleId"], where: { articleId: { not: null }, createdAt: { gte: new Date(Date.now()-7*86400000) }, article: { status: "PUBLISHED", publishedAt: { lte: new Date() } } }, _count: { articleId: true }, orderBy: [{ _count: { articleId: "desc" } }, { articleId: "asc" }], take: 5 }),
     // Onglets thématiques : une seule requête pour tous les thèmes actifs et
     // leurs 4 articles les plus récents (LEFT JOIN : un thème vide reste listé).
@@ -142,7 +142,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   const [cached, cachedLatest] = await Promise.all([getEditorial(), getLatest(page, section)]);
   const popularClubs = await prisma.team.findMany({
     select: { id: true, name: true, slug: true, logoUrl: true },
-    take: 6,
+    take: 8,
     orderBy: { name: "asc" },
   });
   // The persistent cache serializes Dates as strings; restore them before rendering.
@@ -154,7 +154,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   const [lead, ...secondary] = editorial.featured;
   const unique = (articles: ArticleCardData[]) => [...new Map(articles.map(article => [article.slug, article])).values()];
   const essentials = unique([...secondary, ...editorial.wire]).filter(article => article.slug !== lead?.slug).slice(0, 3);
-  const headlines = unique([...secondary, ...editorial.wire.filter(article => article.format === "NEWS"), ...latest.filter(article => article.format === "NEWS")]).filter(article => article.slug !== lead?.slug).slice(0, 3);
+  const headlines = unique([...secondary, ...editorial.wire.filter(article => article.format === "NEWS"), ...latest.filter(article => article.format === "NEWS")]).filter(article => article.slug !== lead?.slug).slice(0, 4);
   const briefs = [...editorial.wire].sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0)).slice(0, 5);
   const kicker = cached.themeTabs.find(row => row.id === lead?.id)?.themeName;
   const editionDate = new Date();
@@ -165,22 +165,28 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
     <div className="grid grid-cols-1 gap-x-7 gap-y-10 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,.95fr)]">
       <HeroSection article={lead} kicker={kicker} />
       <LiveBanner />
-      <EssentialsSidebar essentials={essentials} wire={briefs} />
-      <EditionSection id="analyses" title="Analyses" articles={editorial.analyses.slice(0, 2)} href="/?rubrique=analyses#derniers-articles" />
-      <EditionSection id="mercato" title="Mercato" articles={editorial.mercato.slice(0, 3)} href="/theme/mercato" />
-      <EditionSection id="une" title="À la Une" articles={headlines} href="/#derniers-articles" />
+      <WireAside wire={briefs} />
     </div>
-    <SectionBlock id="themes" title="Thèmes" description="Mercato, tactique, interviews : les sujets qui traversent tous les sports."><ThemeTabs themes={themeTabs} /><p className="mt-6"><Link href="/themes" className="text-sm font-bold text-foreground hover:underline">Tous les thèmes →</Link></p></SectionBlock>
+    {/* Après l'article à la une, comme sur la référence : Thèmes, À la Une,
+        Analyses puis Mercato, avec « L'essentiel » en colonne latérale. */}
+    <div className="grid grid-cols-1 gap-x-7 gap-y-10 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,.95fr)]">
+      <div className="min-w-0 space-y-12 lg:col-span-3">
+        <SectionBlock id="themes" title="Thèmes" href="/themes" linkLabel="Tous les thèmes" description="Mercato, tactique, interviews : les sujets qui traversent tous les sports."><ThemeTabs themes={themeTabs} /></SectionBlock>
+        <EditionSection id="une" title="À la Une" articles={headlines} href="/#derniers-articles" />
+        <EditionSection id="analyses" title="Analyses" articles={editorial.analyses.slice(0, 4)} href="/?rubrique=analyses#derniers-articles" />
+        <EditionSection id="mercato" title="Mercato" articles={editorial.mercato.slice(0, 4)} href="/theme/mercato" />
+      </div>
+      <EssentialsAside essentials={essentials} />
+    </div>
     <AdSlotGate><AdSlot /></AdSlotGate>
     <SectionBlock id="competitions" title="Compétitions" href="/scores"><CompetitionsGrid competitions={editorial.competitions} /></SectionBlock>
     <SectionBlock id="clubs-populaires" title="Clubs populaires à suivre" href="/scores">
-      <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">{popularClubs.map((club) => <FollowPill key={club.id} id={club.id} kind="team" name={club.name} logoUrl={club.logoUrl} slug={club.slug} following={false} signedIn={false} />)}</div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8">{popularClubs.map((club) => <FollowPill key={club.id} id={club.id} kind="team" name={club.name} logoUrl={club.logoUrl} slug={club.slug} following={false} signedIn={false} />)}</div>
     </SectionBlock>
-    <div className="grid gap-8 lg:grid-cols-[2fr_1fr]"><SectionBlock id="plus-lus" title="Les plus lus" description="Les articles les plus consultés ces 7 derniers jours"><MostReadList articles={editorial.popular} /></SectionBlock><aside className="space-y-6"><section className="border border-border bg-card p-6 text-foreground"><p className="text-xs font-bold uppercase">PromptSport +</p><h2 className="my-3 text-3xl font-black">La passion va plus loin.</h2><p className="mb-5 text-sm text-muted-foreground">Analyses, décryptages et articles premium. Vivez le sport avec un temps d’avance.</p><Link href="/abonnement" className="font-bold underline underline-offset-4">Découvrir les offres →</Link></section><AdSlotGate><AdSlot format="rectangle" /></AdSlotGate></aside></div>
+    <div className="grid gap-8 lg:grid-cols-[2fr_1fr]"><SectionBlock id="plus-lus" title="Les plus lus" description="Les articles les plus consultés ces 7 derniers jours"><MostReadList articles={editorial.popular} /></SectionBlock><aside className="space-y-6"><section className="rounded-[18px] border border-border bg-card p-6 text-foreground shadow-[0_4px_20px_rgb(0_0_0/7%)]"><p className="text-xs font-bold uppercase">PromptSport +</p><h2 className="my-3 text-3xl font-black">La passion va plus loin.</h2><p className="mb-5 text-sm text-muted-foreground">Analyses, décryptages et articles premium. Vivez le sport avec un temps d’avance.</p><Link href="/abonnement" className="font-bold underline underline-offset-4">Découvrir les offres →</Link></section><AdSlotGate><AdSlot format="rectangle" /></AdSlotGate></aside></div>
     <SectionBlock id="derniers-articles" title={section ? `Derniers articles · ${section}` : "Derniers articles"}>
       <div data-latest-page={page}><ArticleGrid articles={latest.slice(0,12)} /></div>
-      <nav aria-label="Pagination des articles" className="mt-7 flex flex-wrap items-center justify-center gap-5 text-sm text-foreground">{page>1 && <Link href={pageHref(page-1)} rel="prev" className="border border-border px-5 py-3 font-bold">← Précédents</Link>}<span className="text-muted-foreground">Page {page}</span>{latest.length>12 && <Link href={pageHref(page+1)} rel="next" className="border border-border bg-card px-5 py-3 font-bold">Voir plus →</Link>}{section && <Link href="/#derniers-articles" className="underline">Toutes les rubriques</Link>}</nav>
+      <nav aria-label="Pagination des articles" className="mt-7 flex flex-wrap items-center justify-center gap-5 text-sm text-foreground">{page>1 && <Link href={pageHref(page-1)} rel="prev" className="inline-flex h-10 items-center rounded-[13px] border border-border px-5 font-bold hover:border-foreground">← Précédents</Link>}<span className="text-muted-foreground">Page {page}</span>{latest.length>12 && <Link href={pageHref(page+1)} rel="next" className="inline-flex h-10 items-center rounded-[13px] border border-border bg-card px-5 font-bold hover:border-foreground">Voir plus →</Link>}{section && <Link href="/#derniers-articles" className="underline">Toutes les rubriques</Link>}</nav>
     </SectionBlock>
-    <section aria-labelledby="encart-newsletter" className="flex flex-col justify-between gap-6 border-y-2 border-border bg-card py-7 text-foreground md:flex-row md:items-center"><div><p className="text-xs font-bold uppercase text-muted-foreground">Le meilleur du sport, dans votre boîte mail</p><h2 id="encart-newsletter" className="my-2 text-2xl font-black">Ne restez pas sur la touche.</h2><p className="text-sm text-muted-foreground">Recevez l’essentiel de l’actualité sportive. Désabonnement en un clic.</p></div><Link href="/newsletter" className="shrink-0 border border-border px-5 py-3 text-sm font-bold">S’inscrire à la newsletter →</Link></section>
   </main><Footer /></>;
 }

@@ -25,10 +25,12 @@ import {
   homeTitleForSite,
 } from "@/lib/seo";
 import { getSiteConfig } from "@/lib/site-config";
+import { availableOAuthProviders } from "@/lib/oauth-providers";
 import "./globals.css";
 import "./editorial.css";
 import "./workspace.css";
 import "./motion.css";
+import "./skin.css";
 import { PublicShell } from "@/components/PublicShell";
 
 /**
@@ -154,7 +156,7 @@ const getNavCompetitions = unstable_cache(
       return await prisma.competition.findMany({
         orderBy: { name: "asc" },
         take: 8,
-        select: { slug: true, name: true },
+        select: { slug: true, name: true, logoUrl: true },
       });
     } catch (error) {
       console.warn("[nav] compétitions indisponibles :", error);
@@ -300,6 +302,7 @@ export default async function RootLayout({
           <PwaClient />
           <PublicShell header={<PublicNav
             competitions={competitions}
+            oauthProviders={availableOAuthProviders()}
             urgentBar={urgent ? <UrgentBanner article={urgent} /> : null}
             scoresBar={<AdSlotGate><div className="border-b border-border bg-background px-3 py-3"><AdSlot format="leaderboard" /></div></AdSlotGate>}
           />}>

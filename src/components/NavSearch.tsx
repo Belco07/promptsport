@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X, ArrowRight } from "lucide-react";
+import { Search, X, ArrowRight } from "@/components/icons";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -54,17 +54,21 @@ export function NavSearch() {
     return () => { clearTimeout(timer); controller.abort(); };
   }, [q, open]);
 
-  return <div ref={container} onMouseEnter={keepOpen}
+  return <div ref={container} className="relative" onMouseEnter={keepOpen}
     onMouseLeave={() => { closeTimer.current = setTimeout(() => { if (!container.current?.contains(document.activeElement)) setOpen(false); }, 250); }}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
     onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); setOpen(false); trigger.current?.focus(); } }}>
     <button ref={trigger} type="button" aria-label="Ouvrir la recherche" aria-expanded={open} aria-controls="nav-search-panel"
       onClick={() => { setOpen(true); requestAnimationFrame(() => input.current?.focus()); }}
-      className="group flex h-10 w-10 items-center justify-center rounded-md text-foreground transition-colors hover:bg-muted hover:text-editorial-link focus-visible:outline-2 focus-visible:outline-editorial-link">
-      <Search aria-hidden="true" strokeWidth={1.8} className="h-[22px] w-[22px] transition-transform group-hover:scale-110 motion-reduce:transform-none" />
+      className="group flex h-10 items-center justify-center gap-2 rounded-md px-2 text-foreground transition-colors hover:bg-muted hover:text-editorial-link focus-visible:outline-2 focus-visible:outline-editorial-link">
+      <Search aria-hidden="true" strokeWidth={1.8} className="h-[20px] w-[20px] transition-transform group-hover:scale-110 motion-reduce:transform-none" />
+      {/* Libellé visible à côté de la loupe, comme sur la référence (masqué sur
+          les écrans étroits pour garder la barre sur une ligne). */}
+      <span aria-hidden="true" className="hidden text-sm lg:inline">Rechercher</span>
     </button>
-    {open && <div id="nav-search-panel" onMouseEnter={keepOpen} className="absolute inset-x-0 top-full z-50 px-3 sm:px-4">
-      <div className="max-h-[calc(100dvh-110px)] overflow-y-auto rounded-b-md border border-border border-t-2 border-t-editorial-link bg-card p-5 text-foreground shadow-2xl sm:p-7">
+    {/* Panneau déroulant ancré sous la loupe, aligné à droite. */}
+    {open && <div id="nav-search-panel" onMouseEnter={keepOpen} className="absolute right-0 top-full z-50 w-[min(760px,calc(100vw-32px))] pt-2">
+      <div className="max-h-[calc(100dvh-110px)] overflow-y-auto rounded-[18px] border border-border bg-card p-5 text-foreground shadow-[0_4px_30px_rgb(0_0_0/12%)] sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div><p className="text-xs font-bold uppercase tracking-widest text-editorial-link">Explorer PromptSport</p><h2 className="mt-1 text-xl font-bold sm:text-2xl">Toute l’actualité à portée de recherche</h2></div>
           <button type="button" aria-label="Fermer la recherche" onClick={() => { setOpen(false); trigger.current?.focus(); }} className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted"><X aria-hidden="true" className="h-5 w-5" /></button>

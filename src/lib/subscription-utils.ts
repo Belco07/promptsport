@@ -17,7 +17,7 @@ export const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
 };
 
 export const SUBSCRIPTION_STATUS_BADGES: Record<string, string> = {
-  ACTIVE: "bg-green-100 text-green-800",
+  ACTIVE: "bg-status-success text-status-success-foreground",
   TRIALING: "bg-blue-100 text-blue-800",
   PAST_DUE: "bg-orange-100 text-orange-800",
   CANCELED: "bg-gray-100 text-gray-600",
@@ -32,7 +32,7 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
 };
 
 export const PAYMENT_STATUS_BADGES: Record<string, string> = {
-  SUCCEEDED: "bg-green-100 text-green-800",
+  SUCCEEDED: "bg-status-success text-status-success-foreground",
   PENDING: "bg-gray-100 text-gray-600",
   FAILED: "bg-red-100 text-red-800",
   REFUNDED: "bg-orange-100 text-orange-800",

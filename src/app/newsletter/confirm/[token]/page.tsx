@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle } from "@/components/icons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 

@@ -1,4 +1,4 @@
-import { Award } from "lucide-react";
+import { Award } from "@/components/icons";
 
 import { Badge } from "@/components/ui/Badge";
 

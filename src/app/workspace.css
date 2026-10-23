@@ -1,5 +1,8 @@
 /* Shared controls across the public site, reader account and editorial tools. */
-.public-site { --control-radius: 6px; }
+/* Formes des boutons et des champs alignées sur la référence « Digital Haven » :
+   angles arrondis à 13 px, libellés en casse normale, champs de saisie arrondis
+   (21 px pour les zones de texte). Les couleurs restent celles du site. */
+.public-site { --control-radius: 13px; }
 .public-site button[class],
 .public-site .app-button[class],
 .public-site a[role="button"],
@@ -7,12 +10,14 @@
   border-radius: var(--control-radius);
 }
 .public-site :is(button[type="submit"], .app-button) {
-  min-height: 44px;
-  font-weight: 750;
-  letter-spacing: .02em;
-  text-transform: uppercase;
+  min-height: 40px;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
   transition: background-color .15s, color .15s, opacity .15s;
 }
+.public-site :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select) { border-radius: var(--control-radius); }
+.public-site textarea { border-radius: 21px; }
 .public-site :is(button[type="submit"], .app-button):disabled { cursor: not-allowed; opacity: .55; }
 .public-site :is(button, .app-button).bg-primary { background-color: hsl(var(--primary)); color: white; }
 .public-site :is(button, .app-button).bg-primary:hover:not(:disabled) { background-color: hsl(var(--primary-hover)); }

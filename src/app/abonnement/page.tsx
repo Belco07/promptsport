@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { Check, CreditCard, Lock, Sparkles } from "lucide-react";
+import { Check, CreditCard, Lock, Repeat, ShieldCheck, Sparkles } from "@/components/icons";
 import Link from "next/link";
 
-import { PlanCard } from "@/components/PlanCard";
+import { PageBand } from "@/components/PageBand";
+import { PlanSelector } from "@/components/PlanSelector";
 import { Footer } from "@/components/Footer";
-import { Badge } from "@/components/ui/Badge";
 import { buttonStyles } from "@/components/ui/Button";
-import { Card, CardBody } from "@/components/ui/Card";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildPageMetadata } from "@/lib/seo";
@@ -29,21 +28,29 @@ export const dynamic = "force-dynamic";
 
 /** Avantages réels de l'abonnement (rien qui ne soit pas tenu par le site). */
 const BENEFITS = [
-  "Accès illimité à tous les articles premium",
-  "Annulation à tout moment, depuis votre compte",
-  "Paiement sécurisé par Stripe",
+  "Accès illimité aux articles premium",
+  "Annulation à tout moment",
+  "Paiement sécurisé",
 ];
 
-/**
- * Formule mise en avant : l'abonnement annuel s'il existe (meilleur rapport
- * qualité-prix), sinon la formule intermédiaire.
- */
-function recommendedPlanId(plans: Array<{ id: string; interval: string }>): string | null {
-  const yearly = plans.find((plan) => plan.interval === "YEAR");
-  if (yearly) return yearly.id;
-  if (plans.length === 0) return null;
-  return plans[Math.floor((plans.length - 1) / 2)].id;
-}
+/** Bandeau de réassurance sous les formules. */
+const REASSURANCE = [
+  {
+    icon: ShieldCheck,
+    title: "Paiement sécurisé",
+    text: "Le paiement est traité par Stripe ; aucune donnée bancaire n'est stockée sur le site.",
+  },
+  {
+    icon: Repeat,
+    title: "Résiliation en un clic",
+    text: "Depuis « Mon compte », à tout moment. L'accès reste actif jusqu'à la fin de la période réglée.",
+  },
+  {
+    icon: Sparkles,
+    title: "Tout le premium",
+    text: "Analyses, dossiers et articles marqués « Premium », sur ordinateur comme sur mobile.",
+  },
+];
 
 /** Questions fréquentes : réponses vérifiables, sans JavaScript (balise details). */
 const FAQ = [
@@ -92,41 +99,16 @@ export default async function SubscriptionPlansPage() {
     ownedPlanIds = [...new Set(owned.map((subscription) => subscription.planId))];
   }
   const hasActiveSubscription = ownedPlanIds.length > 0;
-  const recommended = recommendedPlanId(plans);
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-5xl px-4 py-10">
-        <header className="mb-10 text-center">
-          <Badge variant="premium" className="mb-4">
-            <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
-            Contenus premium
-          </Badge>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-            Abonnez-vous
-          </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-base text-muted-foreground">
-            Accédez à tous les contenus premium du site et soutenez un journalisme sportif
-            indépendant.
-          </p>
-        </header>
-
-        <ul className="mb-10 grid gap-3 sm:grid-cols-3">
-          {BENEFITS.map((benefit) => (
-            <li
-              key={benefit}
-              className="flex items-start gap-2 rounded-xl border border-border bg-card p-4 text-sm text-foreground shadow-card"
-            >
-              <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-status-success-foreground" />
-              {benefit}
-            </li>
-          ))}
-        </ul>
+      <main id="contenu" className="mx-auto w-full max-w-[1280px] px-4 pb-8">
+        <PageBand title="Abonnement" />
 
         {!isStripeConfigured() ? (
           <p
             role="alert"
-            className="mb-8 rounded-xl border border-status-warning-border bg-status-warning px-4 py-3 text-sm text-status-warning-foreground"
+            className="mb-6 rounded-[13px] border border-status-warning-border bg-status-warning px-4 py-3 text-sm text-status-warning-foreground"
           >
             Les paiements ne sont pas encore configurés (clé Stripe absente). La souscription sera
             indisponible jusqu&apos;à l&apos;ajout de{" "}
@@ -134,52 +116,71 @@ export default async function SubscriptionPlansPage() {
           </p>
         ) : null}
 
-        {plans.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-            Aucun plan disponible pour le moment.
+        {/* Bandeau d'accroche façon kiosque (L'Équipe) : bloc encre arrondi,
+            pastille d'accent, titre en grand et engagements. Les cartes des
+            formules viennent le chevaucher ; le sélecteur mensuel / annuel
+            (PlanSelector) est posé sur sa partie basse. */}
+        <header className="relative overflow-hidden rounded-[18px] border border-transparent bg-[#121212] px-6 pb-[136px] pt-12 dark:border-white/15 text-center text-white sm:px-10">
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1 text-xs font-extrabold uppercase tracking-[1px] text-[#111211]">
+            <Sparkles aria-hidden="true" size={14} />
+            PromptSport Premium
           </p>
-        ) : (
-          <div className="grid grid-cols-1 items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan) => {
-              const isRecommended = plan.id === recommended;
-              return (
-                <div
-                  key={plan.id}
-                  className={
-                    isRecommended
-                      ? "relative rounded-2xl bg-gradient-to-b from-decorative-start to-decorative-end p-[2px] shadow-card-hover lg:-mt-3"
-                      : ""
-                  }
-                >
-                  {isRecommended ? (
-                    <p className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-status-warning-foreground px-3 py-1 text-xs font-bold uppercase tracking-wide text-status-warning">
-                      Recommandé
-                    </p>
-                  ) : null}
-                  <PlanCard
-                    plan={plan}
-                    isLoggedIn={Boolean(session?.user)}
-                    isOwnedPlan={ownedPlanIds.includes(plan.id)}
-                    hasActiveSubscription={hasActiveSubscription}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+          <h2 className="mx-auto mt-5 max-w-3xl text-4xl font-black leading-[1.05] tracking-[-1.5px] text-white sm:text-5xl">
+            Abonnez-vous à PromptSport
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/75 sm:text-lg">
+            Accédez à tous les contenus premium du site et soutenez un journalisme sportif
+            indépendant.
+          </p>
+          <ul className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-semibold">
+            {BENEFITS.map((benefit) => (
+              <li key={benefit} className="inline-flex items-center gap-1.5">
+                <Check aria-hidden="true" size={16} className="text-accent" />
+                {benefit}
+              </li>
+            ))}
+          </ul>
+        </header>
 
-        <section aria-labelledby="faq" className="mt-14">
-          <h2
-            id="faq"
-            className="mb-5 text-2xl font-extrabold tracking-tight text-foreground"
-          >
+        <div className="relative -mt-[120px] sm:px-6">
+          {plans.length === 0 ? (
+            <p className="mx-auto max-w-5xl rounded-[18px] border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+              Aucun plan disponible pour le moment.
+            </p>
+          ) : (
+            <PlanSelector
+              plans={plans}
+              isLoggedIn={Boolean(session?.user)}
+              ownedPlanIds={ownedPlanIds}
+              hasActiveSubscription={hasActiveSubscription}
+            />
+          )}
+        </div>
+
+        {/* Réassurance : trois engagements, avec icône. */}
+        <ul className="mx-auto mt-12 grid max-w-5xl gap-4 sm:grid-cols-3">
+          {REASSURANCE.map(({ icon: Icon, title, text }) => (
+            <li key={title} className="flex items-start gap-3 rounded-[13px] border border-border bg-card p-5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-[#111211]">
+                <Icon aria-hidden="true" size={20} />
+              </span>
+              <span>
+                <span className="block text-sm font-extrabold text-foreground">{title}</span>
+                <span className="mt-1 block text-sm leading-5 text-muted-foreground">{text}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <section aria-labelledby="faq" className="mx-auto mt-14 max-w-5xl">
+          <h2 id="faq" className="section-title mb-5">
             Questions fréquentes
           </h2>
           <div className="space-y-3">
             {FAQ.map((item) => (
               // <details> : repli accessible et sans JavaScript.
-              <details key={item.question} className="rounded-xl border border-border bg-card">
-                <summary className="cursor-pointer rounded-xl px-5 py-4 text-sm font-bold text-foreground marker:text-status-warning-foreground">
+              <details key={item.question} className="rounded-[13px] border border-border bg-card">
+                <summary className="cursor-pointer rounded-[13px] px-5 py-4 text-[15px] font-bold text-foreground marker:text-editorial-link">
                   {item.question}
                 </summary>
                 <p className="px-5 pb-4 text-sm leading-7 text-muted-foreground">{item.answer}</p>
@@ -188,24 +189,22 @@ export default async function SubscriptionPlansPage() {
           </div>
         </section>
 
-        <Card className="mt-12">
-          <CardBody className="flex flex-col items-center gap-4 text-center">
-            <Lock aria-hidden="true" className="h-6 w-6 text-muted-foreground" />
-            <p className="max-w-xl text-sm text-muted-foreground">
-              Vous préférez d&apos;abord lire ? Consultez les scores et les derniers articles ;
-              l&apos;abonnement n&apos;est nécessaire que pour les contenus marqués « Premium ».
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Link href="/scores" className={buttonStyles({ variant: "secondary", size: "sm" })}>
-                Voir les scores
-              </Link>
-              <Link href="/mon-compte" className={buttonStyles({ variant: "ghost", size: "sm" })}>
-                <CreditCard aria-hidden="true" className="h-4 w-4" />
-                Mon compte
-              </Link>
-            </div>
-          </CardBody>
-        </Card>
+        <div className="mx-auto mt-12 flex max-w-5xl flex-col items-center gap-4 rounded-[18px] border border-border bg-card p-8 text-center">
+          <Lock aria-hidden="true" className="h-6 w-6 text-muted-foreground" />
+          <p className="max-w-xl text-sm text-muted-foreground">
+            Vous préférez d&apos;abord lire ? Consultez les scores et les derniers articles ;
+            l&apos;abonnement n&apos;est nécessaire que pour les contenus marqués « Premium ».
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link href="/scores" className={buttonStyles({ variant: "secondary", size: "sm" })}>
+              Voir les scores
+            </Link>
+            <Link href="/mon-compte" className={buttonStyles({ variant: "ghost", size: "sm" })}>
+              <CreditCard aria-hidden="true" className="h-4 w-4" />
+              Mon compte
+            </Link>
+          </div>
+        </div>
       </main>
 
       <Footer />

@@ -1,5 +1,5 @@
 "use client";
-import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, X } from "@/components/icons";
 import { useRef, useState } from "react";
 
 type Props = { id?: string; name?: string; type?: string; value?: string; defaultValue?: string; onValueChange?: (value: string) => void; required?: boolean; className?: string; label?: string };

@@ -2,7 +2,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MessageCircle, Bookmark, CreditCard } from "lucide-react";
+import { MessageCircle, Bookmark, CreditCard } from "@/components/icons";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SocialSignIn } from "@/components/SocialSignIn";
 import { register } from "./actions";
@@ -13,7 +13,7 @@ export function RegisterForm({ providers }: { providers: { google: boolean; face
   return <div className="public-site min-h-screen bg-background text-foreground">
     <header className="border-b border-border bg-foreground dark:bg-background"><div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-5 md:px-8"><Link href="/" aria-label="PromptSport — accueil"><Image src="/promptsport-logo-night.png" alt="PromptSport" width={4739} height={1044} className="h-auto w-44" priority /></Link><div className="bg-background p-1"><ThemeToggle /></div></div></header>
     <main id="contenu" className="mx-auto max-w-[1280px] px-5 py-12 md:px-8">
-      <h1 className="mb-12 text-3xl font-black uppercase md:text-[42px]">Créer un compte</h1>
+      <h1 className="mb-12 text-3xl font-black md:text-[42px]">Créer un compte</h1>
       <div className="grid gap-12 lg:grid-cols-[3fr_2fr] lg:gap-16"><div>
         <form action={action} className="space-y-4" aria-busy={pending}>
           <label className="block"><span className="sr-only">Prénom</span><input name="name" autoComplete="given-name" placeholder="PRÉNOM" minLength={2} maxLength={100} required className={field} /></label>

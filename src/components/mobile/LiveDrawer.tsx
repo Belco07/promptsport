@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, X } from "lucide-react";
+import { ChevronUp, X } from "@/components/icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -187,7 +187,7 @@ export function LiveDrawer({
         aria-label="Matchs en direct"
         aria-hidden={!open}
         inert={!open}
-        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[75dvh] flex-col border-t-2 border-t-accent bg-background shadow-2xl transition-transform duration-300 motion-reduce:transition-none md:hidden ${
+        className={`fixed inset-x-0 bottom-0 z-50 flex max-h-[75dvh] flex-col overflow-hidden rounded-t-[21px] border-t-2 border-t-accent bg-background shadow-2xl transition-transform duration-300 motion-reduce:transition-none md:hidden ${
           open ? "translate-y-0" : "translate-y-full"
         }`}
       >
@@ -209,7 +209,7 @@ export function LiveDrawer({
               data-drawer-close
               onClick={closeDrawer}
               aria-label="Fermer les matchs en direct"
-              className="inline-flex items-center justify-center rounded border border-border p-2 text-foreground transition-colors hover:bg-muted"
+              className="inline-flex items-center justify-center !rounded-full border border-border p-2 text-foreground transition-colors hover:bg-muted"
             >
               <X aria-hidden="true" className="h-4 w-4" />
             </button>

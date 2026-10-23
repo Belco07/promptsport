@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "@/components/icons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -63,9 +63,9 @@ export default async function NewsletterPreferencesPage({
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-2xl px-4 py-12">
-        <header className="mb-6 border-b border-border pb-5">
-          <p className="inline-flex items-center gap-2 rounded-full border border-editorial-link bg-secondary px-3 py-1 text-xs font-semibold text-editorial-link">
+      <main id="contenu" className="mx-auto w-full max-w-2xl px-4 pb-12">
+        <header className="page-band">
+          <p className="inline-flex items-center gap-2 rounded-full border border-accent bg-secondary px-3 py-1 text-xs font-semibold text-editorial-link">
             <SlidersHorizontal aria-hidden="true" className="h-3.5 w-3.5" />
             Newsletter
           </p>

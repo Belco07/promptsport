@@ -14,6 +14,7 @@ import { getLastSportsUpdate } from "@/lib/live-sync";
 import { formatRelativeDate } from "@/lib/formatDate";
 import { isFotmobLiveEnabled, withLocalFootballLive } from "@/lib/fotmob-live";
 import { withStoredMatchClocks } from "@/lib/allsports-sync";
+import { PageBand } from "@/components/PageBand";
 
 export const metadata=buildPageMetadata({title:"Scores en direct",description:"Résultats, matchs en direct et rencontres à venir de toutes les compétitions.",path:"/scores"});
 export default async function ScoresPage({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}) {
@@ -31,25 +32,26 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
   };
   const [storedMatches,competitions,session,lastUpdate]=await Promise.all([
     prisma.match.findMany({where,orderBy:{scheduledAt:view==="finished"?"desc":"asc"},...(view!=="day"?{take:100}:{}),include:{homeTeam:true,awayTeam:true,competition:true,events:{orderBy:[{minute:"desc"},{extraMinute:"desc"}],take:1,select:{minute:true,extraMinute:true,createdAt:true}}}}),
-    prisma.competition.findMany({orderBy:{name:"asc"},select:{slug:true,name:true,sport:true,id:true}}),auth(),getLastSportsUpdate(),
+    prisma.competition.findMany({orderBy:{name:"asc"},select:{slug:true,name:true,sport:true,id:true,logoUrl:true}}),auth(),getLastSportsUpdate(),
   ]);
   const snapshots=await withLocalFootballLive(await withStoredMatchClocks(storedMatches));
   const matches=view==="live"?snapshots.filter(match=>match.status==="LIVE"):view==="upcoming"?snapshots.filter(match=>match.status==="SCHEDULED"):snapshots;
   const premium=session?.user?.isPremium===true;
   const groups=new Map<string,typeof matches>();for(const match of matches){const key=match.competitionId;groups.set(key,[...(groups.get(key)??[]),match]);}
   function href(day:string){const p=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v&&k!=="view")p.set(k,v);p.set("date",day);return `/scores?${p}`;}
-  return <><main id="contenu" className={`mx-auto max-w-[1280px] px-4 py-8 text-foreground ${premium?"":"lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8"}`}>
+  return <><main id="contenu" className="mx-auto max-w-[1280px] px-4 pb-8 text-foreground">
+    <PageBand title={view === "live" ? "Matchs en direct" : "Scores en direct, calendrier et résultats"} />
+    <div className={premium?"":"lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8"}>
     <script type="application/ld+json" dangerouslySetInnerHTML={{__html:jsonLdString(itemListJsonLd({name:"Matchs",path:"/scores",items:matches.map(m=>({name:`${m.homeTeam.name} - ${m.awayTeam.name}`,url:`/match/${m.id}`}))}))}}/>
     <div className="min-w-0">
-      <h1 className="mb-7 text-3xl font-black uppercase leading-tight tracking-tight sm:text-5xl">{view === "live" ? "Matchs en direct" : <>Scores en direct,<br/>calendrier et résultats</>}</h1>
       <p className="mb-4 text-sm text-muted-foreground">Dernière mise à jour serveur : {lastUpdate?.finishedAt ? <time dateTime={lastUpdate.finishedAt.toISOString()}>{formatRelativeDate(lastUpdate.finishedAt)}</time> : "aucune synchronisation enregistrée"}</p>
       <LiveScoreRefresher hasLiveMatches={matches.some(match=>match.status==="LIVE")} lastSync={lastUpdate?.finishedAt?.toISOString() ?? null} pauseWhenIdle={view!=="live"} watchForKickoff={view==="live"}/>
       <ScoresControls date={date} sports={[...new Set(competitions.map(c=>c.sport))]} competitions={competitions}/>
-      {view !== "live" && <nav aria-label="Dates des matchs" className="my-6 grid grid-cols-7 overflow-hidden rounded-md bg-muted">{Array.from({length:7},(_,i)=>{const d=new Date(`${date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+i-3);const key=d.toISOString().slice(0,10);return <Link key={key} href={href(key)} aria-current={key===date?"date":undefined} className={`border-r border-border py-3 text-center last:border-r-0 ${key===date?"bg-foreground text-background":"hover:bg-card"}`}><span className="block text-[10px] font-semibold sm:text-xs">{key===today?"Auj.":d.toLocaleDateString("fr-FR",{weekday:"short",timeZone:"UTC"})}</span><span className="my-1 block text-lg font-black">{d.getUTCDate()}</span><span className="block text-[10px]">{d.toLocaleDateString("fr-FR",{month:"short",timeZone:"UTC"})}</span></Link>;})}</nav>}
+      {view !== "live" && <nav aria-label="Dates des matchs" className="my-6 grid grid-cols-7 gap-1 rounded-[13px] bg-muted p-1">{Array.from({length:7},(_,i)=>{const d=new Date(`${date}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+i-3);const key=d.toISOString().slice(0,10);return <Link key={key} href={href(key)} aria-current={key===date?"date":undefined} className={`rounded-[10px] py-3 text-center transition-colors ${key===date?"bg-foreground text-background":"hover:bg-card"}`}><span className="block text-[10px] font-semibold sm:text-xs">{key===today?"Auj.":d.toLocaleDateString("fr-FR",{weekday:"short",timeZone:"UTC"})}</span><span className="my-1 block text-lg font-black">{d.getUTCDate()}</span><span className="block text-[10px]">{d.toLocaleDateString("fr-FR",{month:"short",timeZone:"UTC"})}</span></Link>;})}</nav>}
       <div className="mb-6 flex items-center justify-between gap-3 text-sm"><p role="status">{matches.length} match{matches.length!==1?"s":""}{view!=="day"&&matches.length===100?" (100 premiers)":""}</p><Link href="/mon-compte/favoris" className="font-semibold text-editorial-link">★ Mes favoris</Link></div>
       <section className="mb-8" aria-labelledby="scores-follow">
-        <h2 id="scores-follow" className="mb-4 text-2xl font-black uppercase text-foreground">Compétitions à suivre</h2>
-        <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">{competitions.map((c) => <FollowPill key={c.id} id={c.id} kind="competition" name={c.name} logoUrl={null} slug={c.slug} following={false} signedIn={!!session?.user?.id} />)}</div>
+        <h2 id="scores-follow" className="mb-4 section-title">Compétitions à suivre</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8">{competitions.map((c) => <FollowPill key={c.id} id={c.id} kind="competition" name={c.name} logoUrl={c.logoUrl} slug={c.slug} following={false} signedIn={!!session?.user?.id} />)}</div>
       </section>
       {!matches.length&&<p className="rounded-md bg-muted p-6 text-center text-muted-foreground">Aucun match pour cette sélection. Choisissez une autre date ou modifiez les filtres.</p>}
       <div className="space-y-7">{[...groups.values()].map(rows=><section key={rows[0].competitionId}>
@@ -59,5 +61,6 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
       </section>)}</div>
     </div>
     {!premium&&<aside className="hidden lg:block"><div className="sticky top-28"><AdSlot format="skyscraper"/></div></aside>}
+    </div>
   </main><Footer/></>;
 }

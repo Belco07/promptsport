@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, LoaderCircle } from "lucide-react";
+import { Bookmark, LoaderCircle } from "@/components/icons";
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getBookmarkStates, toggleBookmark } from "@/app/article/[slug]/actions";
@@ -72,7 +72,7 @@ export function BookmarkButton({ articleId, articleSlug, initial, showLabel = fa
   const label = state.saved ? "Retirer des favoris" : "Sauvegarder l’article";
   return <>
     <button type="button" aria-label={label} aria-pressed={state.saved} title={label} disabled={pending || !ready}
-      className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${state.saved ? "border-editorial-link bg-muted text-editorial-link" : "border-border bg-card text-muted-foreground hover:text-editorial-link"}`}
+      className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${state.saved ? "border-accent bg-muted text-editorial-link" : "border-border bg-card text-muted-foreground hover:text-editorial-link"}`}
       onClick={() => {
         setError("");
         start(async () => {

@@ -36,7 +36,7 @@ export const COMMENT_STATUS_LABELS: Record<CommentStatus, string> = {
 /** Classes Tailwind du badge de statut (mêmes teintes que les articles). */
 export const COMMENT_STATUS_BADGES: Record<CommentStatus, string> = {
   PENDING: "bg-gray-100 text-gray-600",
-  APPROVED: "bg-green-100 text-green-800",
+  APPROVED: "bg-status-success text-status-success-foreground",
   REJECTED: "bg-orange-100 text-orange-800",
   FLAGGED: "bg-red-100 text-red-800",
   DELETED: "bg-gray-200 text-gray-500",
@@ -110,7 +110,7 @@ export const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
 export const REPORT_STATUS_BADGES: Record<ReportStatus, string> = {
   PENDING: "bg-red-100 text-red-800",
   REVIEWED: "bg-orange-100 text-orange-800",
-  RESOLVED: "bg-green-100 text-green-800",
+  RESOLVED: "bg-status-success text-status-success-foreground",
   DISMISSED: "bg-gray-100 text-gray-600",
 };
 

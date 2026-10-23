@@ -78,7 +78,7 @@ export default async function AccountPage({
   return (
     <>
       <main id="contenu" className="mx-auto w-full max-w-[832px] px-5 pb-16 pt-10 md:px-8 md:pt-14">
-        <h1 className="mb-4 text-3xl font-black uppercase tracking-tight md:text-[42px]">
+        <h1 className="mb-4 text-3xl font-black tracking-tight md:text-[42px]">
           Mon compte
         </h1>
         <p className="mb-10 text-sm text-muted-foreground md:mb-12">

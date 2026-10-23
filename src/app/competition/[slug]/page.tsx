@@ -168,7 +168,7 @@ export default async function CompetitionPage({ params, searchParams }: Props) {
   return (
     <>
       {active === "live" && <meta name="robots" content="noindex, follow" />}
-      <main id="contenu" className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
+      <main id="contenu" className="mx-auto max-w-[1200px] px-4 pb-8 md:px-6">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -182,6 +182,7 @@ export default async function CompetitionPage({ params, searchParams }: Props) {
             ),
           }}
         />
+        <div className="page-band">
         <Breadcrumbs
           items={[
             { label: "Scores", href: "/scores" },
@@ -202,6 +203,7 @@ export default async function CompetitionPage({ params, searchParams }: Props) {
           }
           accentColor={accentColor}
         />
+        </div>
         <CompetitionTabs
           slug={slug}
           active={active}
@@ -265,11 +267,11 @@ export default async function CompetitionPage({ params, searchParams }: Props) {
         <section id="clubs" className="mt-10 scroll-mt-32" aria-labelledby="follow-clubs">
           <h2
             id="follow-clubs"
-            className="mb-6 text-2xl font-black uppercase text-foreground"
+            className="mb-6 section-title"
           >
             Clubs à suivre
           </h2>
-          <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8">
             {clubs.map(
               (team) =>
                 (

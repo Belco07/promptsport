@@ -62,7 +62,7 @@ export function ThemeTabs({ themes }: { themes: ThemeTab[] }) {
       <div
         role="tablist"
         aria-label="Thèmes éditoriaux"
-        className="mb-5 flex flex-wrap gap-2 border-b border-border pb-3"
+        className="mb-5 flex flex-nowrap gap-1.5 overflow-x-auto border-b border-border pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {themes.map((theme, index) => {
           const Icon = themeIcon(theme.icon);
@@ -81,8 +81,8 @@ export function ThemeTabs({ themes }: { themes: ThemeTab[] }) {
               tabIndex={selected ? 0 : -1}
               onClick={() => setActiveIndex(index)}
               onKeyDown={(event) => onKeyDown(event, index)}
-              className={`theme-badge${selected ? " theme-badge--on" : " theme-badge--off"}`}
-              style={selected ? themeBadgeStyle(theme.color) : { ...themeBadgeStyle(theme.color), opacity: 0.5 }}
+              className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap !rounded-full border px-2.5 text-[13px] font-semibold transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 ${selected ? "border-foreground/35" : "border-transparent hover:opacity-80"}`}
+              style={selected ? themeBadgeStyle(theme.color) : { ...themeBadgeStyle(theme.color), opacity: 0.55 }}
             >
               <Icon size={14} aria-hidden="true" />
               <span>{theme.name}</span>
@@ -100,7 +100,7 @@ export function ThemeTabs({ themes }: { themes: ThemeTab[] }) {
         {active.articles.length === 0 ? (
           <p className="py-6 text-sm text-muted-foreground">Aucun article pour ce thème.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {active.articles.map((article) => (
               <ArticleCard key={article.slug} article={article} headingLevel={3} />
             ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { insertMarkdown$, usePublisher } from "@mdxeditor/editor";
-import { Smile } from "lucide-react";
+import { Smile } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 
 const emojis = [

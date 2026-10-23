@@ -29,7 +29,7 @@ export function FormatFilter({
   // Filtre actif : fond et texte tirés des jetons sémantiques, contraste
   // garanti dans les deux thèmes (l'accent éditorial est jaune-lime en sombre).
   const pillClass = (active: boolean) =>
-    `rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wide transition-colors ${
+    `inline-flex h-8 items-center !rounded-full border px-3 text-[13px] font-semibold transition-colors ${
       active
         ? "border-foreground bg-foreground text-background"
         : "border-border bg-card text-muted-foreground hover:text-foreground"

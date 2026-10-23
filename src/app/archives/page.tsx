@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ArticleCard, type ArticleCardData } from "@/components/ArticleCard";
 import { ArchiveFilters } from "@/components/ArchiveFilters";
 import { Footer } from "@/components/Footer";
+import { PageBand } from "@/components/PageBand";
 
 export const dynamic = "force-dynamic";
 export function generateMetadata(): Metadata {
@@ -80,8 +81,8 @@ export default async function ArchivesPage({ searchParams }: { searchParams: Pro
     : [...new Set([1, totalPages, ...Array.from({ length: 5 }, (_, index) => Math.min(page, totalPages) - 2 + index)])].filter(value => value >= 1 && value <= totalPages).sort((a,b) => a-b);
   function href(value: number) { const next = new URLSearchParams(params); next.set("page", String(value)); return `/archives?${next}`; }
   const linkClass = "inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted";
-  return <><main id="contenu" className="mx-auto max-w-[1200px] space-y-7 px-4 py-8 md:py-12">
-    <header><h1 className="text-3xl font-black text-foreground md:text-4xl">Archives</h1><p className="mt-3 text-muted-foreground">Toute l’actualité, de la plus récente à la plus ancienne.</p></header>
+  return <><main id="contenu" className="mx-auto max-w-[1200px] space-y-7 px-4 pb-8 md:pb-12">
+    <PageBand title="Archives" description="Toute l’actualité, de la plus récente à la plus ancienne." />
     <ArchiveFilters years={years} categories={data.categories} themes={data.themes} />
     <p role="status" aria-live="polite" className="font-semibold text-foreground">{error || `${data._count} article${data._count !== 1 ? "s" : ""}`}</p>
     {data.articles.length ? <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{data.articles.map(article => <ArticleCard key={article.id} article={{ ...article, publishedAt: new Date(article.publishedAt) }} />)}</div>

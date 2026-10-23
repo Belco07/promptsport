@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { MailPlus } from "lucide-react";
 import Link from "next/link";
 
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { Footer } from "@/components/Footer";
 import { Card, CardBody } from "@/components/ui/Card";
 import { availableLists } from "@/lib/newsletter-send";
+import { PageBand } from "@/components/PageBand";
 
 /**
  * Inscription publique à la newsletter (WP11c).
@@ -40,21 +40,12 @@ export default async function NewsletterPage() {
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-12">
-        <header className="mb-8 border-b border-border pb-6">
-          <p className="inline-flex items-center gap-2 rounded-full border border-editorial-link bg-secondary px-3 py-1 text-xs font-semibold text-editorial-link">
-            <MailPlus aria-hidden="true" className="h-3.5 w-3.5" />
-            Newsletter
-          </p>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-            Recevez l&apos;essentiel de l&apos;actualité sportive
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Choisissez vos listes, confirmez votre adresse par e-mail, et c&apos;est tout. Aucune
-            donnée n&apos;est revendue, aucun profil publicitaire n&apos;est construit à partir de
-            votre adresse.
-          </p>
-        </header>
+      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 pb-12">
+        <PageBand
+          kicker="Newsletter"
+          title="Recevez l'essentiel de l'actualité sportive"
+          description="Choisissez vos listes, confirmez votre adresse par e-mail, et c'est tout. Aucune donnée n'est revendue, aucun profil publicitaire n'est construit à partir de votre adresse."
+        />
 
         <div className="grid gap-8 lg:grid-cols-[1fr_260px]">
           <Card>

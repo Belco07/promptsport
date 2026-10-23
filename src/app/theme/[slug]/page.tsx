@@ -125,7 +125,7 @@ export default async function ThemePage({ params, searchParams }: Props) {
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-[1280px] px-4 py-10">
+      <main id="contenu" className="mx-auto w-full max-w-[1280px] px-4 pb-10">
         {/* Données structurées : la liste des articles du thème. */}
         <script
           type="application/ld+json"

@@ -1,4 +1,4 @@
-import { ArrowRightLeft, CircleDot, CircleX, Pen } from "lucide-react";
+import { ArrowRightLeft, CircleDot, CircleX, Pen } from "@/components/icons";
 import type { MatchEvent, MatchLiveUpdate } from "@/generated/prisma/client";
 import Link from "next/link";
 import { playerProfileKey } from "@/lib/slug";

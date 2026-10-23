@@ -1,7 +1,7 @@
 "use client";
 
 import { insertMarkdown$, usePublisher } from "@mdxeditor/editor";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 
 import { uploadStudioImage as uploadImage } from "@/lib/upload-studio-image";

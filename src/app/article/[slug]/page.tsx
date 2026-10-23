@@ -3,7 +3,8 @@ import { recordView } from "./actions";
 import type { Metadata } from "next";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { FormatBadge } from "@/components/FormatBadge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/icons";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache, Suspense } from "react";
@@ -11,6 +12,7 @@ import { MatchCard } from "@/components/MatchCard";
 
 import { ArticleHero } from "@/components/ArticleHero";
 import { ArticleMeta } from "@/components/ArticleMeta";
+import { ArticleAuthorBox, ArticlePrevNext, ArticleTagsBar } from "@/components/ArticleEndMatter";
 import { ArticleShareLinks } from "@/components/ArticleShareLinks";
 import { ArticleReactionBars } from "@/components/ShareButtons";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
@@ -31,6 +33,7 @@ import {
   type ReactionCounts,
   type ReactionType,
 } from "@/lib/engagement";
+import { countUniqueArticleReaders, NEWSROOM_ROLES } from "@/lib/analytics";
 import { formatDate } from "@/lib/formatDate";
 import { prisma } from "@/lib/prisma";
 import { COMMENT_RATE_LIMIT, peekRateLimit, rateLimitMessage } from "@/lib/rate-limit";
@@ -62,7 +65,7 @@ const getPublishedArticle = cache(async (slug: string) => {
     where: { slug, status: "PUBLISHED" },
     include: {
       match: { include: { homeTeam: { select: { name: true, shortName: true, logoUrl: true } }, awayTeam: { select: { name: true, shortName: true, logoUrl: true } }, competition: { select: { name: true } } } },
-      author: { select: { name: true, slug: true, photoUrl: true } },
+      author: { select: { name: true, slug: true, photoUrl: true, bio: true } },
       category: { select: { name: true, slug: true } },
       // WP16b : thèmes éditoriaux affichés à côté de la catégorie.
       themes: { where: { active: true }, orderBy: { name: "asc" }, select: { name: true, slug: true, color: true } },
@@ -305,6 +308,10 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   // de refus à côté du formulaire, la Server Action le vérifiant de son côté.
   const session = await auth();
   if (session?.user?.id) await recordView(article.id);
+  // Lecteurs uniques : calculés et rendus uniquement pour la rédaction
+  // (journaliste, éditeur, admin) ; jamais présents dans la page d'un lecteur.
+  const isNewsroom = (NEWSROOM_ROLES as readonly string[]).includes(session?.user?.role ?? "");
+  const uniqueReaders = isNewsroom ? await countUniqueArticleReaders(article.id) : undefined;
   const bookmark = session?.user?.id ? await prisma.bookmark.findUnique({ where: { readerId_articleId: { readerId: session.user.id, articleId: article.id } }, select: { id: true } }) : null;
   const ban = session?.user?.id
     ? await prisma.author.findUnique({
@@ -328,7 +335,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-[1200px] px-4 py-8">
+      <main id="contenu" className="mx-auto w-full max-w-[1280px] px-4 py-8 lg:px-5">
         {/* Données structurées NewsArticle (WP8a). Le contenu premium n'y figure
             pas : seuls le titre, l'accroche et des métadonnées publiques. */}
         <script
@@ -359,14 +366,29 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             competitionName: article.match.competition.name, status: article.match.status,
             description: article.match.homeScore !== null && article.match.awayScore !== null ? `${article.match.homeTeam.name} ${article.match.homeScore} - ${article.match.awayScore} ${article.match.awayTeam.name}` : undefined,
           })) }} />}
-          <div className="mb-3 flex items-center justify-between gap-3"><FormatBadge format={article.format} /><BookmarkButton articleId={article.id} articleSlug={article.slug} initial={session?.user?.id ? { id: article.id, slug: article.slug, saved: !!bookmark } : null} showLabel /></div>
-          <ArticleHero title={article.title} image={article.coverImageUrl} premium={article.isPremium} />
-          <div className={`mt-8 ${session?.user?.isPremium === true ? "mx-auto max-w-[720px]" : "lg:grid lg:grid-cols-[minmax(0,720px)_300px] lg:justify-between lg:gap-10"}`}>
-          <div className="w-full min-w-0 max-w-[720px]">
-            <ArticleMeta author={article.author} category={article.category} themes={article.themes} date={article.publishedAt} minutes={minutes} />
-            {article.match && <section aria-labelledby="article-match-title" className="mb-6 rounded-lg border border-border bg-card p-4"><h2 id="article-match-title" className="mb-3 text-lg font-bold text-foreground">Match associé</h2><p className="mb-3 text-sm text-muted-foreground">{new Date(article.match.scheduledAt).toLocaleString("fr-FR", { timeZone: "Africa/Lagos", dateStyle: "long", timeStyle: "short" })}</p><MatchCard match={article.match} /><Link href={`/match/${article.match.id}`} className="mt-3 inline-block text-sm font-semibold text-editorial-link underline">Voir la fiche du match</Link></section>}
-            {/* Même retrait que le corps : rail w-12 + espacement gap-5, uniquement lorsqu’il est visible. */}
-            {article.excerpt && <p className="mb-6 text-xl font-semibold leading-relaxed text-foreground xl:ml-[4.25rem]">{article.excerpt}</p>}
+          {/* Disposition « Digital Haven » : en-tête pleine largeur (catégorie,
+              titre, accroche), puis colonne de lecture et colonne latérale. */}
+          <ArticleHero
+            title={article.title}
+            excerpt={article.excerpt}
+            premium={article.isPremium}
+            category={article.category}
+            badges={<FormatBadge format={article.format} />}
+            actions={<BookmarkButton articleId={article.id} articleSlug={article.slug} initial={session?.user?.id ? { id: article.id, slug: article.slug, saved: !!bookmark } : null} showLabel />}
+          />
+          <div className={`mt-8 ${session?.user?.isPremium === true ? "mx-auto max-w-[820px]" : "lg:grid lg:grid-cols-[minmax(0,820px)_300px] lg:justify-between lg:gap-12"}`}>
+          <div className="w-full min-w-0 max-w-[820px]">
+            <ArticleMeta author={article.author} date={article.publishedAt} updatedAt={article.updatedAt} minutes={minutes} uniqueReaders={uniqueReaders}>
+              <ArticleShareLinks slug={article.slug} title={article.title} orientation="compact" />
+            </ArticleMeta>
+            {article.coverImageUrl && (
+              <figure className="mt-5">
+                <div className="relative aspect-video overflow-hidden rounded-[13px] bg-muted">
+                  <Image src={article.coverImageUrl} alt="" fill priority sizes="(max-width: 1024px) 100vw, 820px" className="object-cover" />
+                </div>
+              </figure>
+            )}
+            {article.match && <section aria-labelledby="article-match-title" className="mt-8 rounded-lg border border-border bg-card p-4"><h2 id="article-match-title" className="mb-3 text-lg font-bold text-foreground">Match associé</h2><p className="mb-3 text-sm text-muted-foreground">{new Date(article.match.scheduledAt).toLocaleString("fr-FR", { timeZone: "Africa/Lagos", dateStyle: "long", timeStyle: "short" })}</p><MatchCard match={article.match} /><Link href={`/match/${article.match.id}`} className="mt-3 inline-block text-sm font-semibold text-editorial-link underline">Voir la fiche du match</Link></section>}
             {/*
               Rail de partage et corps de l'article sont frères dans cette ligne :
               le rail commence donc exactement à la première ligne du corps, sans
@@ -374,7 +396,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
               haute du premier paragraphe, pour que l'alignement soit réel et non
               approximatif. Le rail est masqué sous 1280 px (marge insuffisante).
             */}
-            <div className="flex gap-5">
+            <div className="mt-8 flex gap-5">
               <div className="hidden w-12 shrink-0 xl:block">
                 {/* `top-32` : l'en-tête public est collant (82 px) — on garde une
                     quarantaine de pixels d'air pour que le rail ne s'y coince pas. */}
@@ -405,6 +427,46 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
                 </div>
               </div>
             </div>
+
+            {/* Fin d'article, dans l'ordre de la référence : tags, partage,
+                auteur, article précédent / suivant, puis commentaires. */}
+            <ArticleTagsBar themes={article.themes} />
+            <section aria-label="Partager cet article" className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
+              <h2 className="text-lg font-black text-foreground">Partager cet article</h2>
+              <ArticleShareLinks slug={article.slug} title={article.title} orientation="compact" />
+            </section>
+            <div className="mt-5">
+              <ArticleAuthorBox author={article.author} />
+            </div>
+            <Suspense fallback={null}>
+              <ArticlePrevNext id={article.id} publishedAt={article.publishedAt} />
+            </Suspense>
+
+            {/* Commentaires publics (WP10b/WP10c) : seuls les commentaires approuvés
+                sont visibles ; un auteur banni ne peut ni commenter ni réagir. */}
+            <Suspense fallback={null}>
+              <CommentsSection
+                articleId={article.id}
+                slug={article.slug}
+                sort={commentSort}
+                page={commentsPage}
+                viewerId={session?.user?.id ?? null}
+                viewerName={session?.user?.name ?? null}
+                isBanned={banned}
+                banMessage={banMessage}
+                notice={notice}
+                replyTo={query.repondre ?? null}
+                defaultOpen={Boolean(query.commentaire || query.repondre || query.commentsSort || query.commentsPage)}
+              />
+            </Suspense>
+
+            <Link
+              href="/"
+              className="mt-10 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
+            >
+              <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+              Retour à l&apos;accueil
+            </Link>
           </div>
           <AdSlotGate premium={session?.user?.isPremium === true}>
             <div className="hidden lg:block">
@@ -414,35 +476,9 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
           </div>
         </article>
 
-        <div className={session?.user?.isPremium === true ? "mx-auto max-w-[720px]" : undefined}>
-        <Link
-          href="/"
-          className="mt-10 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
-        >
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-          Retour à l&apos;accueil
-        </Link>
-
         <Suspense fallback={null}>
           <RelatedArticles slug={article.slug} categorySlug={article.category?.slug ?? null} />
         </Suspense>
-
-        {/* Commentaires publics (WP10b/WP10c) : seuls les commentaires approuvés
-            sont visibles ; un auteur banni ne peut ni commenter ni réagir. */}
-        <Suspense fallback={null}>
-          <CommentsSection
-            articleId={article.id}
-            slug={article.slug}
-            sort={commentSort}
-            page={commentsPage}
-            viewerId={session?.user?.id ?? null}
-            isBanned={banned}
-            banMessage={banMessage}
-            notice={notice}
-            replyTo={query.repondre ?? null}
-          />
-        </Suspense>
-        </div>
       </main>
 
       <Footer />

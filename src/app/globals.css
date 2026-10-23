@@ -322,7 +322,7 @@ button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); ou
   --color-red-500: var(--status-danger); --color-red-600: var(--status-danger); --color-red-700: var(--status-danger);
   --status-premium: #fef3c7; --status-premium-foreground: #78350f; --status-premium-border: #d6ae45;
   --status-warning: #fff7ed; --status-warning-foreground: #9a3412; --status-warning-border: #fed7aa;
-  --status-success: #ecfdf5; --status-success-foreground: #065f46; --status-success-border: #a7f3d0;
+  --status-success: #f6ffd6; --status-success-foreground: #3f5000; --status-success-border: #d7ff00;
   --status-error: #fef2f2; --status-error-foreground: var(--status-danger); --status-error-border: #fecaca;
 }
 .dark .public-site {
@@ -330,7 +330,7 @@ button.theme-badge:focus-visible { outline: 2px solid hsl(var(--foreground)); ou
   --status-danger: #ed0014;
   --status-premium: #352811; --status-premium-foreground: #fcd875; --status-premium-border: #78602b;
   --status-warning: #362213; --status-warning-foreground: #fdba74; --status-warning-border: #78502b;
-  --status-success: #102e24; --status-success-foreground: #6ee7b7; --status-success-border: #285541;
+  --status-success: #22290b; --status-success-foreground: #d7ff00; --status-success-border: #4b5e00;
   --status-error: #381c20; --status-error-foreground: var(--status-danger); --status-error-border: #743740;
 }
 

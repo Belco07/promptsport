@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { Footer } from "@/components/Footer";
 import { ThemeCard } from "@/components/ThemeCard";
 import { prisma } from "@/lib/prisma";
 import { buildPageMetadata } from "@/lib/seo";
+import { PageBand } from "@/components/PageBand";
 
 /**
  * Page /themes (WP16d) — index des thèmes éditoriaux.
@@ -42,24 +41,11 @@ export default async function ThemesIndexPage() {
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-[1280px] px-4 py-10">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:underline"
-        >
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-          Retour à l&apos;accueil
-        </Link>
-
-        <header className="mt-6 mb-8 border-b border-border pb-6">
-          <h1 className="text-3xl font-black uppercase tracking-tight text-foreground sm:text-4xl">
-            Tous les thèmes
-          </h1>
-          <p className="mt-3 max-w-prose text-base leading-7 text-muted-foreground">
-            Les thèmes éditoriaux traversent les sports : un même thème rassemble des articles de
-            toutes les catégories.
-          </p>
-        </header>
+      <main id="contenu" className="mx-auto w-full max-w-[1280px] px-4 pb-10">
+        <PageBand
+          title="Tous les thèmes"
+          description="Les thèmes éditoriaux traversent les sports : un même thème rassemble des articles de toutes les catégories."
+        />
 
         {themes.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MailX, TriangleAlert } from "lucide-react";
+import { MailX, TriangleAlert } from "@/components/icons";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 

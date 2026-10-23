@@ -95,11 +95,13 @@ export default async function ClubPage({ params, searchParams }: Props) {
     matchGroups.set(match.competitionId, group);
   }
   const players = tab === "effectif" ? await prisma.player.findMany({ where: { teamId: club.id }, orderBy: { name: "asc" }, select: { id: true, name: true, slug: true, position: true } }) : [];
-  return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
+  return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 pb-8 md:px-6">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({ "@context": "https://schema.org", "@type": "SportsTeam", name: club.name, sport: club.sport, url: absoluteUrl(`/club/${club.slug}`), ...(club.logoUrl ? { logo: club.logoUrl } : {}), ...(club.country ? { location: { "@type": "Country", name: club.country } } : {}) }) }}/>
+    <div className="page-band">
     <Breadcrumbs items={[{ label: "Scores", href: "/scores" }, { label: club.name, href: `/club/${club.slug}` }]} />
     <ClubHeader club={club} competitions={competitions} signedIn={!!session?.user?.id} following={!!follows?.followedTeams.some(team => team.id === club.id)} accentColor={accentColor}/>
-    <div className="mt-4 flex flex-wrap items-start gap-4">{session?.user?.id && <FollowClubButton clubId={club.id} preferred={reader?.favoriteClubId === club.id}/>}<a href={`/api/club/${club.slug}/calendar.ics`} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-bold text-foreground hover:bg-secondary">Ajouter à mon agenda</a><Link href="/mon-compte/preferences" className="text-sm font-semibold text-editorial-link">Gérer mon digest hebdomadaire</Link></div>
+    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">{session?.user?.id && <FollowClubButton clubId={club.id} preferred={reader?.favoriteClubId === club.id}/>}<a href={`/api/club/${club.slug}/calendar.ics`} className="inline-flex h-10 items-center rounded-[13px] border border-border bg-card px-5 text-sm font-bold text-foreground hover:bg-secondary">Ajouter à mon agenda</a><Link href="/mon-compte/preferences" className="inline-flex h-10 items-center text-sm font-semibold text-editorial-link hover:underline">Gérer mon digest hebdomadaire</Link></div>
+    </div>
     <ClubPulse pulse={pulse}/>
 
     <ClubTabs slug={club.slug} active={tab} accentColor={accentColor}/>
@@ -112,10 +114,10 @@ export default async function ClubPage({ params, searchParams }: Props) {
     {vote?.status === "FINISHED" && <section aria-label="Homme du dernier match" className="mt-10 rounded-xl border border-border bg-card p-5"><h2 className="text-xl font-bold text-foreground">Homme du dernier match</h2><Link className="text-sm text-editorial-link" href={`/match/${vote.id}`}>{pulse.last?.home} – {pulse.last?.away}</Link>{vote.results[0] && <div className="my-4 flex items-center gap-3"><span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary text-xl font-bold text-foreground">{vote.results[0].name.charAt(0)}</span><p className="text-foreground"><strong className="block">{vote.results[0].name}</strong><span className="text-sm text-muted-foreground">{vote.results[0].percentage.toLocaleString("fr-FR", {maximumFractionDigits:1})} % des votes</span></p></div>}<ManOfTheMatchVote matchId={vote.id} candidates={vote.candidates} choice={vote.choice} signedIn={!!session?.user?.id}/><ManOfTheMatchResults results={vote.results}/></section>}
     {relatedClubs.length > 0 && (
       <section id="clubs-a-suivre" className="mt-12 scroll-mt-32" aria-labelledby="clubs-a-suivre-title">
-        <h2 id="clubs-a-suivre-title" className="mb-6 text-2xl font-black uppercase text-foreground">
+        <h2 id="clubs-a-suivre-title" className="mb-6 section-title">
           À suivre · Autres clubs de vos compétitions
         </h2>
-        <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8">
           {relatedClubs.map((team) => (
             <FollowPill
               key={team.id}

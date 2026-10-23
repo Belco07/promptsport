@@ -6,6 +6,7 @@ import { SearchFilters } from "@/components/SearchFilters";
 import { Footer } from "@/components/Footer";
 import { prisma } from "@/lib/prisma";
 import { searchArticles, SearchValidationError, type SearchResults } from "@/lib/search";
+import { PageBand } from "@/components/PageBand";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -48,8 +49,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   }
   const buttonClass = "rounded-md border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted";
   return <>
-    <main id="contenu" className="mx-auto max-w-[1200px] space-y-7 px-4 py-8 md:py-12">
-      <h1 className="text-3xl font-black text-foreground md:text-4xl">Recherche</h1>
+    <main id="contenu" className="mx-auto max-w-[1200px] space-y-7 px-4 pb-8 md:pb-12">
+      <PageBand title="Recherche" />
       <SearchBar />
       <SearchFilters categories={categories} themes={themes} />
       <div role="status" aria-live="polite" aria-atomic="true" className="text-foreground">

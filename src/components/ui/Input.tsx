@@ -16,7 +16,7 @@ export function fieldStyles({
   className = "",
 }: { invalid?: boolean; className?: string } = {}): string {
   return [
-    "block w-full rounded-lg border bg-white [.public-site_&]:bg-card px-3 py-2 text-sm text-neutral-900 [.public-site_&]:text-foreground",
+    "block w-full rounded-[13px] border bg-white [.public-site_&]:bg-card px-5 py-3 text-sm text-neutral-900 [.public-site_&]:text-foreground",
     "placeholder:text-neutral-400 [.public-site_&]:placeholder:text-muted-foreground",
     "disabled:cursor-not-allowed disabled:bg-neutral-100 [.public-site_&]:disabled:bg-muted disabled:text-neutral-500 [.public-site_&]:disabled:text-muted-foreground",
     invalid

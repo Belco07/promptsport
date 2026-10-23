@@ -362,7 +362,7 @@ export default async function BackofficeCommentsPage({
               aria-current={active ? "page" : undefined}
               className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
                 active
-                  ? "border-editorial-link text-editorial-link"
+                  ? "border-accent text-editorial-link"
                   : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
               }`}
             >

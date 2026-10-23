@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronRight, UserRound, X } from "lucide-react";
+import { ChevronRight, UserRound, X } from "@/components/icons";
 import { logout } from "@/app/studio/logout-action";
 
 /**
@@ -51,7 +51,7 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
     </div>
 
     {/* Croix de fermeture : en haut à droite de l'écran. */}
-    <Link href="/" aria-label="Quitter mon compte et revenir à l'accueil" title="Quitter mon compte" className="fixed right-4 top-4 z-40 flex h-12 w-12 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:border-editorial-link hover:text-editorial-link sm:right-8 sm:top-8">
+    <Link href="/" aria-label="Quitter mon compte et revenir à l'accueil" title="Quitter mon compte" className="fixed right-4 top-4 z-40 flex h-12 w-12 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:border-accent hover:text-editorial-link sm:right-8 sm:top-8">
       <X size={24} aria-hidden="true" />
     </Link>
   </div>;

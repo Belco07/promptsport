@@ -80,8 +80,8 @@ export default async function EditArticlePage({
       <p className="mb-6 text-sm text-muted-foreground">/{article.slug}</p>
 
       {article.status === "PUBLISHED" && <nav aria-label="Rubriques de l’article" className="mb-6 flex gap-5 border-b border-border text-sm font-semibold">
-        <Link scroll={false} href={`/studio/articles/${id}/edit`} aria-current={tab !== "diffusion" ? "page" : undefined} className={`border-b-2 px-2 py-3 ${tab !== "diffusion" ? "border-editorial-link text-editorial-link" : "border-transparent text-muted-foreground"}`}>Article</Link>
-        <Link scroll={false} href={`/studio/articles/${id}/edit?tab=diffusion`} aria-current={tab === "diffusion" ? "page" : undefined} className={`border-b-2 px-2 py-3 ${tab === "diffusion" ? "border-editorial-link text-editorial-link" : "border-transparent text-muted-foreground"}`}>Diffusion</Link>
+        <Link scroll={false} href={`/studio/articles/${id}/edit`} aria-current={tab !== "diffusion" ? "page" : undefined} className={`border-b-2 px-2 py-3 ${tab !== "diffusion" ? "border-accent text-editorial-link" : "border-transparent text-muted-foreground"}`}>Article</Link>
+        <Link scroll={false} href={`/studio/articles/${id}/edit?tab=diffusion`} aria-current={tab === "diffusion" ? "page" : undefined} className={`border-b-2 px-2 py-3 ${tab === "diffusion" ? "border-accent text-editorial-link" : "border-transparent text-muted-foreground"}`}>Diffusion</Link>
       </nav>}
 
       {article.status === "PUBLISHED" && tab === "diffusion" ? (

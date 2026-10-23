@@ -20,14 +20,25 @@ const pages: Record<string, BreadcrumbItem[]> = {
   "/inscription": [{ label: "Inscription", href: "/inscription" }],
 };
 
-/** Static public routes. Entity pages supply their real database labels themselves. */
+const newsletterActionPattern = /^\/newsletter\/(confirm|unsubscribe|preferences)\/[^/]+\/?$/;
+
+/** Fil d'Ariane d'une route statique (aussi utilisé par le bandeau PageBand). */
+export function publicBreadcrumbItems(pathname: string): BreadcrumbItem[] | undefined {
+  const newsletterAction = pathname.match(newsletterActionPattern);
+  const actionLabel: Record<string, string> = { confirm: "Confirmation", unsubscribe: "Désinscription", preferences: "Préférences" };
+  return newsletterAction ? [{ label: "Newsletter", href: "/newsletter" }, { label: actionLabel[newsletterAction[1]], href: "/newsletter" }] : pages[pathname.replace(/\/$/, "")];
+}
+
+/**
+ * Static public routes. Entity pages supply their real database labels themselves.
+ * Sur les pages munies d'un bandeau PageBand, ce fil d'Ariane est masqué par CSS
+ * (le bandeau affiche le sien) mais garde ses données structurées.
+ */
 export function PublicBreadcrumbs() {
   const pathname = usePathname();
-  const newsletterAction = pathname.match(/^\/newsletter\/(confirm|unsubscribe|preferences)\/[^/]+\/?$/);
-  const actionLabel: Record<string, string> = { confirm: "Confirmation", unsubscribe: "Désinscription", preferences: "Préférences" };
-  const items = newsletterAction ? [{ label: "Newsletter", href: "/newsletter" }, { label: actionLabel[newsletterAction[1]], href: "/newsletter" }] : pages[pathname.replace(/\/$/, "")];
+  const items = publicBreadcrumbItems(pathname);
   if (!items) return null;
   // No token, payment parameter or private query is ever copied into JSON-LD.
-  const structuredData = !newsletterAction && !["/login", "/inscription", "/recherche", "/mon-sport", "/abonnement/success", "/abonnement/cancel"].includes(pathname);
-  return <div className="mx-auto w-full max-w-[1280px] px-4 pt-5 md:px-6"><Breadcrumbs items={items} structuredData={structuredData} className="" /></div>;
+  const structuredData = !newsletterActionPattern.test(pathname) && !["/login", "/inscription", "/recherche", "/mon-sport", "/abonnement/success", "/abonnement/cancel"].includes(pathname);
+  return <div data-global-crumbs className="mx-auto w-full max-w-[1280px] px-4 pt-5 md:px-6"><Breadcrumbs items={items} structuredData={structuredData} className="" /></div>;
 }

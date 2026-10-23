@@ -8,7 +8,7 @@ import {
   ShieldOff,
   UserCheck,
   UserX,
-} from "lucide-react";
+} from "@/components/icons";
 import Link from "next/link";
 
 import { markAsRead } from "@/app/mon-compte/notifications/actions";

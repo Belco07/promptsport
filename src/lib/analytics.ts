@@ -503,3 +503,29 @@ export async function purgeOldPageViews(before: Date): Promise<number> {
   });
   return count;
 }
+
+/* -------------------------------------------------------------------------- */
+
+/** Rôles de la rédaction : leurs visites ne comptent pas comme lecteurs. */
+export const NEWSROOM_ROLES = ["JOURNALIST", "EDITOR", "ADMIN"] as const;
+
+/**
+ * Nombre de lecteurs uniques d'un article : personnes différentes ayant ouvert
+ * la page, quel que soit le nombre de vues.
+ *
+ *  - un navigateur compte une fois (cookie anonyme `ps_vid`) ;
+ *  - un lecteur connecté compte une fois, même sur plusieurs appareils
+ *    (regroupement par compte) ;
+ *  - les visites des comptes de la rédaction (journaliste, éditeur, admin)
+ *    sont exclues ; les robots sont déjà filtrés à l'enregistrement.
+ */
+export async function countUniqueArticleReaders(articleId: string): Promise<number> {
+  const [row] = await prisma.$queryRaw<{ readers: number }[]>`
+    SELECT COUNT(DISTINCT COALESCE(v."userId", v."visitorId"))::int AS readers
+    FROM "AnalyticsPageView" p
+    JOIN "AnalyticsVisitor" v ON v."visitorId" = p."visitorId"
+    LEFT JOIN "Author" a ON a.id = v."userId"
+    WHERE p."articleId" = ${articleId}
+      AND (a.role IS NULL OR a.role = 'READER')`;
+  return row?.readers ?? 0;
+}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FileText, User } from "lucide-react";
+import { FileText, User } from "@/components/icons";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -118,7 +118,7 @@ export default async function AuthorPage({ params }: Props) {
 
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-5xl px-4 py-10">
+      <main id="contenu" className="mx-auto w-full max-w-5xl px-4 pb-10">
         {/* Données structurées : la personne (WP9, demande du WP8a). */}
         <script
           type="application/ld+json"
@@ -135,9 +135,8 @@ export default async function AuthorPage({ params }: Props) {
           }}
         />
 
-        <Breadcrumbs items={[{ label: author.name, href: `/auteur/${author.slug ?? slug}` }]} />
-
-        <header className="mb-10 border-b border-border pb-8">
+        <header className="page-band">
+          <Breadcrumbs items={[{ label: author.name, href: `/auteur/${author.slug ?? slug}` }]} className="mb-4" />
           <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
             {author.photoUrl && optimizable ? (
               <Image

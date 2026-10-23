@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play } from "@/components/icons";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 /** Navigation du bandeau : les liens et les données restent rendus côté serveur. */

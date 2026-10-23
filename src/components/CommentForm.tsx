@@ -24,6 +24,7 @@ export type ReplyTarget = { id: string; authorName: string; content: string };
 export function CommentForm({
   slug,
   isLoggedIn,
+  viewerName = null,
   isBanned,
   banMessage,
   notice,
@@ -31,17 +32,24 @@ export function CommentForm({
 }: {
   slug: string;
   isLoggedIn: boolean;
+  /** Nom affiché dans « Connecté en tant que … » (disposition de la référence). */
+  viewerName?: string | null;
   isBanned: boolean;
   banMessage: string;
   notice: CommentNotice;
   replyTo?: ReplyTarget | null;
 }) {
   return (
-    <div className="mb-8">
+    <div className="mt-8">
+      {/* Titre et note d'en-tête du formulaire, comme la référence. */}
+      <h3 className="text-lg font-black text-foreground">
+        {replyTo ? `Répondre à ${replyTo.authorName}` : "Laisser une réponse"}
+      </h3>
+
       {notice ? (
         <p
           role={notice.type === "success" ? "status" : "alert"}
-          className={`mb-4 rounded-lg border px-4 py-3 text-sm font-medium ${
+          className={`mt-4 rounded-[13px] border px-4 py-3 text-sm font-medium ${
             notice.type === "success"
               ? "border-status-success-border bg-status-success text-status-success-foreground"
               : "border-status-error-border bg-status-error text-status-error-foreground"
@@ -52,23 +60,34 @@ export function CommentForm({
       ) : null}
 
       {!isLoggedIn ? (
-        <p className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
-          <Link href="/login" className="font-semibold text-editorial-link underline">
-            Connectez-vous
+        <p className="mt-2 text-[13px] text-muted-foreground">
+          Vous devez être{" "}
+          <Link href={`/login?callbackUrl=${encodeURIComponent(`/article/${slug}#commentaires`)}`} className="font-semibold text-editorial-link underline">
+            connecté
           </Link>{" "}
-          pour participer à la discussion.
+          pour publier un commentaire.
         </p>
       ) : isBanned ? (
-        <p className="rounded-lg border border-status-error-border bg-status-error px-4 py-3 text-sm font-medium text-status-error-foreground">
+        <p className="mt-4 rounded-[13px] border border-status-error-border bg-status-error px-4 py-3 text-sm font-medium text-status-error-foreground">
           {banMessage}
         </p>
       ) : (
-        <form action={createComment} className="rounded-xl border border-border bg-card p-5">
+        <form action={createComment} className="mt-2">
           <input type="hidden" name="slug" value={slug} />
           {replyTo ? <input type="hidden" name="parentId" value={replyTo.id} /> : null}
 
+          <p className="text-[13px] text-muted-foreground">
+            {viewerName ? (
+              <>
+                Connecté en tant que <span className="font-semibold text-foreground">{viewerName}</span>.{" "}
+                <Link href="/mon-compte" className="underline hover:text-foreground">Modifier votre profil</Link>.{" "}
+              </>
+            ) : null}
+            Votre commentaire sera publié après validation. Les champs obligatoires sont indiqués avec *
+          </p>
+
           {replyTo ? (
-            <div className="mb-4 rounded-lg border border-border bg-muted p-3">
+            <div className="mt-4 rounded-[13px] bg-muted p-4">
               <p className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-foreground">
                 <span>Réponse à {replyTo.authorName}</span>
                 <Link
@@ -84,34 +103,31 @@ export function CommentForm({
             </div>
           ) : null}
 
-          <label htmlFor="champ-commentaire" className="block text-sm font-semibold text-foreground">
-            {replyTo ? "Votre réponse" : "Votre commentaire"}
+          <label htmlFor="champ-commentaire" className="mt-5 block text-sm font-semibold text-foreground">
+            {replyTo ? "Réponse *" : "Commentaire *"}
           </label>
           <textarea
             id="champ-commentaire"
             name="content"
             required
-            rows={4}
+            rows={8}
             maxLength={COMMENT_MAX_LENGTH}
             placeholder={
               replyTo
                 ? "Répondez à ce commentaire, dans le respect des autres lecteurs."
                 : "Partagez votre analyse, dans le respect des autres lecteurs."
             }
-            className="mt-2 w-full resize-y rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+            className="mt-2 w-full resize-y rounded-[21px] border-0 bg-muted px-5 py-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-editorial-link"
           />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              {COMMENT_MAX_LENGTH} caractères maximum · 10 commentaires par heure · publié après
-              validation.
-            </p>
-            <button
-              type="submit"
-              className="rounded-lg bg-editorial-action px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-editorial-action"
-            >
-              {replyTo ? "Répondre" : "Publier"}
-            </button>
-          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {COMMENT_MAX_LENGTH} caractères maximum · 10 commentaires par heure.
+          </p>
+          <button
+            type="submit"
+            className="mt-5 inline-flex !min-h-10 h-10 items-center !rounded-[13px] bg-foreground px-10 text-sm font-bold !normal-case !tracking-normal text-background transition-opacity hover:opacity-85"
+          >
+            {replyTo ? "Publier la réponse" : "Publier le commentaire"}
+          </button>
         </form>
       )}
     </div>

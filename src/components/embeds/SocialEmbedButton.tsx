@@ -1,7 +1,7 @@
 "use client";
 
 import { insertMarkdown$, usePublisher } from "@mdxeditor/editor";
-import { Share2 } from "lucide-react";
+import { Share2 } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 
 import {

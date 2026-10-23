@@ -106,7 +106,7 @@ export default async function NotificationsPage({
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
               unreadOnly
                 ? "border-border bg-card text-muted-foreground hover:border-border"
-                : "border-editorial-link bg-secondary text-editorial-link"
+                : "border-accent bg-secondary text-editorial-link"
             }`}
           >
             Toutes
@@ -116,7 +116,7 @@ export default async function NotificationsPage({
             aria-current={unreadOnly ? "page" : undefined}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
               unreadOnly
-                ? "border-editorial-link bg-secondary text-editorial-link"
+                ? "border-accent bg-secondary text-editorial-link"
                 : "border-border bg-card text-muted-foreground hover:border-border"
             }`}
           >

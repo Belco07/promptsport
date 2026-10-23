@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CommentForm, type CommentNotice, type ReplyTarget } from "@/components/CommentForm";
 import { CommentReactions } from "@/components/CommentReactions";
+import { CommentsDisclosure } from "@/components/CommentsDisclosure";
 import { ReportModal } from "@/components/ReportModal";
 import {
   COMMENT_SORT_LABELS,
@@ -57,10 +58,16 @@ function CommentBlock({
   canReact: boolean;
   disabledReason: string;
 }) {
+  // Disposition de la référence : avatar rond à gauche, nom et date, texte,
+  // actions ; les commentaires sont séparés par un filet, sans carte.
   return (
-    <article className="rounded-xl border border-border bg-card p-5">
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">{comment.author.name}</span>
+    <article className="flex gap-4 border-b border-border py-6">
+      <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold text-foreground">
+        {comment.author.name.slice(0, 1).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1">
+      <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span className="text-sm font-bold text-foreground">{comment.author.name}</span>
         <time dateTime={comment.createdAt.toISOString()}>{formatDate(comment.createdAt)}</time>
       </p>
 
@@ -103,11 +110,11 @@ function CommentBlock({
       </div>
 
       {replies.length > 0 ? (
-        <ol className="mt-4 space-y-4 border-l-2 border-border pl-4">
+        <ol className="mt-5 space-y-5 border-l-2 border-border pl-5">
           {replies.map((reply) => (
             <li key={reply.id}>
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">{reply.author.name}</span>
+              <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="text-sm font-bold text-foreground">{reply.author.name}</span>
                 <time dateTime={reply.createdAt.toISOString()}>{formatDate(reply.createdAt)}</time>
               </p>
               <p className="mt-1 whitespace-pre-line text-sm leading-6 text-foreground">
@@ -126,6 +133,7 @@ function CommentBlock({
           ))}
         </ol>
       ) : null}
+      </div>
     </article>
   );
 }
@@ -136,16 +144,22 @@ export async function CommentsSection({
   sort,
   page,
   viewerId,
+  viewerName = null,
   isBanned,
   banMessage,
   notice,
   replyTo = null,
+  defaultOpen = false,
 }: {
   articleId: string;
   slug: string;
   sort: CommentSort;
   page: number;
   viewerId: string | null;
+  /** Nom de la personne connectée, pour « Connecté en tant que … ». */
+  viewerName?: string | null;
+  /** Bloc déplié d'emblée (retour de formulaire, réponse, tri ou pagination). */
+  defaultOpen?: boolean;
   isBanned: boolean;
   banMessage: string;
   notice: CommentNotice;
@@ -259,26 +273,27 @@ export async function CommentsSection({
     <section
       id="commentaires"
       aria-labelledby="titre-commentaires"
-      className="mt-14 border-t border-border pt-10"
+      className="border-t border-border py-9"
     >
-      <h2
-        id="titre-commentaires"
-        className="mb-6 text-2xl font-extrabold tracking-tight text-editorial-link"
+      {/* Disposition de la référence : titre à gauche, bouton arrondi à droite ;
+          la discussion et le formulaire se déplient au clic. */}
+      <CommentsDisclosure
+        defaultOpen={defaultOpen}
+        summary={
+          <>
+            <h2 id="titre-commentaires" className="text-lg font-black text-foreground">
+              {total > 0 ? `${total} commentaire${total > 1 ? "s" : ""}` : "Laisser un commentaire"}
+            </h2>
+            <span className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-[21px] bg-muted px-5 text-sm font-bold text-foreground transition-colors hover:bg-border sm:px-8">
+              <span className="group-open:hidden">{total > 0 ? "Afficher les commentaires" : "Laisser un commentaire"}</span>
+              <span className="hidden group-open:inline">Masquer</span>
+            </span>
+          </>
+        }
       >
-        Commentaires ({total})
-      </h2>
-
-      <CommentForm
-        slug={slug}
-        isLoggedIn={Boolean(viewerId)}
-        isBanned={isBanned}
-        banMessage={banMessage}
-        notice={notice}
-        replyTo={replyTarget}
-      />
-
+      <div className="mt-6">
       {total > 0 ? (
-        <nav aria-label="Tri des commentaires" className="mb-5 flex flex-wrap items-center gap-2">
+        <nav aria-label="Tri des commentaires" className="mb-2 flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Trier :</span>
           {COMMENT_SORTS.map((option) => (
             <Link
@@ -287,7 +302,7 @@ export async function CommentsSection({
               aria-current={option === sort ? "true" : undefined}
               className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
                 option === sort
-                  ? "border-editorial-link bg-secondary text-editorial-link"
+                  ? "border-accent bg-secondary text-editorial-link"
                   : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground"
               }`}
             >
@@ -298,12 +313,12 @@ export async function CommentsSection({
       ) : null}
 
       {roots.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
-          Aucun commentaire publié pour le moment.
+        <p className="text-sm text-muted-foreground">
+          Aucun commentaire publié pour le moment. Soyez le premier à réagir.
         </p>
       ) : (
         <>
-          <ol className="space-y-5">
+          <ol>
             {roots.map((comment) => (
               <li key={comment.id}>
                 <CommentBlock
@@ -326,7 +341,7 @@ export async function CommentsSection({
             <p className="mt-6 text-center">
               <Link
                 href={moreHref}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:border-border"
+                className="inline-flex h-10 items-center gap-2 rounded-[21px] bg-muted px-8 text-sm font-bold text-foreground transition-colors hover:bg-border"
               >
                 Voir plus de commentaires ({total - take} restants)
               </Link>
@@ -334,6 +349,19 @@ export async function CommentsSection({
           ) : null}
         </>
       )}
+
+      {/* Formulaire après la discussion, comme sur la référence. */}
+      <CommentForm
+        slug={slug}
+        isLoggedIn={Boolean(viewerId)}
+        viewerName={viewerName}
+        isBanned={isBanned}
+        banMessage={banMessage}
+        notice={notice}
+        replyTo={replyTarget}
+      />
+      </div>
+      </CommentsDisclosure>
     </section>
   );
 }

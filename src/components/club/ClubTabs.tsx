@@ -28,7 +28,7 @@ export function ClubTabs({
   const activeBorder = accentColor ? `border-[#${accentColor}]` : "border-primary";
   const activeText = accentColor ? `text-[#${accentColor}]` : "text-editorial-link";
   return (
-    <nav aria-label="Rubriques du club" className="my-8 flex gap-6 overflow-x-auto border-b border-border">
+    <nav aria-label="Rubriques du club" className="my-8 flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-border">
       {Object.entries(clubTabs).map(([key, label]) => (
         <Link
           key={key}

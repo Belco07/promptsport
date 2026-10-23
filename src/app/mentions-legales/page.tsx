@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { ArrowLeft, Scale } from "lucide-react";
 import Link from "next/link";
 
 import { Footer } from "@/components/Footer";
 import { Card, CardBody } from "@/components/ui/Card";
 import { SITE_NAME, buildPageMetadata } from "@/lib/seo";
+import { PageBand } from "@/components/PageBand";
 
 /**
  * Mentions légales (WP9). Page statique, sans donnée personnelle : elle
@@ -29,24 +29,8 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 export default function LegalNoticePage() {
   return (
     <>
-      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 py-10">
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-editorial-link transition-colors hover:text-editorial-link"
-        >
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-          Retour à l&apos;accueil
-        </Link>
-
-        <header className="mb-8">
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-status-warning-foreground">
-            <Scale aria-hidden="true" className="h-4 w-4" />
-            Informations légales
-          </p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-            Mentions légales
-          </h1>
-        </header>
+      <main id="contenu" className="mx-auto w-full max-w-3xl px-4 pb-10">
+        <PageBand title="Mentions légales" kicker="Informations légales" />
 
         <Card>
           <CardBody className="space-y-8 p-6 sm:p-8">

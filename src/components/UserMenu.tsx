@@ -1,8 +1,10 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Award, Star, UserRound } from "lucide-react";
+import { Award, Star, UserRound } from "@/components/icons";
 import { NotificationBadge } from "@/components/NotificationBadge";
+import { LoginDialog } from "@/components/LoginDialog";
+import type { OAuthProviders } from "@/components/LoginCard";
 type SessionUser = { name?: string | null; email?: string | null; isPremium?: boolean };
 
 // Deduplicate session reads when the navigation and account control mount together.
@@ -26,10 +28,10 @@ function useMenuUser() {
   return user;
 }
 
-export function MonSportNavLink({ className = "" }: { className?: string }) {
+export function MonSportNavLink({ className = "", showIcon = true }: { className?: string; showIcon?: boolean }) {
   const user = useMenuUser();
   if (!user) return null;
-  return <Link href="/mon-sport" className={`inline-flex items-center gap-2 ${className}`}><Star size={16} aria-hidden="true" />Mon Sport</Link>;
+  return <Link href="/mon-sport" className={`inline-flex items-center gap-2 ${className}`}>{showIcon && <Star size={16} aria-hidden="true" />}Mon Sport</Link>;
 }
 
 /**
@@ -56,14 +58,18 @@ const AVATAR_CLASS =
 const OVERLAY_BADGE_CLASS =
   "absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full border border-status-premium-border bg-status-premium text-status-premium-foreground";
 
-export function UserMenu({ showSportLink = true }: { showSportLink?: boolean }) {
+export function UserMenu({ showSportLink = true, oauthProviders }: { showSportLink?: boolean; oauthProviders?: OAuthProviders }) {
   const user = useMenuUser();
 
   // Emplacement neutre pendant la lecture de la session (même gabarit que la pastille).
   if (user === undefined) return <span aria-hidden="true" className="inline-block h-9 w-9 shrink-0 rounded-full border border-border bg-muted" />;
 
   if (!user) {
-    return <Link href="/login" aria-label="Se connecter" title="Se connecter" className="inline-flex min-h-11 items-center px-2 py-1.5 text-sm font-bold text-foreground hover:text-editorial-link"><span aria-hidden="true" className={AVATAR_CLASS}><UserRound className="h-5 w-5" /></span></Link>;
+    const avatar = <span aria-hidden="true" className={AVATAR_CLASS}><UserRound className="h-5 w-5" /></span>;
+    // En-tête : fenêtre de connexion par-dessus la page (référence Digital
+    // Haven). Ailleurs, lien classique vers la page /login.
+    if (oauthProviders) return <LoginDialog providers={oauthProviders} trigger={avatar} />;
+    return <Link href="/login" aria-label="Se connecter" title="Se connecter" className="inline-flex min-h-11 items-center px-2 py-1.5 text-sm font-bold text-foreground hover:text-editorial-link">{avatar}</Link>;
   }
 
   const label = user.name?.trim() || user.email?.trim() || "Mon compte";

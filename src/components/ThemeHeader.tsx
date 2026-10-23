@@ -25,10 +25,10 @@ export function ThemeHeader({
   const label = `${articleCount} article${articleCount > 1 ? "s" : ""}`;
 
   return (
-    <header className="mb-8 border-b border-border pb-8">
-      <Breadcrumbs items={[{ label: "Thèmes", href: "/themes" }, { label: theme.name, href: `/theme/${theme.slug}` }]} />
+    <header className="page-band">
+      <Breadcrumbs items={[{ label: "Thèmes", href: "/themes" }, { label: theme.name, href: `/theme/${theme.slug}` }]} className="mb-2" />
 
-      <div className="mt-6 flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <span
           className="theme-badge"
           style={{ ...themeBadgeStyle(theme.color), fontSize: "0.8rem", padding: "6px 12px" }}
@@ -36,7 +36,7 @@ export function ThemeHeader({
           <Icon size={16} aria-hidden="true" />
           {theme.name}
         </span>
-        <h1 className="text-3xl font-black uppercase tracking-tight text-foreground sm:text-4xl">
+        <h1 className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
           {theme.name}
         </h1>
       </div>

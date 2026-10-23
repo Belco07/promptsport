@@ -1,0 +1,153 @@
+/*
+ * Habillage « Digital Haven » (inspiré du thème Foxiz) : formes seulement.
+ *
+ * Les couleurs du site restent celles de globals.css et editorial.css (encre,
+ * surface chaude, lime/olive) : ce fichier n'ajoute que des arrondis et des
+ * ombres douces. Il ne touche ni aux polices ni à la mise en page.
+ *
+ * Pour revenir aux angles droits, retirer son import dans src/app/layout.tsx.
+ */
+
+.public-site {
+  --skin-radius: 13px;
+  --skin-radius-lg: 18px;
+  --skin-shadow: 0 4px 30px rgb(0 0 0 / 8%);
+}
+.dark .public-site { --skin-shadow: 0 4px 30px rgb(0 0 0 / 40%); }
+
+/* Menus déroulants de l'en-tête : très arrondis, ombre diffuse. */
+.editorial-header :is(#menu-competitions, [role="menu"]) {
+  border-radius: var(--skin-radius-lg);
+  box-shadow: var(--skin-shadow);
+}
+
+/* Anciens petits arrondis (6–8 px) alignés sur l'arrondi du site (13 px). */
+.public-site main :is(.rounded-md, .rounded-lg) { border-radius: var(--skin-radius); }
+
+/* Images et cartes arrondies. */
+.public-site main :is(.rounded-xl, .rounded-2xl) { border-radius: var(--skin-radius-lg); }
+.public-site main :is(.aspect-video, .aspect-square, [class*="aspect-["]),
+.editorial-cover {
+  border-radius: var(--skin-radius);
+}
+.editorial-lead { border-radius: var(--skin-radius-lg); overflow: hidden; }
+.editorial-lead .editorial-cover { border-radius: 0; }
+/* Cartes d'articles : boîte arrondie à 13 px et ombre douce, comme la référence
+   (sélecteur plus précis que la règle des blocs .rounded-xl ci-dessus). */
+.public-site main .editorial-card,
+.public-site .editorial-card {
+  border-radius: var(--skin-radius);
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgb(0 0 0 / 7%);
+}
+.public-site main .editorial-card:hover,
+.public-site .editorial-card:hover { box-shadow: 0 6px 28px rgb(0 0 0 / 12%); }
+/* Dans une carte, l'image occupe le haut de la boîte : c'est la boîte qui est arrondie. */
+.public-site .editorial-card .aspect-video { border-radius: 0; }
+
+/* Encadrés et emplacements publicitaires. */
+.editorial-wire,
+.editorial-newsletter,
+.editorial-premium,
+.editorial-empty {
+  border-radius: var(--skin-radius-lg);
+}
+.public-site [data-ad-slot] { border-radius: var(--skin-radius); }
+.editorial-cta { border-radius: var(--skin-radius); }
+.editorial-label { border-radius: 999px; }
+.scores-teams > :nth-child(2) { border-radius: 6px; }
+/* En-tête desktop, ligne 1 : petits carrés vert citron (lime du site) entre
+   les rubriques, comme la référence. Le premier élément n'en a pas, même
+   quand « Mon Sport » est absent (visiteur non connecté). */
+.editorial-header .nav-items > * + * { position: relative; margin-left: 18px; }
+.editorial-header .nav-items > * + *::before {
+  content: "";
+  position: absolute;
+  left: -9px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  background: hsl(var(--accent));
+}
+/* Rubriques : aucun surlignage vert, ni au survol (léger fondu seulement) ni
+   sur la page en cours. */
+.editorial-header .editorial-nav-link:hover { color: var(--ed-ink); border-bottom-color: transparent; background: none; opacity: .7; }
+.editorial-header .editorial-nav-link[aria-current="page"] { color: var(--ed-ink); border-bottom-color: transparent; background: none; }
+
+/* Bandeau d'en-tête de page (PageBand), comme l'« archive header » de la
+   référence : trame de points encre à 15 %, tous les 15 px, sur toute la
+   largeur de l'écran (le pseudo-élément déborde du conteneur de la page). */
+.public-site { overflow-x: clip; }
+.page-band { position: relative; isolation: isolate; padding-block: 20px; margin-bottom: 32px; }
+.page-band::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  z-index: -1;
+  width: 100vw;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background-image: radial-gradient(hsl(var(--foreground)) 1px, transparent 1px);
+  background-size: 15px 15px;
+  opacity: .15;
+}
+/* Le bandeau affiche son propre fil d'Ariane : la copie globale (au-dessus de
+   la page) est masquée, ses données structurées restent dans la page. */
+.public-site:has(.page-band) [data-global-crumbs] { display: none; }
+
+/* En-tête desktop, ligne 2 (« Quick Links » de la référence). */
+.public-site .editorial-competition-nav.quicklinks > div { gap: 16px; justify-content: flex-start; }
+.public-site .editorial-competition-nav.quicklinks a { color: var(--ed-ink); font-size: 13px; font-weight: 500; }
+.public-site .editorial-competition-nav.quicklinks a:hover,
+.public-site .editorial-competition-nav.quicklinks a[aria-current="page"] { color: var(--ed-link); }
+.public-site .editorial-competition-nav.quicklinks .quicklinks-label { color: var(--ed-muted); }
+.public-site .editorial-competition-nav.quicklinks li > span { color: var(--ed-ink); }
+.public-site .editorial-competition-nav.quicklinks a.editorial-subscribe { color: #111211; font-weight: 700; }
+
+/* Pied de page : menu séparé par de petits carrés gris (0,4 em), comme la
+   référence ; le premier élément n'en a pas. */
+.footer-menu > li + li::before {
+  content: "";
+  display: inline-block;
+  width: 6.4px;
+  height: 6.4px;
+  margin: 0 12px;
+  background: #88888888;
+}
+
+/* Pied de page : frise de parallélogrammes au-dessus du copyright (motif de la
+   référence : 10 px de haut, un motif tous les 20 px, gris translucide). */
+.footer-pattern {
+  height: 10px;
+  background: #88888844;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none' viewBox='0 0 24 24'%3E%3Cpolygon points='9.4,2 24,2 14.6,21.6 0,21.6'/%3E%3C/svg%3E") left center / 20px 10px repeat-x;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none' viewBox='0 0 24 24'%3E%3Cpolygon points='9.4,2 24,2 14.6,21.6 0,21.6'/%3E%3C/svg%3E") left center / 20px 10px repeat-x;
+}
+
+/* Titre de section commun (même rendu que le composant SectionHeading) pour
+   les titres écrits directement dans les pages : pastille de couleur, titre
+   gras en casse normale, sans filet. */
+.public-site .section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  color: hsl(var(--foreground));
+}
+.public-site .section-title::before {
+  content: "";
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: hsl(var(--accent));
+}
+
+.public-site .social-embed-loading,
+.public-site .social-embed-link { border-radius: var(--skin-radius); }

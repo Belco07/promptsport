@@ -91,7 +91,8 @@ export function ArticleShareLinks({
 }: {
   slug: string;
   title: string;
-  orientation?: "inline" | "rail";
+  /** `compact` : petites icônes rondes de la ligne d'auteur (référence Digital Haven). */
+  orientation?: "inline" | "rail" | "compact";
   /**
    * Raccourci vers les commentaires, avec leur nombre — uniquement sur le rail
    * latéral : la rangée de fin d'article reste limitée aux réseaux de partage.
@@ -100,19 +101,22 @@ export function ArticleShareLinks({
 }) {
   const links = shareLinks(slug, title);
   const vertical = orientation === "rail";
+  const compact = orientation === "compact";
   const showComments = vertical && comments !== undefined;
+  const buttonClass = compact
+    ? "flex h-8 w-8 items-center justify-center !rounded-full transition-colors hover:bg-muted"
+    : "flex h-12 w-12 items-center justify-center !rounded-full border border-border bg-card transition-colors hover:border-accent hover:bg-muted";
 
   return (
     <nav
       aria-label="Partager cet article"
       data-share={orientation}
-      className={vertical ? "flex flex-col gap-2" : "flex flex-wrap items-center gap-2"}
+      className={vertical ? "flex flex-col items-center gap-2" : `flex flex-wrap items-center ${compact ? "gap-0.5" : "gap-2"}`}
     >
-      {!vertical ? (
-        <span className="mr-1 text-xs font-bold uppercase tracking-[1px] text-muted-foreground">
-          Partager
-        </span>
-      ) : null}
+      {/* Libellé « Partager » : au-dessus du rail vertical, devant les icônes sinon. */}
+      <span className={vertical ? "mb-1 text-[10px] font-bold uppercase tracking-[1px] text-muted-foreground" : "mr-1 text-xs font-bold uppercase tracking-[1px] text-muted-foreground"}>
+        Partager
+      </span>
 
       {ORDER.map((network) => (
         <a
@@ -123,13 +127,13 @@ export function ArticleShareLinks({
           {...(network === "email"
             ? {}
             : { target: "_blank", rel: "noopener noreferrer" })}
-          className={`flex h-12 w-12 items-center justify-center border border-border bg-card transition-colors hover:border-editorial-link hover:bg-muted ${BRAND_COLOURS[network]}`}
+          className={`${buttonClass} ${BRAND_COLOURS[network]}`}
         >
           <svg
             aria-hidden="true"
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="h-[22px] w-[22px]"
+            className={compact ? "h-[17px] w-[17px]" : "h-[22px] w-[22px]"}
           >
             <path d={PATHS[network]} fillRule={EVEN_ODD[network] ? "evenodd" : undefined} />
           </svg>
@@ -144,7 +148,7 @@ export function ArticleShareLinks({
           href="#commentaires"
           aria-label={`Commentaires ${comments.count}`}
           title={`Commentaires ${comments.count}`}
-          className="relative flex h-12 w-12 items-center justify-center border border-border bg-card text-foreground transition-colors hover:border-editorial-link hover:bg-muted hover:text-editorial-link"
+          className="relative flex h-12 w-12 items-center justify-center !rounded-full border border-border bg-card text-foreground transition-colors hover:border-accent hover:bg-muted hover:text-editorial-link"
         >
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="h-[22px] w-[22px]">
             <path d={COMMENT_PATH} />
