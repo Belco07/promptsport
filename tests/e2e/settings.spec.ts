@@ -111,7 +111,7 @@ test("enregistre les paramètres et actualise les métadonnées", async ({ page 
   await submitActionForm(page, "Enregistrer", /\/backoffice\/settings\?saved=1$/);
 });
 
-test("la session reste accessible en bas de la sidebar sur mobile", async ({ page }) => {
+test("la session reste accessible dans le menu du backoffice sur mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 640 });
   await page.goto("/backoffice/settings");
 

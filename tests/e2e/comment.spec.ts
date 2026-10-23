@@ -71,6 +71,8 @@ test.describe("Commentaire sur un article", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: articleTitle }),
     ).toBeVisible();
+    await page.locator("#commentaires summary").click();
+    await expect(page.locator("#commentaires details")).toHaveAttribute("open", "");
     await expect(page.getByText("Votre commentaire")).toBeVisible();
 
     await page.locator("#champ-commentaire").fill(commentText);

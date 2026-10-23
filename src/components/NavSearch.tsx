@@ -58,7 +58,7 @@ export function NavSearch() {
     onMouseLeave={() => { closeTimer.current = setTimeout(() => { if (!container.current?.contains(document.activeElement)) setOpen(false); }, 250); }}
     onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
     onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); setOpen(false); trigger.current?.focus(); } }}>
-    <button ref={trigger} type="button" aria-label="Ouvrir la recherche" aria-expanded={open} aria-controls="nav-search-panel"
+    <button ref={trigger} type="button" aria-label="Rechercher — ouvrir la recherche" aria-expanded={open} aria-controls="nav-search-panel"
       onClick={() => { setOpen(true); requestAnimationFrame(() => input.current?.focus()); }}
       className="group flex h-10 items-center justify-center gap-2 rounded-md px-2 text-foreground transition-colors hover:bg-muted hover:text-editorial-link focus-visible:outline-2 focus-visible:outline-editorial-link">
       <Search aria-hidden="true" strokeWidth={1.8} className="h-[20px] w-[20px] transition-transform group-hover:scale-110 motion-reduce:transform-none" />

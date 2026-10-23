@@ -7,7 +7,7 @@ const ts = require('typescript');
 function load(file, imports, env = {}) {
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  vm.runInNewContext(code, { exports, URL, Request, Response, Buffer, Date, AbortSignal, process: { env }, console: { log() {}, warn() {}, error() {} }, require: name => { if (!(name in imports)) throw Error(`Unexpected import: ${name}`); return imports[name]; } });
+  vm.runInNewContext(code, { exports, URL, Request, Response, Buffer, Date, AbortSignal, process: { env }, console: { log() {}, warn() {}, error() {} }, require: name => { if (name === "@/lib/news-virality") return load("src/lib/news-virality.ts", {}); if (!(name in imports)) throw Error(`Unexpected import: ${name}`); return imports[name]; } });
   return exports;
 }
 
@@ -60,6 +60,7 @@ test('collecte : dédoublonnage, rétention et traduction seulement des nouveaut
   assert.equal(first.alertsCreated, 1);
   assert.equal(first.itemsReceived, 3);
   assert.equal(saved.get('feed:https://example.test/fresh').titleFr, 'FR Fresh');
+  assert.equal(saved.get('feed:https://example.test/fresh').viralScore, 2);
   assert.ok(!saved.has('feed:https://example.test/old'));
   assert.equal((await engine.fetchNews()).alertsCreated, 0);
   assert.equal(counters.translations, 1);

@@ -35,9 +35,12 @@ test("veille : score, absence de score, catégorie et sélection sur mobile", as
   await expect(page.getByRole("button", { name: "Générer les brouillons sélectionnés" })).toBeVisible();
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   await expectNoBlockingA11yViolations(page, "Veille timeline sombre");
-  await page.screenshot({ path: "C:/Users/Belco/promptsport/tmp-results/wp50-veille-mobile.png", fullPage: true });
+  await page.screenshot({ path: test.info().outputPath("veille-mobile.png"), fullPage: false });
   const bounds = await rated.boundingBox();
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+  expect(bounds!.width).toBeGreaterThan(250);
+  await page.getByText("Menu du backoffice", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "Se déconnecter" })).toBeVisible();
 });
 
 test("fil public : heure, badge, titre lié et ligne verticale", async ({ page }) => {
@@ -48,7 +51,7 @@ test("fil public : heure, badge, titre lié et ligne verticale", async ({ page }
   await expect(row.getByText(prefix, { exact: true }).first()).toBeVisible();
   await expect(wire).toHaveCSS("border-left-width", "1px");
   await expectNoBlockingA11yViolations(page, "Accueil Fil Info");
-  await wire.screenshot({ path: "C:/Users/Belco/promptsport/tmp-results/wp50-fil-info.png" });
+  await wire.screenshot({ path: test.info().outputPath("fil-info.png") });
   await row.getByRole("link", { name: prefix, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/article/${prefix}$`));
 });

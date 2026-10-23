@@ -60,7 +60,7 @@ export async function clickActionButton(
 ): Promise<void> {
   await clickUntilActionPosts(
     page,
-    page.getByRole("button", { name: buttonName }),
+    page.getByRole("button", { name: buttonName, exact: true }),
     timeoutMs,
   );
 }
@@ -91,7 +91,7 @@ export async function submitActionForm(
 export async function login(page: Page, user: TestUser): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Adresse e-mail").fill(user.email);
-  await page.getByLabel("Mot de passe").fill(user.password);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(user.password);
   await clickUntilActionPosts(
     page,
     page.getByRole("button", { name: "Se connecter" }),

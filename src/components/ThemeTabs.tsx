@@ -81,8 +81,8 @@ export function ThemeTabs({ themes }: { themes: ThemeTab[] }) {
               tabIndex={selected ? 0 : -1}
               onClick={() => setActiveIndex(index)}
               onKeyDown={(event) => onKeyDown(event, index)}
-              className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap !rounded-full border px-2.5 text-[13px] font-semibold transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 ${selected ? "border-foreground/35" : "border-transparent hover:opacity-80"}`}
-              style={selected ? themeBadgeStyle(theme.color) : { ...themeBadgeStyle(theme.color), opacity: 0.55 }}
+              className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap !rounded-full border px-2.5 text-[13px] font-semibold transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 ${selected ? "border-foreground/35" : "border-transparent hover:border-foreground/35"}`}
+              style={themeBadgeStyle(theme.color)}
             >
               <Icon size={14} aria-hidden="true" />
               <span>{theme.name}</span>
