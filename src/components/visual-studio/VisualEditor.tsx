@@ -8,6 +8,7 @@ import UnsplashPicker from "./UnsplashPicker";
 import { EDITOR_FONTS, fontWeights, loadEditorFonts } from "./editor-fonts";
 import { backgroundLayer, installBackground } from "./background-layer";
 import ShapePalette from "./ShapePalette";
+import ShapeStyleControls from "./ShapeStyleControls";
 import MontageTools from "./MontageTools";
 import TemplateToolsPanel from "./TemplateToolsPanel";
 import { saveVisualTemplate } from "@/app/studio/templates/actions";
@@ -336,7 +337,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
           <label className="block text-sm">Couleur du texte / de la forme<input aria-label="Couleur du texte ou de la forme" type="color" value={color} onChange={event => { setColor(event.target.value); update({ fill: event.target.value }); }} /></label>
           <button type="button" className={button} onClick={addText}>Ajouter le texte</button>
 <div className="grid gap-2"><button type="button" className={button} onClick={() => assignField("title")}>Utiliser la sélection comme Titre</button><button type="button" className={button} onClick={() => assignField("subject")}>Utiliser la sélection comme Sujet</button></div></> },
-          { id: "layers", title: "Formes et calques", description: "Sélectionnez un élément, changez son ordre ou supprimez-le.", content: <><ol className="space-y-1">{[...(canvas.current?.getObjects() ?? [])].reverse().map((object,index) => <li key={index}><button type="button" aria-pressed={canvas.current?.getActiveObject() === object} className={button+" w-full text-left"} onClick={() => { canvas.current?.setActiveObject(object); canvas.current?.requestRenderAll(); }}>{object instanceof Textbox ? object.text.slice(0,35) : object instanceof FabricImage ? "Image / logo" : "Forme / dégradé"}</button></li>)}</ol>          <ShapePalette color={color} onAdd={add} /><div className="flex flex-wrap gap-2">
+          { id: "layers", title: "Formes et calques", description: "Sélectionnez un élément, changez son ordre ou supprimez-le.", content: <><ol className="space-y-1">{[...(canvas.current?.getObjects() ?? [])].reverse().map((object,index) => <li key={index}><button type="button" aria-pressed={canvas.current?.getActiveObject() === object} className={button+" w-full text-left"} onClick={() => { canvas.current?.setActiveObject(object); canvas.current?.requestRenderAll(); }}>{object instanceof Textbox ? object.text.slice(0,35) : object instanceof FabricImage ? "Image / logo" : "Forme / dégradé"}</button></li>)}</ol>          <ShapeStyleControls canvas={canvas.current} onChange={() => setSaved("")} /><ShapePalette color={color} onAdd={add} /><div className="flex flex-wrap gap-2">
             <button type="button" className={button} onClick={() => add(new Rect({ ...TOP_LEFT, left: 80, top: 80, width: 300, height: 140, fill: color }))}>Rectangle</button>
             <button type="button" className={button} onClick={() => add(new Circle({ ...TOP_LEFT, left: 80, top: 80, radius: 90, fill: color }))}>Cercle</button>
             <button type="button" className={button} onClick={() => add(new Group([new Rect({ ...TOP_LEFT, width: 220, height: 20, top: 35, fill: color }), new Polygon([{ x: 0, y: 0 }, { x: 90, y: 45 }, { x: 0, y: 90 }], { ...TOP_LEFT, left: 200, top: 0, fill: color })], { ...TOP_LEFT, left: 80, top: 80 }))}>Flèche</button>
@@ -366,7 +367,7 @@ export default function VisualEditor({ channel, composer = false, templateAdmin 
           <button type="button" className={button} onClick={addText}>Ajouter le texte</button>
 </> },
 { id: "stickers", title: "Formes et stickers", description: "Ajoutez des éléments graphiques à votre montage.", content: <>          <div className="flex flex-wrap gap-2" aria-label="Stickers">{["⚽", "🏆", "🔥", "⭐", "💥", "🏀", "🥇", "🥈", "🥉", "🎯", "🚨", "🔴", "🟡", "🟢", "🔵", "⚪", "⚫", "✅", "❌", "🔁", "✍️", "💰", "⏱️", "📣", "💪", "👏", "🙌", "😱", "😎", "❤️", "💔", "🏟️", "🎾", "🏉", "🥊", "🏁"].map(emoji => <button type="button" key={emoji} className={button} aria-label={`Ajouter ${emoji}`} onClick={() => add(new Textbox(emoji, { ...TOP_LEFT, left: 80, top: 80, width: 140, fontSize: 100, fontFamily: "Arial" }))}>{emoji}</button>)}</div>
-          <ShapePalette color={color} onAdd={add} /><div className="flex flex-wrap gap-2">
+          <ShapeStyleControls canvas={canvas.current} onChange={() => setSaved("")} /><ShapePalette color={color} onAdd={add} /><div className="flex flex-wrap gap-2">
             <button type="button" className={button} onClick={() => add(new Rect({ ...TOP_LEFT, left: 80, top: 80, width: 300, height: 140, fill: color }))}>Rectangle</button>
             <button type="button" className={button} onClick={() => add(new Circle({ ...TOP_LEFT, left: 80, top: 80, radius: 90, fill: color }))}>Cercle</button>
             <button type="button" className={button} onClick={() => add(new Group([new Rect({ ...TOP_LEFT, width: 220, height: 20, top: 35, fill: color }), new Polygon([{ x: 0, y: 0 }, { x: 90, y: 45 }, { x: 0, y: 90 }], { ...TOP_LEFT, left: 200, top: 0, fill: color })], { ...TOP_LEFT, left: 80, top: 80 }))}>Flèche</button>
