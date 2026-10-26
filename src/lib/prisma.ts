@@ -56,7 +56,10 @@ function createPrismaClient(): PrismaClient {
   // local qui simule Neon coupe parfois ses sockets sous charge, ce qui rend
   // les parcours instables sans reproduire un défaut applicatif. Cette voie
   // reste strictement limitée à une base locale.
-  if (process.env.PRISMA_PG_DIRECT === "1") {
+  const directPgAllowed =
+    process.env.PRISMA_PG_DIRECT === "1" &&
+    (process.env.NODE_ENV !== "production" || process.env.E2E_DISTRIBUTION_STUB === "1");
+  if (directPgAllowed) {
     const databaseUrl = new URL(connectionString);
     const loopback = new Set(["localhost", "127.0.0.1", "[::1]"]);
     if (!loopback.has(databaseUrl.hostname)) {

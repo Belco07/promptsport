@@ -32,7 +32,7 @@ test("veille : score, absence de score, catégorie et sélection sur mobile", as
   await expect(rated.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
   await expect(rated.getByText(prefix, { exact: true }).first()).toBeVisible();
   await rated.getByRole("checkbox").check();
-  await expect(page.getByRole("button", { name: "Générer les brouillons sélectionnés" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Générer les alertes 5 🔥 sélectionnées" })).toBeVisible();
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   await expectNoBlockingA11yViolations(page, "Veille timeline sombre");
   await page.screenshot({ path: test.info().outputPath("veille-mobile.png"), fullPage: false });
@@ -44,9 +44,15 @@ test("veille : score, absence de score, catégorie et sélection sur mobile", as
 });
 
 test("fil public : heure, badge, titre lié et ligne verticale", async ({ page }) => {
-  await page.goto("/");
+  test.setTimeout(180_000);
   const wire = page.getByRole("list", { name: "Dernières brèves" });
   const row = wire.getByRole("listitem").filter({ has: page.getByRole("link", { name: prefix, exact: true }) });
+  // L'accueil est mis en cache 60 s : recharger jusqu'à ce que la brève
+  // insérée en base apparaisse, au lieu de dépendre du moment du warmup.
+  await expect(async () => {
+    await page.goto("/");
+    await expect(row).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 90_000, intervals: [5_000] });
   await expect(row.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
   await expect(row.getByText(prefix, { exact: true }).first()).toBeVisible();
   await expect(wire).toHaveCSS("border-left-width", "1px");

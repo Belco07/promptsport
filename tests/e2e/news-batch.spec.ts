@@ -1,9 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import bcrypt from "bcryptjs";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { closeDb, e2eId, sql, sqlOne } from "../fixtures/db";
 import { login } from "../fixtures/helpers";
+
+// La machine de développement peut être très lente à compiler et à hydrater
+// les pages ; les parcours restent bornés mais disposent d'une marge réaliste.
+test.describe.configure({ timeout: 300_000 });
+
+/** Attend que les boutons client de la veille soient hydratés. */
+async function waitForVeilleHydration(page: Page): Promise<void> {
+  await page
+    .locator('[data-veille-ready="true"]')
+    .waitFor({ state: "attached", timeout: 120_000 });
+}
 
 /** Supprime les couvertures générées en local par la composition d'image. */
 async function removeLocalCovers(): Promise<void> {
@@ -45,6 +56,7 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/analytics/track", route => route.fulfill({ status: 204 }));
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
   await page.goto("/backoffice/veille");
+  await waitForVeilleHydration(page);
 });
 test.afterEach(async () => {
   if (!localFixtures) return;
@@ -88,6 +100,7 @@ test("publie automatiquement une alerte 5 d’une source fiable, autorisée et i
     `${origin}/promptsport-og.png`,
   ]);
   await page.reload();
+  await waitForVeilleHydration(page);
   await page.getByRole("listitem").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
   await expect(page.getByRole("status")).toHaveText("1 article(s) publié(s) automatiquement.", {
     timeout: 90_000,
@@ -117,9 +130,10 @@ test("conserve le brouillon si la source auto-publiable n’a pas de photo autor
   // Source fiable et auto-publiable, mais photo non autorisée (défaut).
   await sql(`UPDATE "NewsSource" SET "autoPublish"=true, reliability=95 WHERE id=$1`, [prefix]);
   await page.reload();
+  await waitForVeilleHydration(page);
   await page.getByRole("listitem").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
   await expect(page.getByRole("status")).toContainText("sans photo source exploitable", {
-    timeout: 30_000,
+    timeout: 90_000,
   });
   const article = await sqlOne<{ status: string; coverImageUrl: string | null }>(
     `SELECT status,"coverImageUrl" FROM "Article" WHERE "authorId"=$1`,
@@ -132,6 +146,7 @@ test("conserve le brouillon si la source auto-publiable n’a pas de photo autor
 test("réserve la génération IA aux alertes 5", async ({ page }) => {
   await sql(`UPDATE "NewsAlert" SET "viralScore"=4 WHERE id=$1`, [`${prefix}-one`]);
   await page.reload();
+  await waitForVeilleHydration(page);
   const card = page.getByRole("listitem").filter({ hasText: `${prefix}-one` });
   await expect(card.getByText("IA : score 5 requis")).toBeVisible();
   await expect(card.getByRole("button", { name: "Générer avec l’IA" })).toHaveCount(0);
@@ -144,6 +159,7 @@ test("nettoie toutes les alertes non virales en un clic", async ({ page }) => {
     [`${prefix}-one`, `${prefix}-two`],
   ]);
   await page.reload();
+  await waitForVeilleHydration(page);
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Nettoyer les alertes non-virales" }).click();
   await expect(
@@ -168,6 +184,7 @@ test("affiche le quota restant et bloque la génération à zéro", async ({ pag
     [prefix, prefix],
   );
   await page.reload();
+  await waitForVeilleHydration(page);
   await expect(page.getByText("0/15", { exact: true })).toBeVisible();
   await expect(page.getByText("Quota IA atteint pour aujourd'hui.").first()).toBeVisible();
   await expect(
@@ -199,6 +216,7 @@ test("pagine les alertes par 50", async ({ page }) => {
     [prefix],
   );
   await page.reload();
+  await waitForVeilleHydration(page);
 
   await expect(page.getByRole("navigation", { name: "Pagination de la veille" })).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
