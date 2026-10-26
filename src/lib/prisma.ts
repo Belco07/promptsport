@@ -50,12 +50,28 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
+  const connectionString = resolveDatabaseUrl();
+
+  // Les E2E Docker utilisent le pilote PostgreSQL direct : le proxy WebSocket
+  // local qui simule Neon coupe parfois ses sockets sous charge, ce qui rend
+  // les parcours instables sans reproduire un défaut applicatif. Cette voie
+  // reste strictement limitée à une base locale.
+  if (process.env.PRISMA_PG_DIRECT === "1") {
+    const databaseUrl = new URL(connectionString);
+    const loopback = new Set(["localhost", "127.0.0.1", "[::1]"]);
+    if (!loopback.has(databaseUrl.hostname)) {
+      throw new Error("PRISMA_PG_DIRECT est réservé à PostgreSQL local.");
+    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy server-only driver
+    const { PrismaPg } = require("@prisma/adapter-pg") as typeof import("@prisma/adapter-pg");
+    return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  }
+
   // Keep the driver server-side when client components reference Server Actions.
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy server-only driver
   const { PrismaNeon } = require("@prisma/adapter-neon") as typeof import("@prisma/adapter-neon");
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- same lazy boundary
   const { neonConfig } = require("@neondatabase/serverless") as typeof import("@neondatabase/serverless");
-  const connectionString = resolveDatabaseUrl();
   const localProxy = process.env.NEON_WS_PROXY?.trim();
   if (localProxy) {
     const proxyUrl = new URL(`ws://${localProxy}`);

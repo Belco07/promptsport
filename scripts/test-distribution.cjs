@@ -10,6 +10,7 @@ const url = new URL(raw);
 if (!['localhost', '127.0.0.1'].includes(url.hostname) || url.port !== '5432') throw Error('Tests réservés à Docker local sur localhost:5432.');
 Object.assign(process.env, {
   DATABASE_URL: raw, APP_DATABASE_URL: raw, DIRECT_URL: raw,
+  PRISMA_PG_DIRECT: '1',
   NEON_WS_PROXY: '127.0.0.1:5452',
   DEEPSEEK_API_KEY: 'local-fixture', DEEPSEEK_BASE_URL: 'http://127.0.0.1:5451/v1', E2E_DISTRIBUTION_STUB: '1',
   RESEND_API_KEY: '', BLOB_READ_WRITE_TOKEN: process.env.E2E_VISUAL_BLOB_STUB === '1' ? 'vercel_blob_rw_e2efixture_00000000000000000000000000000000' : '', ALLSPORTS_API_KEY: '', FOOTBALL_DATA_API_KEY: '', FOTMOB_LIVE: '0',

@@ -15,7 +15,7 @@ test.beforeEach(async ({ page, context }, testInfo) => {
   id = e2eId("wp48"); endpoint = `https://fcm.googleapis.com/fcm/send/${id}`;
   await sql('INSERT INTO "Author" (id,name,email,"passwordHash",role,"createdAt") VALUES ($1,$1,$2,$3,$4::"UserRole",NOW())', [id, `${id}@example.test`, await bcrypt.hash(password, 10), testInfo.title.startsWith("push :") ? "READER" : "ADMIN"]);
   await sql('INSERT INTO "Category" (id,name,slug,"createdAt") VALUES ($1,$1,$1,NOW())', [id]);
-  await sql('INSERT INTO "Article" (id,title,slug,content,excerpt,format,status,"authorId","categoryId","createdAt","updatedAt") VALUES ($1,$1,$1,\'Un Flash sportif confirmé.\',\'Résumé du Flash.\',\'FLASH\',\'DRAFT\',$1,$1,NOW(),NOW())', [id]);
+  await sql('INSERT INTO "Article" (id,title,slug,content,excerpt,format,status,"coverImageUrl","authorId","categoryId","createdAt","updatedAt") VALUES ($1,$1,$1,\'Un Flash sportif confirmé.\',\'Résumé du Flash.\',\'FLASH\',\'DRAFT\',\'/promptsport-og.png\',$1,$1,NOW(),NOW())', [id]);
   await context.grantPermissions(["notifications"]);
   const p256dh = createECDH("prime256v1").generateKeys().toString("base64url");
   const auth = randomBytes(16).toString("base64url");

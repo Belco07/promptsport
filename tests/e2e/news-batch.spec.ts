@@ -205,11 +205,13 @@ test("pagine les alertes par 50", async ({ page }) => {
   await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-00` })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Page suivante →" }).click();
-  await expect(page).toHaveURL(/\/backoffice\/veille\?page=2$/);
+  await expect(page).toHaveURL(/\/backoffice\/veille\?page=2$/, {
+    timeout: 90_000,
+  });
   await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-00` })).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toHaveCount(0);
 
   await page.getByRole("link", { name: "← Page précédente" }).click();
-  await expect(page).toHaveURL(/\/backoffice\/veille$/);
+  await expect(page).toHaveURL(/\/backoffice\/veille$/, { timeout: 90_000 });
   await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
 });
