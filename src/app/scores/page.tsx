@@ -7,6 +7,7 @@ import { ScoreRow } from "@/components/ScoreRow";
 import { ScoresControls } from "@/components/ScoresControls";
 import { FollowPill } from "@/components/ui/FollowPill";
 import { AdSlot } from "@/components/AdSlot";
+import { ADS_ENABLED } from "@/lib/ads";
 import { Footer } from "@/components/Footer";
 import { auth } from "@/lib/auth";
 import { CompetitionLogo } from "@/components/CompetitionLogo";
@@ -41,7 +42,7 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
   function href(day:string){const p=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v&&k!=="view")p.set(k,v);p.set("date",day);return `/scores?${p}`;}
   return <><main id="contenu" className="mx-auto max-w-[1280px] px-4 pb-8 text-foreground">
     <PageBand title={view === "live" ? "Matchs en direct" : "Scores en direct, calendrier et résultats"} />
-    <div className={premium?"":"lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8"}>
+    <div className={premium||!ADS_ENABLED?"":"lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8"}>
     <script type="application/ld+json" dangerouslySetInnerHTML={{__html:jsonLdString(itemListJsonLd({name:"Matchs",path:"/scores",items:matches.map(m=>({name:`${m.homeTeam.name} - ${m.awayTeam.name}`,url:`/match/${m.id}`}))}))}}/>
     <div className="min-w-0">
       <p className="mb-4 text-sm text-muted-foreground">Dernière mise à jour serveur : {lastUpdate?.finishedAt ? <time dateTime={lastUpdate.finishedAt.toISOString()}>{formatRelativeDate(lastUpdate.finishedAt)}</time> : "aucune synchronisation enregistrée"}</p>
@@ -60,7 +61,7 @@ export default async function ScoresPage({searchParams}:{searchParams:Promise<Re
         <div className="overflow-hidden rounded-md bg-muted">{rows.map((match,i)=>{const day=match.scheduledAt.toLocaleDateString("fr-FR",{day:"numeric",month:"long",timeZone:"Africa/Lagos"});const previous=i?rows[i-1].scheduledAt.toLocaleDateString("fr-FR",{day:"numeric",month:"long",timeZone:"Africa/Lagos"}):null;return <div key={match.id}>{match.status==="SCHEDULED"&&match.scheduledAt>now&&day!==previous&&<p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">{day}</p>}<div className="border-b border-border last:border-0"><ScoreRow match={{...match,minuteObservedAt:match.minuteObservedAt??match.events[0]?.createdAt?.toISOString()??null,minute:match.minute??(match.events[0]?String(match.events[0].minute)+(match.events[0].extraMinute?"+"+match.events[0].extraMinute:"")+"′":null)}}/></div></div>;})}</div>
       </section>)}</div>
     </div>
-    {!premium&&<aside className="hidden lg:block"><div className="sticky top-28"><AdSlot format="skyscraper"/></div></aside>}
+    {!premium&&ADS_ENABLED&&<aside className="hidden lg:block"><div className="sticky top-28"><AdSlot format="skyscraper"/></div></aside>}
     </div>
   </main><Footer/></>;
 }

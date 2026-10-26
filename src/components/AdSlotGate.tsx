@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 
+import { ADS_ENABLED } from "@/lib/ads";
+
 /**
- * Masque un emplacement publicitaire aux abonnés premium.
+ * Masque un emplacement publicitaire aux abonnés premium, et à tout le monde
+ * tant que la publicité n'est pas activée (`ADS_ENABLED`, voir src/lib/ads.ts).
  *
  * Les pages publiques (accueil, scores, compétition, match) sont **prérendues**
  * (`export const revalidate = 60`, WP8c) : y lire la session côté serveur avec
@@ -30,6 +33,7 @@ export function AdSlotGate({
   const [hidden, setHidden] = useState(premium === true);
 
   useEffect(() => {
+    if (!ADS_ENABLED) return;
     if (premium !== undefined) {
       setHidden(premium);
       return;
@@ -52,7 +56,7 @@ export function AdSlotGate({
     };
   }, [premium]);
 
-  if (hidden) {
+  if (!ADS_ENABLED || hidden) {
     return null;
   }
   return <>{children}</>;

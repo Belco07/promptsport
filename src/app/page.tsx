@@ -42,6 +42,21 @@ export async function generateMetadata(): Promise<Metadata> {
 export const revalidate = 60;
 type HomeArticle = ArticleCardData & { id: string; contentLength: number };
 const competitionSlugs = ["ligue-1", "premier-league", "liga", "serie-a", "bundesliga", "uefa-champions-league"];
+/**
+ * « Clubs populaires à suivre » : les grands clubs attendus par un lecteur
+ * francophone, dans cet ordre. Un club suivi par au moins
+ * POPULAR_CLUB_MIN_FOLLOWERS lecteurs les rejoint et passe devant, du plus
+ * suivi au moins suivi ; le seuil évite qu'un compte de test isolé ne fasse
+ * remonter un club confidentiel.
+ */
+const POPULAR_CLUB_SLUGS = [
+  "paris-saint-germain-fc", "olympique-de-marseille", "olympique-lyonnais", "real-madrid-cf",
+  "fc-barcelona", "liverpool-fc", "manchester-city-fc", "fc-bayern-munchen",
+  // Réserve, si l'un des clubs ci-dessus manque dans la base.
+  "as-monaco-fc", "lille-osc", "arsenal-fc", "juventus-fc", "ac-milan", "fc-internazionale-milano",
+];
+const POPULAR_CLUB_MIN_FOLLOWERS = 3;
+const POPULAR_CLUB_COUNT = 8;
 const columns = Prisma.sql`a.id, a.format, a.slug, a.title, a.excerpt, a."coverImageUrl", a."publishedAt", a."isPremium", char_length(a.content) AS "contentLength", json_build_object('name',c.name) AS category, json_build_object('name',u.name,'slug',u.slug) AS author`;
 const joins = Prisma.sql`FROM "Article" a JOIN "Category" c ON c.id=a."categoryId" JOIN "Author" u ON u.id=a."authorId"`;
 const published = Prisma.sql`a.status='PUBLISHED' AND a."publishedAt" <= NOW()`;
@@ -140,11 +155,19 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   const page = /^\d{1,4}$/.test(params.page ?? "") ? Math.max(1, Number(params.page)) : 1;
   const section = ["mercato", "analyses"].includes(params.rubrique ?? "") ? params.rubrique! : "";
   const [cached, cachedLatest] = await Promise.all([getEditorial(), getLatest(page, section)]);
-  const popularClubs = await prisma.team.findMany({
-    select: { id: true, name: true, slug: true, logoUrl: true },
-    take: 8,
-    orderBy: { name: "asc" },
-  });
+  const clubSelect = { id: true, name: true, slug: true, logoUrl: true, _count: { select: { followers: true } } } as const;
+  const [curatedClubs, followedClubs] = await Promise.all([
+    prisma.team.findMany({ where: { slug: { in: POPULAR_CLUB_SLUGS } }, select: clubSelect }),
+    prisma.team.findMany({ where: { followers: { some: {} } }, select: clubSelect, orderBy: { followers: { _count: "desc" } }, take: POPULAR_CLUB_COUNT }),
+  ]);
+  const curatedRank = (slug: string) => { const index = POPULAR_CLUB_SLUGS.indexOf(slug); return index < 0 ? POPULAR_CLUB_SLUGS.length : index; };
+  const popularClubs = [...new Map([...curatedClubs, ...followedClubs.filter(club => club._count.followers >= POPULAR_CLUB_MIN_FOLLOWERS)].map(club => [club.id, club])).values()]
+    .sort((a, b) => {
+      const followedA = a._count.followers >= POPULAR_CLUB_MIN_FOLLOWERS ? a._count.followers : 0;
+      const followedB = b._count.followers >= POPULAR_CLUB_MIN_FOLLOWERS ? b._count.followers : 0;
+      return followedB - followedA || curatedRank(a.slug) - curatedRank(b.slug);
+    })
+    .slice(0, POPULAR_CLUB_COUNT);
   // The persistent cache serializes Dates as strings; restore them before rendering.
   const restoreDates = <T extends ArticleCardData,>(articles: T[]): T[] => articles.map(article => ({ ...article, publishedAt: article.publishedAt ? new Date(article.publishedAt) : null }));
   const editorial = { ...cached, featured: restoreDates(cached.featured), wire: restoreDates(cached.wire), mercato: restoreDates(cached.mercato), analyses: restoreDates(cached.analyses), popular: restoreDates(cached.popular) };
@@ -152,9 +175,36 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
   const themeTabs = groupThemeTabs(cached.themeTabs);
   const latest = restoreDates(cachedLatest);
   const [lead, ...secondary] = editorial.featured;
-  const unique = (articles: ArticleCardData[]) => [...new Map(articles.map(article => [article.slug, article])).values()];
-  const essentials = unique([...secondary, ...editorial.wire]).filter(article => article.slug !== lead?.slug).slice(0, 3);
-  const headlines = unique([...secondary, ...editorial.wire.filter(article => article.format === "NEWS"), ...latest.filter(article => article.format === "NEWS")]).filter(article => article.slug !== lead?.slug).slice(0, 4);
+  /*
+   * Chaque article n'apparaît qu'une fois dans les blocs de cartes de l'accueil :
+   * l'article à la une réserve sa place, puis À la Une, Analyses, Mercato,
+   * L'essentiel et les onglets Thèmes prennent chacun des articles pas encore
+   * montrés. Un bloc sans article est masqué : le nombre de blocs suit le
+   * volume publié. Le Fil Info (ordre chronologique) et « Les plus lus »
+   * (classement de lecture) restent des listes complètes.
+   */
+  const shown = new Set<string>(lead ? [lead.slug] : []);
+  const take = <T extends ArticleCardData,>(articles: T[], max: number): T[] => {
+    const picked: T[] = [];
+    for (const article of articles) {
+      if (picked.length >= max) break;
+      if (shown.has(article.slug)) continue;
+      shown.add(article.slug);
+      picked.push(article);
+    }
+    return picked;
+  };
+  const headlines = take([...secondary, ...editorial.wire.filter(article => article.format === "NEWS"), ...latest.filter(article => article.format === "NEWS")], 4);
+  const analyses = take(editorial.analyses, 4);
+  const mercato = take(editorial.mercato, 4);
+  const essentials = take([...secondary, ...editorial.wire, ...latest], 3);
+  const themeTabsShown = themeTabs
+    .map(tab => ({ ...tab, articles: take(tab.articles, tab.articles.length) }))
+    .filter(tab => tab.articles.length > 0);
+  // « Derniers articles », page 1 de l'accueil : sans les articles déjà montrés plus haut.
+  const latestShown = page === 1 && !section ? latest.slice(0, 12).filter(article => !shown.has(article.slug)) : latest.slice(0, 12);
+  // Tout est déjà affiché plus haut : la grille disparaît, la pagination reste s'il y a une suite.
+  const latestGridHidden = page === 1 && !section && latestShown.length === 0;
   const briefs = [...editorial.wire].sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0)).slice(0, 5);
   const kicker = cached.themeTabs.find(row => row.id === lead?.id)?.themeName;
   const editionDate = new Date();
@@ -170,13 +220,13 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
     {/* Après l'article à la une, comme sur la référence : Thèmes, À la Une,
         Analyses puis Mercato, avec « L'essentiel » en colonne latérale. */}
     <div className="grid grid-cols-1 gap-x-7 gap-y-10 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(240px,.95fr)]">
-      <div className="min-w-0 space-y-12 lg:col-span-3">
-        <SectionBlock id="themes" title="Thèmes" href="/themes" linkLabel="Tous les thèmes" description="Mercato, tactique, interviews : les sujets qui traversent tous les sports."><ThemeTabs themes={themeTabs} /></SectionBlock>
-        <EditionSection id="une" title="À la Une" articles={headlines} href="/#derniers-articles" />
-        <EditionSection id="analyses" title="Analyses" articles={editorial.analyses.slice(0, 4)} href="/?rubrique=analyses#derniers-articles" />
-        <EditionSection id="mercato" title="Mercato" articles={editorial.mercato.slice(0, 4)} href="/theme/mercato" />
+      <div className={`min-w-0 space-y-12 ${essentials.length ? "lg:col-span-3" : "lg:col-span-4"}`}>
+        {themeTabsShown.length > 0 && <SectionBlock id="themes" title="Thèmes" href="/themes" linkLabel="Tous les thèmes" description="Mercato, tactique, interviews : les sujets qui traversent tous les sports."><ThemeTabs themes={themeTabsShown} /></SectionBlock>}
+        {headlines.length > 0 && <EditionSection id="une" title="À la Une" articles={headlines} href="/#derniers-articles" />}
+        {analyses.length > 0 && <EditionSection id="analyses" title="Analyses" articles={analyses} href="/?rubrique=analyses#derniers-articles" />}
+        {mercato.length > 0 && <EditionSection id="mercato" title="Mercato" articles={mercato} href="/theme/mercato" />}
       </div>
-      <EssentialsAside essentials={essentials} />
+      {essentials.length > 0 && <EssentialsAside essentials={essentials} />}
     </div>
     <AdSlotGate><AdSlot /></AdSlotGate>
     <SectionBlock id="competitions" title="Compétitions" href="/scores"><CompetitionsGrid competitions={editorial.competitions} /></SectionBlock>
@@ -184,9 +234,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ p
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8">{popularClubs.map((club) => <FollowPill key={club.id} id={club.id} kind="team" name={club.name} logoUrl={club.logoUrl} slug={club.slug} following={false} signedIn={false} />)}</div>
     </SectionBlock>
     <div className="grid gap-8 lg:grid-cols-[2fr_1fr]"><SectionBlock id="plus-lus" title="Les plus lus" description="Les articles les plus consultés ces 7 derniers jours"><MostReadList articles={editorial.popular} /></SectionBlock><aside className="space-y-6"><section className="rounded-[18px] border border-border bg-card p-6 text-foreground shadow-[0_4px_20px_rgb(0_0_0/7%)]"><p className="text-xs font-bold uppercase">PromptSport +</p><h2 className="my-3 text-3xl font-black">La passion va plus loin.</h2><p className="mb-5 text-sm text-muted-foreground">Analyses, décryptages et articles premium. Vivez le sport avec un temps d’avance.</p><Link href="/abonnement" className="font-bold underline underline-offset-4">Découvrir les offres →</Link></section><AdSlotGate><AdSlot format="rectangle" /></AdSlotGate></aside></div>
-    <SectionBlock id="derniers-articles" title={section ? `Derniers articles · ${section}` : "Derniers articles"}>
-      <div data-latest-page={page}><ArticleGrid articles={latest.slice(0,12)} /></div>
+    {!(latestGridHidden && latest.length <= 12) && <SectionBlock id="derniers-articles" title={section ? `Derniers articles · ${section}` : "Derniers articles"}>
+      {!latestGridHidden && <div data-latest-page={page}><ArticleGrid articles={latestShown} /></div>}
       <nav aria-label="Pagination des articles" className="mt-7 flex flex-wrap items-center justify-center gap-5 text-sm text-foreground">{page>1 && <Link href={pageHref(page-1)} rel="prev" className="inline-flex h-10 items-center rounded-[13px] border border-border px-5 font-bold hover:border-foreground">← Précédents</Link>}<span className="text-muted-foreground">Page {page}</span>{latest.length>12 && <Link href={pageHref(page+1)} rel="next" className="inline-flex h-10 items-center rounded-[13px] border border-border bg-card px-5 font-bold hover:border-foreground">Voir plus →</Link>}{section && <Link href="/#derniers-articles" className="underline">Toutes les rubriques</Link>}</nav>
-    </SectionBlock>
+    </SectionBlock>}
   </main><Footer /></>;
 }

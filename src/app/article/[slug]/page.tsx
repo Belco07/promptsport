@@ -18,6 +18,7 @@ import { ArticleReactionBars } from "@/components/ShareButtons";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { RelatedArticles } from "@/components/RelatedArticles";
 import { AdSlot } from "@/components/AdSlot";
+import { ADS_ENABLED } from "@/lib/ads";
 import { AdSlotGate } from "@/components/AdSlotGate";
 import { CommentsSection } from "@/components/CommentsSection";
 import { Footer } from "@/components/Footer";
@@ -376,7 +377,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             badges={<FormatBadge format={article.format} />}
             actions={<BookmarkButton articleId={article.id} articleSlug={article.slug} initial={session?.user?.id ? { id: article.id, slug: article.slug, saved: !!bookmark } : null} showLabel />}
           />
-          <div className={`mt-8 ${session?.user?.isPremium === true ? "mx-auto max-w-[820px]" : "lg:grid lg:grid-cols-[minmax(0,820px)_300px] lg:justify-between lg:gap-12"}`}>
+          <div className={`mt-8 ${session?.user?.isPremium === true || !ADS_ENABLED ? "mx-auto max-w-[820px]" : "lg:grid lg:grid-cols-[minmax(0,820px)_300px] lg:justify-between lg:gap-12"}`}>
           <div className="w-full min-w-0 max-w-[820px]">
             <ArticleMeta author={article.author} date={article.publishedAt} updatedAt={article.updatedAt} minutes={minutes} uniqueReaders={uniqueReaders}>
               <ArticleShareLinks slug={article.slug} title={article.title} orientation="compact" />

@@ -22,6 +22,7 @@ export function FeaturedSlotCard({ slot, label, article, canSwap, unavailable }:
   }
   return <section className="rounded-md border border-border bg-card p-5 text-foreground">
     <h2 className="mb-4 text-xl font-bold">{label}</h2>
+    {slot === "URGENT" && <p className="-mt-2 mb-4 text-sm text-muted-foreground">Réservé aux informations de dernière minute : le bandeau s’affiche 24 h après le choix, puis disparaît de lui-même.</p>}
     {article ? <div className="mb-4 flex items-start gap-4">
       {article.coverImageUrl && <Image src={article.coverImageUrl} alt="" width={120} height={75} className="h-20 w-28 rounded object-cover" />}
       <div><p className="font-semibold">{article.title}</p><p className="mt-1 text-sm text-muted-foreground">{article.publishedAt ? new Date(article.publishedAt).toLocaleDateString("fr-FR", { timeZone: "UTC" }) : "Non publié"}</p>{unavailable && <p className="mt-2 text-sm text-status-error-foreground">Cet article n’est plus public : le choix automatique est utilisé.</p>}</div>

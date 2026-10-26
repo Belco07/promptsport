@@ -1,6 +1,11 @@
 import Image from "next/image";
 
-/** Reserved ad space. AdSlotGate continues to hide it for premium readers. */
+import { ADS_ENABLED } from "@/lib/ads";
+
+/**
+ * Reserved ad space. AdSlotGate continues to hide it for premium readers.
+ * Rien n'est rendu tant que la publicité n'est pas activée (src/lib/ads.ts).
+ */
 const FORMATS = {
   leaderboard: { ratio: "h-[100px] max-w-[320px] min-[768px]:h-[90px] min-[768px]:max-w-[728px] min-[1024px]:max-w-[970px] mx-auto", marker: "leaderboard" },
   banner: { ratio: "aspect-[1838/340]", marker: "banner" },
@@ -14,6 +19,7 @@ export function AdSlot({ format = "banner", label = "Publicité", className = ""
   label?: string;
   className?: string;
 }) {
+  if (!ADS_ENABLED) return null;
   const { ratio, marker } = FORMATS[format];
   return (
     <aside aria-label="Emplacement publicitaire" className={`w-full ${className}`}>

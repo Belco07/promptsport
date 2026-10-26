@@ -20,31 +20,30 @@ export const urgentArticleSelect = {
   publishedAt: true,
 } as const;
 
+/** Durée d'affichage du bandeau urgent après son choix dans le studio. */
+export const URGENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 /**
- * Article du bandeau urgent : **manuel** si un emplacement URGENT est choisi
- * dans le studio, sinon **automatique** — le dernier article publié au format
- * FLASH ou NEWS (le plus récent d'abord).
+ * Article du bandeau urgent : **uniquement** celui choisi dans l'emplacement
+ * URGENT du studio, et pendant 24 h après ce choix.
  *
- * Le repli automatique garantit que le bandeau n'est jamais vide tant qu'un
- * article d'actualité est publié ; choisir un emplacement dans le studio prend
- * le dessus immédiatement.
+ * Il n'y a plus de repli automatique sur le dernier FLASH ou NEWS : le bandeau
+ * rouge « Urgent » est réservé aux vraies informations de dernière minute,
+ * décidées par la rédaction. Un choix oublié s'éteint de lui-même ; le
+ * renouveler dans le studio relance les 24 h.
  */
 export async function getUrgentArticle() {
   const published = { status: "PUBLISHED" as const, publishedAt: { lte: new Date() } };
 
   const manual = await prisma.featuredSlot.findFirst({
-    where: { slot: "URGENT", article: published },
+    where: {
+      slot: "URGENT",
+      article: published,
+      updatedAt: { gte: new Date(Date.now() - URGENT_MAX_AGE_MS) },
+    },
     include: { article: { select: urgentArticleSelect } },
   });
-  if (manual) {
-    return manual.article;
-  }
-
-  return prisma.article.findFirst({
-    where: { ...published, format: { in: ["FLASH", "NEWS"] } },
-    orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
-    select: urgentArticleSelect,
-  });
+  return manual?.article ?? null;
 }
 
 /** Only public metadata; unpublished or scheduled selections never reach home. */
