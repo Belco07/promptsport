@@ -423,8 +423,13 @@ async function renderCover(
 }
 
 async function storeCover(jpeg: Buffer): Promise<string> {
+  // Les E2E tournent contre le stub Blob des studios visuels, qui ne sait
+  // stocker que des PNG. Les couvertures de veille restent donc sur disque
+  // lorsque la distribution est simulée ; la production garde Blob.
+  const localE2EStorage =
+    process.env.E2E_DISTRIBUTION_STUB === "1" && process.env.VERCEL !== "1";
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  if (token) {
+  if (token && !localE2EStorage) {
     const { put } = await import("@vercel/blob");
     const blob = await put(`covers/${randomUUID()}.jpg`, jpeg, {
       access: "public",
@@ -435,7 +440,7 @@ async function storeCover(jpeg: Buffer): Promise<string> {
     return blob.url;
   }
 
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && !localE2EStorage) {
     throw new Error(
       "BLOB_READ_WRITE_TOKEN absent : impossible de stocker la couverture.",
     );

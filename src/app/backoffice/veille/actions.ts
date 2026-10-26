@@ -115,6 +115,7 @@ async function createArticleFromAlert(input: {
   title: string;
   excerpt: string;
   content: string;
+  format: "FLASH" | "NEWS" | "ANALYSIS";
   categoryId: string;
   authorId: string;
   alertId: string;
@@ -151,7 +152,7 @@ async function createArticleFromAlert(input: {
                 content: input.content,
                 excerpt: input.excerpt,
                 status: input.status,
-                format: "NEWS",
+                format: input.format,
                 isPremium: false,
                 publishedAt: input.publishedAt,
                 coverImageUrl: input.coverImageUrl,
