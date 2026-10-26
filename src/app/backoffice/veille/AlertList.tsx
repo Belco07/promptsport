@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { TimelineBadge, type TimelineCategory } from "@/components/TimelineBadge";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { generateArticle, ignoreSelectedAlert, markAlertsViral } from "./actions";
 const STATUS_STYLES = {
@@ -50,6 +50,11 @@ export function AlertList({ alerts, aiReady, aiQuotaRemaining }: { alerts: Alert
   const [completed, setCompleted] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
+  // Marqueur d'hydratation : les E2E attendent que les boutons d'action soient
+  // réellement interactifs avant de cliquer (les clics pré-hydratation sont
+  // silencieusement ignorés par React).
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   const pending = alerts.filter(alert => alert.status === "PENDING" && !completed.includes(alert.id));
   const selectedViral = selected.filter(id => pending.find(alert => alert.id === id)?.viralScore === 5);
   const generationDisabled = busy || !aiReady || aiQuotaRemaining <= 0;
@@ -98,7 +103,7 @@ export function AlertList({ alerts, aiReady, aiQuotaRemaining }: { alerts: Alert
       setErrors(["Connexion interrompue : le marquage n'a pas été confirmé."]);
     } finally { setBusy(false); router.refresh(); }
   }
-  return <div aria-busy={busy}>
+  return <div aria-busy={busy} data-veille-ready={hydrated ? "true" : undefined}>
     <p role="status" aria-live="polite" className="mb-3 text-sm text-foreground">{message}</p>
     {aiQuotaRemaining <= 0 ? <div className="mb-3 rounded-lg border border-status-warning-border bg-status-warning px-4 py-3 text-sm text-status-warning-foreground">Quota IA atteint pour aujourd&apos;hui. La génération reprendra demain.</div> : null}
     {errors.length > 0 && <div role="alert" className="mb-3 text-status-error-foreground"><p>Certains traitements ont échoué :</p><ul>{errors.map((error, index) => <li key={index}>{error}</li>)}</ul></div>}

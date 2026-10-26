@@ -27,7 +27,7 @@ export function ActionButton({
     variant === "primary"
       ? "rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
       : variant === "danger"
-        ? "rounded-md border border-status-error-border bg-card px-3 py-2 text-xs font-medium text-status-error-foreground transition-colors hover:bg-status-error disabled:cursor-not-allowed disabled:opacity-50"
+        ? "rounded-md border border-status-error-border bg-card px-3 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-status-error disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-300"
         : "rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
