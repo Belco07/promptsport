@@ -12,17 +12,28 @@
  */
 
 export type NewsAlertInput = {
+  /** Titre de travail (français s'il existe, sinon titre d'origine). */
   title: string;
+  /** Titre traduit en français, si la collecte en a produit un. */
+  titleFr?: string | null;
   content?: string | null;
   url: string;
   sourceName: string;
   publishedAt?: Date;
   categories?: { slug: string; name: string }[];
   themes?: { slug: string; name: string }[];
+  /** Score éditorial 1–5 : indice de diffusion, jamais une consigne de format. */
+  viralScore?: number | null;
+  imageCredit?: string | null;
+  /** La source autorise-t-elle la reprise de son visuel ? */
+  imageLicensed?: boolean;
+  isOfficial?: boolean;
 };
 
+export type ArticleFormat = "FLASH" | "NEWS" | "ANALYSIS";
+
 export type GeneratedArticle = {
-  format: "FLASH" | "NEWS" | "ANALYSIS";
+  format: ArticleFormat;
   categorySlug: string | null;
   themeSlug: string | null;
   title: string;
@@ -108,6 +119,45 @@ function sourceLink(sourceName: string, sourceUrl: string): string {
 }
 
 /**
+ * Normalise le format renvoyé par le modèle (WP49).
+ *
+ * Le modèle peut répondre en minuscules, avec un synonyme, ou omettre le champ.
+ * On ne force jamais FLASH par défaut : le format se déduit de la nature du
+ * texte produit. Un prétendu FLASH structuré avec des intertitres est requalifié
+ * en actualité, car un flash reste une information brève sans sections.
+ */
+function normalizeFormat(value: unknown, content: string): ArticleFormat {
+  const normalized = typeof value === "string"
+    ? value
+        .trim()
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .toUpperCase()
+    : "";
+  const aliases: Record<string, ArticleFormat> = {
+    FLASH: "FLASH",
+    BREVE: "FLASH",
+    "FLASH INFO": "FLASH",
+    NEWS: "NEWS",
+    ACTU: "NEWS",
+    ACTUALITE: "NEWS",
+    ANALYSIS: "ANALYSIS",
+    ANALYSE: "ANALYSIS",
+  };
+  const headings = (content.match(/^##\s+/gm) ?? []).length;
+  const words = content.split(/\s+/).filter(Boolean).length;
+  const declared = aliases[normalized];
+  if (declared) {
+    return declared === "FLASH" && headings > 0 ? "NEWS" : declared;
+  }
+
+  // Champ absent ou inconnu : déduction prudente à partir de la structure.
+  if (headings >= 2 && words >= 400) return "ANALYSIS";
+  if (headings === 0 && words <= 180) return "FLASH";
+  return "NEWS";
+}
+
+/**
  * Convertit la réponse du modèle en article exploitable.
  *
  * Refuse les réponses non JSON ou incomplètes afin de conserver l’alerte
@@ -140,7 +190,7 @@ function parseCompletion(raw: string, alert: NewsAlertInput): GeneratedArticle {
     cleanText(payload?.excerpt, MAX_EXCERPT_LENGTH) || plainExcerpt(content);
 
   return {
-    format: payload.format === "FLASH" || payload.format === "ANALYSIS" ? payload.format : "NEWS",
+    format: normalizeFormat(payload.format, content),
     title,
     excerpt,
     content: `${content}${sourceLink(alert.sourceName, alert.url)}`,
@@ -157,11 +207,13 @@ Règles absolues :
 - n'invente aucun fait, score, citation ou déclaration absent de l'alerte ;
 - si une information manque, reste prudent et attribue-la à la source ;
 - écris en français, au format Markdown, sans titre H1 (le titre est séparé) ;
-- n'ajoute ni signature, ni mention d'IA, ni lien vers la source : il est ajouté automatiquement.
-Choisis d'abord le format selon la nature de l'information :
-- FLASH : information brute, annonce officielle très courte ou communiqué ; 60 à 140 mots, 1 à 3 paragraphes sans intertitres. Ne développe pas artificiellement une annonce courte.
-- NEWS : actualité standard ; 350 à 650 mots, chapô puis 2 ou 3 intertitres spécifiques en ##.
-- ANALYSIS : sujet de fond, tactique, enjeux ou contexte ; environ 800 mots, chapô puis intertitres informatifs en ##.
+- n'ajoute ni signature, ni mention d'IA, ni lien vers la source : il est ajouté automatiquement ;
+- ne mentionne jamais le score de viralité, la licence ou le crédit photo dans le texte : ce sont des métadonnées internes.
+Choisis le format selon la nature réelle de l'information, jamais selon un modèle ou un score :
+- FLASH : brève factuelle, annonce officielle, communiqué ou dépêche courte ; 60 à 140 mots, 1 à 3 paragraphes sans intertitre. Ne développe pas artificiellement une annonce courte.
+- NEWS : actualité standard, plusieurs faits ou un contexte à exposer ; 350 à 650 mots, chapô puis 2 ou 3 intertitres spécifiques en ##.
+- ANALYSIS : sujet de fond, tactique, enjeux ou mise en perspective ; environ 800 mots, chapô puis intertitres informatifs en ##.
+Un score de viralité élevé ne justifie jamais un FLASH : il indique seulement l'intérêt éditorial. Réciproquement, une alerte peu virale peut donner un NEWS ou une ANALYSIS si son contenu le justifie.
 Ne répète pas le titre. Ne remplis jamais pour atteindre une longueur si les faits manquent.
 Réponds uniquement avec un objet JSON valide :
 {"title":"titre factuel de 90 caractères maximum","excerpt":"chapô de 200 caractères maximum","content":"article Markdown complet","format":"FLASH ou NEWS ou ANALYSIS","categorySlug":"slug existant ou null","themeSlug":"slug existant ou null"}
@@ -171,20 +223,34 @@ function userPrompt(alert: NewsAlertInput): string {
   const publishedAt = alert.publishedAt
     ? alert.publishedAt.toISOString()
     : "date inconnue";
-  return [
+  const originalTitle = alert.title.trim() || "(titre original indisponible)";
+  const frenchTitle = alert.titleFr?.trim();
+  const score =
+    typeof alert.viralScore === "number" ? `${alert.viralScore}/5` : "non évalué";
+  const lines = [
     `Catégories disponibles : ${JSON.stringify(alert.categories ?? [])}`,
     `Thèmes disponibles : ${JSON.stringify(alert.themes ?? [])}`,
-    `Source : ${alert.sourceName}`,
+    `Source : ${alert.sourceName}${alert.isOfficial ? " (source officielle)" : ""}`,
     `URL : ${alert.url}`,
     `Date de publication : ${publishedAt}`,
-    "",
-    `Titre de l'alerte : ${alert.title}`,
+    `Score de viralité : ${score} (indice de diffusion, jamais une consigne de format)`,
+    `Titre original : ${originalTitle}`,
+  ];
+  if (frenchTitle && frenchTitle !== originalTitle) {
+    lines.push(`Titre français : ${frenchTitle}`);
+  }
+  if (alert.imageCredit?.trim()) {
+    lines.push(`Crédit visuel fourni par la source : ${alert.imageCredit.trim()}`);
+  }
+  lines.push(
+    `Droit de reprise du visuel : ${alert.imageLicensed ? "autorisé" : "référence seule"}`,
     "",
     "Extrait fourni par la source :",
     alert.content?.trim() || "(aucun extrait disponible)",
     "",
     "Rédige l'article demandé au format JSON.",
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
 
 /**

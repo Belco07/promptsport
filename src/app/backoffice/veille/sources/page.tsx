@@ -147,17 +147,20 @@ export default async function VeilleSourcesPage({
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
         La <strong>fiabilité</strong> (0 à 100) sert au calcul de viralité et à la
         publication automatique. Celle-ci n&apos;est possible que si la source est
-        explicitement marquée « publication automatique », atteint{" "}
-        <strong>{AUTO_PUBLISH_RELIABILITY}/100</strong> et autorise la reprise de
-        ses photos. Sinon, les articles générés restent des brouillons à relire
-        dans le studio.
+        explicitement marquée « publication automatique » et atteint{" "}
+        <strong>{AUTO_PUBLISH_RELIABILITY}/100</strong>. Un visuel est requis :
+        celui de la source s&apos;il est licencié, sinon une version éditée avec le
+        titre et le logo. Sans visuel exploitable, l&apos;article reste un brouillon
+        publiable manuellement.
       </p>
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
-        <strong>Photo source</strong> : par défaut, les images ne sont pas
-        reprises et les articles restent sans couverture. Une source marquée
-        « autorisée » doit disposer d&apos;une licence ou d&apos;une autorisation
-        explicite ; la photo est alors réhébergée et publiée avec le crédit de la
-        source. Une photo est obligatoire pour publier un article.
+        <strong>Photo source</strong> : par défaut, l&apos;image n&apos;est pas
+        republiée telle quelle ; elle sert de base à un visuel brandé (titre,
+        logo réduit, dégradé). Une source marquée « autorisée » doit disposer
+        d&apos;une licence ou d&apos;une autorisation explicite ; la photo est alors
+        réhébergée et publiée telle quelle avec le crédit de la source. Un
+        brouillon de veille peut toutefois être publié sans visuel après
+        confirmation explicite.
       </p>
 
       {error ? (
@@ -440,11 +443,11 @@ export default async function VeilleSourcesPage({
                           }`}
                           title={
                             source.imagePolicy === "LICENSED"
-                              ? "Photo source autorisée : reprise avec crédit"
-                              : "Photo source non autorisée : articles sans couverture"
+                              ? "Photo source autorisée : reprise telle quelle avec crédit"
+                              : "Photo non licenciée : visuel édité avec le titre et le logo"
                           }
                         >
-                          {source.imagePolicy === "LICENSED" ? "Photo licence" : "Photo non autorisée"}
+                          {source.imagePolicy === "LICENSED" ? "Photo licence" : "Photo non licenciée"}
                         </span>
                       </span>
                       <span className="mt-1 block text-xs text-muted-foreground">

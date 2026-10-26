@@ -66,7 +66,7 @@ test.afterAll(closeDb);
 
 test("affiche le badge Officiel dans la veille et dans les sources", async ({ page }) => {
   await page.goto("/backoffice/veille");
-  const alertRow = page.getByRole("listitem").filter({ hasText: prefix }).first();
+  const alertRow = page.locator("[data-alert-id]").filter({ hasText: prefix }).first();
   await expect(alertRow).toBeVisible();
   await expect(alertRow.getByText("Officiel", { exact: true })).toBeVisible();
   await expect(alertRow.getByText("Site officiel", { exact: true })).toBeVisible();

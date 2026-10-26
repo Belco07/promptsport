@@ -71,7 +71,7 @@ test.afterAll(closeDb);
 
 test("génération sans redirection, catégorie et thème liés, puis traitement par lot", async ({ page }) => {
   test.skip(process.env.E2E_DISTRIBUTION_STUB !== "1", "Nécessite le fournisseur IA local simulé.");
-  await page.getByRole("listitem").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
+  await page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
   await expect(page.getByRole("status")).toHaveText("1 brouillon(s) généré(s).");
   await expect(page).toHaveURL(/\/backoffice\/veille$/);
   const article = await sqlOne<{ id: string; categoryId: string; status: string }>(`SELECT id,"categoryId",status FROM "Article" WHERE "authorId"=$1`, [prefix]);
@@ -80,7 +80,7 @@ test("génération sans redirection, catégorie et thème liés, puis traitement
   expect(await sqlOne(`SELECT * FROM "_ArticleToTheme" WHERE "A"=$1 AND "B"=$2`, [article!.id, prefix])).toBeTruthy();
   await page.getByLabel(`Sélectionner ${prefix}-two`, { exact: true }).check();
   await page.getByLabel(`Sélectionner ${prefix}-bad`, { exact: true }).check();
-  await page.getByRole("button", { name: "Générer les alertes 5 🔥 sélectionnées" }).click();
+  await page.getByRole("button", { name: "Générer les alertes sélectionnées" }).click();
   await expect(page.getByRole("status")).toHaveText("1 brouillon(s) généré(s).");
   await expect(page.getByRole("alert").filter({ hasText: "Certains traitements" })).toContainText("Certains traitements ont échoué");
   expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "Article" WHERE "authorId"=$1`, [prefix]))?.count).toBe(2);
@@ -101,7 +101,7 @@ test("publie automatiquement une alerte 5 d’une source fiable, autorisée et i
   ]);
   await page.reload();
   await waitForVeilleHydration(page);
-  await page.getByRole("listitem").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
+  await page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
   await expect(page.getByRole("status")).toHaveText("1 article(s) publié(s) automatiquement.", {
     timeout: 90_000,
   });
@@ -125,13 +125,40 @@ test("publie automatiquement une alerte 5 d’une source fiable, autorisée et i
   expect((await sqlOne<{ status: string }>(`SELECT status FROM "NewsAlert" WHERE id=$1`, [`${prefix}-one`]))?.status).toBe("DRAFT_GENERATED");
 });
 
-test("conserve le brouillon si la source auto-publiable n’a pas de photo autorisée", async ({ page }) => {
+test("édite le visuel d’une source non licenciée avant de publier", async ({ page }) => {
   test.skip(process.env.E2E_DISTRIBUTION_STUB !== "1", "Nécessite le fournisseur IA local simulé.");
-  // Source fiable et auto-publiable, mais photo non autorisée (défaut).
+  const origin = new URL(page.url()).origin;
+  // Source fiable, auto-publiable et non licenciée : le visuel est brandé.
+  await sql(
+    `UPDATE "NewsSource" SET "autoPublish"=true, reliability=95, "imagePolicy"='REFERENCE_ONLY' WHERE id=$1`,
+    [prefix],
+  );
+  await sql(`UPDATE "NewsAlert" SET "imageUrl"=$2 WHERE id=$1`, [
+    `${prefix}-one`,
+    `${origin}/promptsport-og.png`,
+  ]);
+  await page.reload();
+  await waitForVeilleHydration(page);
+  await page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
+  await expect(page.getByRole("status")).toHaveText("1 article(s) publié(s) automatiquement.", {
+    timeout: 90_000,
+  });
+  const article = await sqlOne<{ status: string; coverImageUrl: string | null; coverImageCreditUrl: string | null }>(
+    `SELECT status,"coverImageUrl","coverImageCreditUrl" FROM "Article" WHERE "authorId"=$1`,
+    [prefix],
+  );
+  expect(article?.status).toBe("PUBLISHED");
+  expect(article?.coverImageUrl).toMatch(/^\/uploads\/.+\.jpg$/);
+  expect(article?.coverImageCreditUrl).toBe(`https://example.test/${prefix}/one`);
+});
+
+test("conserve le brouillon si la source auto-publiable n’a aucun visuel exploitable", async ({ page }) => {
+  test.skip(process.env.E2E_DISTRIBUTION_STUB !== "1", "Nécessite le fournisseur IA local simulé.");
+  // Source fiable et auto-publiable, mais aucune image dans l'alerte ni sur la page.
   await sql(`UPDATE "NewsSource" SET "autoPublish"=true, reliability=95 WHERE id=$1`, [prefix]);
   await page.reload();
   await waitForVeilleHydration(page);
-  await page.getByRole("listitem").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
+  await page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
   await expect(page.getByRole("status")).toContainText("sans photo source exploitable", {
     timeout: 90_000,
   });
@@ -143,15 +170,33 @@ test("conserve le brouillon si la source auto-publiable n’a pas de photo autor
   expect(article?.coverImageUrl).toBeNull();
 });
 
-test("réserve la génération IA aux alertes 5", async ({ page }) => {
+test("génère manuellement une alerte de score inférieur à 5", async ({ page }) => {
+  test.skip(process.env.E2E_DISTRIBUTION_STUB !== "1", "Nécessite le fournisseur IA local simulé.");
   await sql(`UPDATE "NewsAlert" SET "viralScore"=4 WHERE id=$1`, [`${prefix}-one`]);
   await page.reload();
   await waitForVeilleHydration(page);
-  const card = page.getByRole("listitem").filter({ hasText: `${prefix}-one` });
-  await expect(card.getByText("IA : score 5 requis")).toBeVisible();
-  await expect(card.getByRole("button", { name: "Générer avec l’IA" })).toHaveCount(0);
-  await page.getByLabel(`Sélectionner ${prefix}-one`, { exact: true }).check();
-  await expect(page.getByRole("button", { name: "Générer les alertes 5 🔥 sélectionnées" })).toBeDisabled();
+  const row = page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` });
+  await expect(row.getByText("4/5")).toBeVisible();
+  await expect(row.getByRole("button", { name: "Générer avec l’IA" })).toBeEnabled();
+  await row.getByRole("button", { name: "Générer avec l’IA" }).click();
+  await expect(page.getByRole("status")).toHaveText("1 brouillon(s) généré(s).");
+  const article = await sqlOne<{ status: string; format: string }>(
+    `SELECT status, format FROM "Article" WHERE "authorId"=$1`,
+    [prefix],
+  );
+  expect(article?.status).toBe("DRAFT");
+  expect(["FLASH", "NEWS", "ANALYSIS"]).toContain(article?.format);
+});
+
+test("bascule entre tableau et timeline sans perdre les alertes", async ({ page }) => {
+  await expect(page.getByRole("table", { name: /vue tableau/i })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Visuel / licence" })).toBeVisible();
+  await page.getByRole("button", { name: "Timeline" }).click();
+  await expect(page.getByRole("list", { name: "Alertes de veille éditoriale" })).toBeVisible();
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` })).toBeVisible();
+  await page.getByRole("button", { name: "Tableau" }).click();
+  await expect(page.getByRole("table", { name: /vue tableau/i })).toBeVisible();
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` })).toBeVisible();
 });
 
 test("nettoie toutes les alertes non virales en un clic", async ({ page }) => {
@@ -165,9 +210,9 @@ test("nettoie toutes les alertes non virales en un clic", async ({ page }) => {
   await expect(
     page.getByRole("status").filter({ hasText: "non virale(s) supprimée(s)" }),
   ).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-one` })).toHaveCount(0);
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-two` })).toHaveCount(0);
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-bad` })).toBeVisible();
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` })).toHaveCount(0);
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-two` })).toHaveCount(0);
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-bad` })).toBeVisible();
   expect(
     (await sqlOne<{ count: number }>(
       `SELECT count(*)::int AS count FROM "NewsAlert" WHERE id = ANY($1::text[]) AND "viralScore" < 5`,
@@ -188,7 +233,7 @@ test("affiche le quota restant et bloque la génération à zéro", async ({ pag
   await expect(page.getByText("0/15", { exact: true })).toBeVisible();
   await expect(page.getByText("Quota IA atteint pour aujourd'hui.").first()).toBeVisible();
   await expect(
-    page.getByRole("listitem").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }),
+    page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }),
   ).toBeDisabled();
 });
 
@@ -198,7 +243,7 @@ test("ignorer une sélection conserve les autres alertes", async ({ page }) => {
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Ignorer les alertes sélectionnées" }).click();
   await expect(page.getByRole("status")).toHaveText("2 alerte(s) ignorée(s).");
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-bad` })).toBeVisible();
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-bad` })).toBeVisible();
   expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "NewsAlert" WHERE "sourceId"=$1`, [prefix]))?.count).toBe(1);
 });
 
@@ -219,17 +264,17 @@ test("pagine les alertes par 50", async ({ page }) => {
   await waitForVeilleHydration(page);
 
   await expect(page.getByRole("navigation", { name: "Pagination de la veille" })).toBeVisible();
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-00` })).toHaveCount(0);
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-page-00` })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Page suivante →" }).click();
   await expect(page).toHaveURL(/\/backoffice\/veille\?page=2$/, {
     timeout: 90_000,
   });
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-00` })).toBeVisible();
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toHaveCount(0);
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-page-00` })).toBeVisible();
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-page-50` })).toHaveCount(0);
 
   await page.getByRole("link", { name: "← Page précédente" }).click();
   await expect(page).toHaveURL(/\/backoffice\/veille$/, { timeout: 90_000 });
-  await expect(page.getByRole("listitem").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
+  await expect(page.locator("[data-alert-id]").filter({ hasText: `${prefix}-page-50` })).toBeVisible();
 });

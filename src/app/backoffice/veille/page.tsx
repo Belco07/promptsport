@@ -14,12 +14,13 @@ import {
 import { AlertList } from "./AlertList";
 
 /**
- * Backoffice — veille éditoriale (WP41, WP47).
+ * Backoffice — veille éditoriale (WP41, WP47, WP49).
  *
  * Liste les alertes collectées par `scripts/fetch-news.ts`, triées de la plus
- * récente à la plus ancienne. Seules les alertes 5 🔥 déclenchent l'IA, dans la
- * limite du quota quotidien. L'article reste en brouillon sauf si la source est
- * explicitement autorisée à publier automatiquement et atteint 95/100.
+ * récente à la plus ancienne. Toute alerte peut être générée manuellement, dans
+ * la limite du quota quotidien. Le pipeline automatique génère les 5 🔥 ; la
+ * publication automatique reste réservée aux sources autorisées et fiables à
+ * 95/100, et exige un visuel. Les autres brouillons sont publiés à la main.
  *
  * L'accès ADMIN est garanti par le layout /backoffice ; les Server Actions
  * revérifient le rôle de leur côté.
@@ -71,7 +72,7 @@ export default async function VeillePage({
         orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
         skip,
         take: PAGE_SIZE,
-        include: { source: { select: { name: true, type: true, isOfficial: true } } },
+        include: { source: { select: { name: true, type: true, isOfficial: true, imagePolicy: true } } },
       }),
       prisma.newsAlert.count({ where: { status: "PENDING" } }),
       prisma.newsAlert.count({ where: { status: "DRAFT_GENERATED" } }),
@@ -118,13 +119,15 @@ export default async function VeillePage({
         Les sources actives — médias, sites officiels, YouTube et réseaux sociaux —
         sont interrogées par <code>npm run news:fetch</code>. Les sources officielles
         sont signalées par un badge « Officiel ». Chaque alerte reçoit un score de
-        viralité de 1 à 5 🔥 ; seules les alertes 5 déclenchent une génération IA,
-        dans la limite du quota quotidien. Un article est publié automatiquement
-        uniquement si sa source a activé la publication automatique et atteint une
-        fiabilité de 95/100 ; sinon il reste en brouillon pour relecture. Les alertes
-        de plus de <strong>48 h</strong> sont supprimées automatiquement ; une
-        alerte ignorée est supprimée immédiatement et définitivement. Les brouillons
-        déjà créés restent dans le studio.
+        viralité de 1 à 5 🔥 ; <strong>toutes les alertes peuvent être générées
+        manuellement</strong>, dans la limite du quota quotidien. Le pipeline
+        automatique génère les 5 🔥 : un article n&apos;est publié automatiquement
+        que si sa source a activé la publication automatique, atteint une fiabilité
+        de 95/100 et dispose d&apos;un visuel. Sinon il reste en brouillon pour
+        relecture, puis publication manuelle (même sans visuel, après confirmation).
+        Les alertes de plus de <strong>48 h</strong> sont supprimées automatiquement ;
+        une alerte ignorée est supprimée immédiatement et définitivement. Les
+        brouillons déjà créés restent dans le studio.
       </p>
 
       {error ? (

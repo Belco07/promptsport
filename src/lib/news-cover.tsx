@@ -13,12 +13,14 @@ import sharp from "sharp";
 import { SITE_URL } from "@/lib/seo";
 
 /**
- * Couverture des articles issus de la veille (WP47, suite).
+ * Couverture des articles issus de la veille (WP47, WP49).
  *
- * La photo de la source est reprise **uniquement** lorsque la source est
- * déclarée sous licence. Elle est recadrée, réhébergée, puis brandée avec le
- * titre de l'article et le logo PromptSport. Aucune photo source n'est servie
- * directement : on ne conserve que la composition finale, avec son crédit.
+ * Deux politiques, décidées par le droit photo de la source :
+ *  - `LICENSED` : la photo est recadrée et réhébergée **telle quelle**, avec le
+ *    crédit de la source, sans habillage éditorial ;
+ *  - `REFERENCE_ONLY` : la photo n'est jamais republiée brute ; elle est
+ *    recadrée puis brandée avec le titre de l'article, un logo réduit en haut à
+ *    droite et un dégradé de lisibilité.
  *
  * Le téléchargement distant passe par un fetch contrôlé (HTTP(S), hôte public,
  * taille limitée) pour éviter qu'une URL de flux malveillante n'atteigne le
@@ -41,6 +43,14 @@ export type NewsCoverInput = {
   imageCredit: string | null;
   articleUrl: string;
   sourceName: string;
+  /**
+   * La source autorise la reprise de son visuel.
+   *
+   * `true` : le visuel d'origine est conservé tel quel (recadré, sans
+   * habillage). `false` : il est édité avec le titre, le logo réduit en haut à
+   * droite et un dégradé de lisibilité (WP49).
+   */
+  licensed: boolean;
 };
 
 export type NewsCoverResult = {
@@ -290,7 +300,7 @@ function dataUri(buffer: Buffer, mime: string): string {
   return `data:${mime};base64,${buffer.toString("base64")}`;
 }
 
-async function renderCover(
+async function renderBrandedCover(
   photo: Buffer,
   input: NewsCoverInput,
 ): Promise<Buffer> {
@@ -343,21 +353,21 @@ async function renderCover(
         <div
           style={{
             position: "absolute",
-            top: 26,
-            right: 34,
+            top: 22,
+            right: 28,
             display: "flex",
             background: "rgba(4,10,24,0.80)",
             border: "1px solid rgba(255,255,255,0.20)",
-            borderRadius: 12,
-            padding: "12px 18px",
+            borderRadius: 10,
+            padding: "9px 14px",
           }}
         >
           <img
             src={dataUri(logo, "image/png")}
             alt=""
-            width={250}
-            height={55}
-            style={{ width: 250, height: 55 }}
+            width={190}
+            height={42}
+            style={{ width: 190, height: 42 }}
           />
         </div>
         <div
@@ -454,6 +464,16 @@ async function storeCover(jpeg: Buffer): Promise<string> {
 }
 
 /**
+ * Compose la couverture finale selon la politique visuel (WP49).
+ *
+ * Un visuel licencié reste tel quel ; un visuel non licencié reçoit
+ * l'habillage éditorial (titre, logo réduit, dégradé).
+ */
+async function buildCover(photo: Buffer, input: NewsCoverInput): Promise<Buffer> {
+  return input.licensed ? photo : renderBrandedCover(photo, input);
+}
+
+/**
  * Construit la couverture finale d'un article de veille.
  *
  * Retourne `null` si aucune photo exploitable n'est trouvée ou si le stockage
@@ -469,7 +489,7 @@ export async function createNewsCover(
     try {
       const source = await downloadImage(candidate);
       const photo = await preparePhoto(source);
-      const cover = await renderCover(photo, input);
+      const cover = await buildCover(photo, input);
       const url = await storeCover(cover);
       return {
         url,
@@ -489,7 +509,7 @@ export async function createNewsCover(
     try {
       const source = await downloadImage(pageImage);
       const photo = await preparePhoto(source);
-      const cover = await renderCover(photo, input);
+      const cover = await buildCover(photo, input);
       const url = await storeCover(cover);
       return {
         url,

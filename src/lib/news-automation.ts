@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
 /**
- * Règles d'automatisation de la veille (WP47).
+ * Règles d'automatisation de la veille (WP47, WP49).
  *
- * Le News Engine reçoit plusieurs centaines d'alertes par jour. Une alerte ne
- * déclenche une rédaction IA que si elle est jugée virale (score 5/5), et le
- * nombre de générations est plafonné par journée éditoriale. L'article produit
- * n'est publié automatiquement que pour une source explicitement autorisée et
- * dont la fiabilité atteint le seuil de 95/100.
+ * Le News Engine reçoit plusieurs centaines d'alertes par jour. Toute alerte
+ * peut être générée manuellement ; le pipeline automatique ne traite que les
+ * alertes jugées virales (score 5/5), dans la limite du quota quotidien.
+ * L'article n'est publié automatiquement que pour une source explicitement
+ * autorisée et dont la fiabilité atteint le seuil de 95/100, et si un visuel
+ * (d'origine licencié ou édité) a pu être produit.
  */
 
 export const DEFAULT_MAX_DAILY_AI_DRAFTS = 15;
@@ -100,8 +101,9 @@ export function sourceCanAutoPublish(source: {
  * Une source autorise-t-elle la reprise de ses photos ?
  *
  * Par défaut, une source reste en `REFERENCE_ONLY` : son image peut illustrer
- * la veille interne, mais elle n'est jamais republiée. La publication
- * automatique exige une source `LICENSED` **et** une photo exploitable.
+ * la veille interne, mais elle n'est jamais republiée telle quelle. Depuis WP49,
+ * elle peut servir de base à un visuel édité (titre, logo, dégradé) pour les
+ * articles de veille. Seul un visuel `LICENSED` est repris sans habillage.
  */
 export function sourceAllowsImageUse(source: {
   imagePolicy: "REFERENCE_ONLY" | "LICENSED";

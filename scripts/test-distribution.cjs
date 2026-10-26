@@ -37,7 +37,7 @@ const ai = http.createServer((req, res) => {
       const social = request.messages[0].content.includes('posts sportifs');
       const prompt = request.messages[1]?.content ?? '';
       const taxonomy = label => { try { return JSON.parse(prompt.split(label + ' : ')[1]?.split('\n')[0] ?? '[]'); } catch { return []; } };
-      const title = prompt.split("Titre de l'alerte : ")[1]?.split('\n')[0] ?? 'Un article sportif de test';
+      const title = prompt.split("Titre original : ")[1]?.split('\n')[0] ?? 'Un article sportif de test';
       const category = taxonomy('Catégories disponibles').find(item => title.startsWith(item.slug));
       const theme = taxonomy('Thèmes disponibles').find(item => title.startsWith(item.slug));
       if (!social && title.endsWith('-bad')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({choices:[{message:{content:'invalid json'}}]})); return; }

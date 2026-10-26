@@ -4,26 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { Prisma } from "@/generated/prisma/client";
-import {
-  generateArticleFromAlert,
-  isAiConfigured,
-  translateTitlesToFrench,
-} from "@/lib/ai";
+import { isAiConfigured, translateTitlesToFrench } from "@/lib/ai";
 import { auth } from "@/lib/auth";
 import { withDatabaseRetry } from "@/lib/database-retry";
+import { generateNewsArticle } from "@/lib/news-generation";
+import { AUTO_PUBLISH_RELIABILITY } from "@/lib/news-automation";
 import { prisma } from "@/lib/prisma";
-import {
-  AI_QUOTA_MESSAGE,
-  AUTO_PUBLISH_RELIABILITY,
-  countAiDraftsToday,
-  getAiDraftQuota,
-  maxDailyAiDrafts,
-  sourceAllowsImageUse,
-  sourceCanAutoPublish,
-} from "@/lib/news-automation";
-import { createNewsCover } from "@/lib/news-cover";
 import { canAccessBackoffice } from "@/lib/roles";
-import { slugify } from "@/lib/slug";
 import {
   facebookPageFromUrl,
   instagramUsernameFromUrl,
@@ -31,12 +18,13 @@ import {
 } from "@/lib/social-platforms";
 
 /**
- * Server Actions du News Engine (WP41, WP47).
+ * Server Actions du News Engine (WP41, WP47, WP49).
  *
- * L'IA produit un article à partir d'une alerte virale (5/5), dans la limite
- * du quota quotidien. L'article reste en DRAFT, sauf si sa source est
- * explicitement autorisée à publier automatiquement et atteint le seuil de
- * fiabilité de 95/100. Toute autre publication reste une décision humaine.
+ * L'IA produit un article à partir de n'importe quelle alerte de veille, dans la
+ * limite du quota quotidien. L'article reste en DRAFT, sauf pour une alerte 5 🔥
+ * dont la source est explicitement autorisée à publier automatiquement, atteint
+ * le seuil de fiabilité de 95/100 et dispose d'un visuel. Toute autre
+ * publication reste une décision humaine.
  */
 
 function veilUrl(params: { error?: string; info?: string; refreshed?: boolean } = {}): string {
@@ -79,21 +67,6 @@ async function requireBackofficeUser(): Promise<{ id: string }> {
   return { id: session.user.id };
 }
 
-/** Catégorie par défaut : Football si elle existe, sinon la première créée. */
-async function defaultCategoryId(): Promise<string | null> {
-  const football = await prisma.category.findFirst({
-    where: { slug: "football" },
-    select: { id: true },
-  });
-  if (football) return football.id;
-
-  const first = await prisma.category.findFirst({
-    orderBy: { name: "asc" },
-    select: { id: true },
-  });
-  return first?.id ?? null;
-}
-
 function isUniqueConstraintError(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -101,182 +74,34 @@ function isUniqueConstraintError(error: unknown): boolean {
   );
 }
 
-export type GenerateArticleResult = { articleId: string; published: boolean };
-
-class AiQuotaExceededError extends Error {
-  constructor() {
-    super(AI_QUOTA_MESSAGE);
-    this.name = "AiQuotaExceededError";
-  }
-}
-
-/** Crée l'article issu de l'IA, avec un slug unique et le statut décidé. */
-async function createArticleFromAlert(input: {
-  title: string;
-  excerpt: string;
-  content: string;
-  format: "FLASH" | "NEWS" | "ANALYSIS";
-  categoryId: string;
-  authorId: string;
-  alertId: string;
-  newsSourceId: string;
-  socialAutoPublish: boolean;
-  status: "DRAFT" | "PUBLISHED";
-  publishedAt: Date | null;
-  coverImageUrl: string | null;
-  coverImageCredit: string | null;
-  coverImageCreditUrl: string | null;
-  themeId?: string;
-}): Promise<GenerateArticleResult> {
-  const base = slugify(input.title).slice(0, 90) || `article-${Date.now()}`;
-
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
-    try {
-      const article = await withDatabaseRetry(() =>
-        prisma.$transaction(
-          async (tx) => {
-            const limit = maxDailyAiDrafts();
-            const used = await countAiDraftsToday(new Date(), tx);
-            if (used >= limit) throw new AiQuotaExceededError();
-
-            const claimed = await tx.newsAlert.updateMany({
-              where: { id: input.alertId, status: "PENDING" },
-              data: { status: "DRAFT_GENERATED" },
-            });
-            if (claimed.count !== 1) throw new Error("Alerte déjà traitée.");
-            const created = await tx.article.create({
-              data: {
-                title: input.title,
-                slug,
-                content: input.content,
-                excerpt: input.excerpt,
-                status: input.status,
-                format: input.format,
-                isPremium: false,
-                publishedAt: input.publishedAt,
-                coverImageUrl: input.coverImageUrl,
-                coverImageCredit: input.coverImageCredit,
-                coverImageCreditUrl: input.coverImageCreditUrl,
-                authorId: input.authorId,
-                categoryId: input.categoryId,
-                newsSourceId: input.newsSourceId,
-                socialAutoPublish: input.socialAutoPublish,
-                ...(input.themeId
-                  ? { themes: { connect: { id: input.themeId } } }
-                  : {}),
-              },
-              select: { id: true },
-            });
-
-            await tx.newsAlert.update({
-              where: { id: input.alertId },
-              data: { status: "DRAFT_GENERATED" },
-            });
-
-            return created;
-          },
-          { maxWait: 10_000, timeout: 20_000 },
-        ),
-      );
-
-      return { articleId: article.id, published: input.status === "PUBLISHED" };
-    } catch (error) {
-      if (error instanceof AiQuotaExceededError) throw error;
-      if (isUniqueConstraintError(error) && attempt < 4) continue;
-      throw error;
-    }
-  }
-
-  throw new Error("Impossible de générer un slug unique pour cet article.");
-}
-
-/**
- * Génère un article à partir d'une alerte.
- *
- * Seules les alertes 5/5 déclenchent l'IA, dans la limite du quota quotidien.
- * La publication est automatique uniquement si la source a opté pour
- * `autoPublish` et atteint 95/100 de fiabilité. L'alerte n'est marquée
- * DRAFT_GENERATED qu'après la création réussie de l'article : un échec de l'IA
- * la laisse en PENDING pour une nouvelle tentative.
- */
 export type AlertActionResult = {
   success: boolean;
   message: string;
   articleId?: string;
   published?: boolean;
-  /** Publication automatique bloquée faute de photo source exploitable. */
+  /** Publication automatique bloquée faute de visuel exploitable. */
   photoBlocked?: boolean;
+  /** Format retenu par l'IA (FLASH, NEWS ou ANALYSIS). */
+  format?: "FLASH" | "NEWS" | "ANALYSIS";
 };
 
+/**
+ * Génère un article à partir de n'importe quelle alerte en attente.
+ *
+ * WP49 : la génération manuelle n'est plus réservée aux 5 🔥. La publication
+ * automatique reste conditionnée par la source (autoPublish + fiabilité 95) et
+ * par la disponibilité d'un visuel.
+ */
 export async function generateArticle(alertId: string): Promise<AlertActionResult> {
   const user = await requireBackofficeUser();
-  if (typeof alertId !== "string" || !alertId || alertId.length > 200) return { success: false, message: "Alerte introuvable." };
+  if (typeof alertId !== "string" || !alertId || alertId.length > 200) {
+    return { success: false, message: "Alerte introuvable." };
+  }
   if (!isAiConfigured()) return { success: false, message: "Clé IA absente." };
-  try {
-    const alert = await prisma.newsAlert.findUnique({
-      where: { id: alertId },
-      include: {
-        source: {
-          select: {
-            id: true,
-            name: true,
-            isOfficial: true,
-            reliability: true,
-            autoPublish: true,
-            imagePolicy: true,
-          },
-        },
-      },
-    });
-    if (!alert || alert.status !== "PENDING") return { success: false, message: "Cette alerte a déjà été traitée ou supprimée." };
-    if (alert.viralScore !== 5) return { success: false, message: "Seules les alertes 5 🔥 peuvent déclencher une génération IA." };
 
-    const quota = await getAiDraftQuota();
-    if (quota.remaining <= 0) return { success: false, message: AI_QUOTA_MESSAGE };
+  const result = await generateNewsArticle({ alertId, authorId: user.id });
 
-    const [categories, themes] = await Promise.all([
-      prisma.category.findMany({ select: { id: true, slug: true, name: true } }),
-      prisma.theme.findMany({ select: { id: true, slug: true, name: true } }),
-    ]);
-    if (!categories.length) return { success: false, message: "Créez une catégorie avant de générer un article." };
-    const generated = await generateArticleFromAlert({ title: alert.titleFr ?? alert.title, content: alert.content, url: alert.url, sourceName: alert.source.name, publishedAt: alert.publishedAt, categories, themes });
-    const categoryId = categories.find(category => category.slug === generated.categorySlug)?.id ?? await defaultCategoryId();
-    if (!categoryId) return { success: false, message: "Aucune catégorie disponible." };
-    const themeId = themes.find(theme => theme.slug === generated.themeSlug)?.id;
-    const autoPublishAllowed = sourceCanAutoPublish(alert.source);
-
-    // La photo n'est reprise que si la source est explicitement licenciée.
-    // Sans photo exploitable, l'article reste un brouillon : il ne peut pas être
-    // publié, ni automatiquement ni manuellement, sans couverture.
-    const cover = sourceAllowsImageUse(alert.source)
-      ? await createNewsCover({
-          title: generated.title,
-          category:
-            categories.find((category) => category.id === categoryId)?.name ?? "Sport",
-          imageUrl: alert.imageUrl,
-          imageCredit: alert.imageCredit,
-          articleUrl: alert.url,
-          sourceName: alert.source.name,
-        })
-      : null;
-
-    const autoPublish = autoPublishAllowed && cover !== null;
-    const photoBlocked = autoPublishAllowed && cover === null;
-    const result = await createArticleFromAlert({
-      ...generated,
-      categoryId,
-      themeId,
-      authorId: user.id,
-      alertId,
-      newsSourceId: alert.source.id,
-      socialAutoPublish: alert.source.isOfficial,
-      status: autoPublish ? "PUBLISHED" : "DRAFT",
-      publishedAt: autoPublish ? new Date() : null,
-      coverImageUrl: cover?.url ?? null,
-      coverImageCredit: cover?.credit ?? null,
-      coverImageCreditUrl: cover?.creditUrl ?? null,
-    });
+  if (result.success) {
     revalidatePath("/backoffice/veille");
     revalidatePath("/studio/articles");
     if (result.published) {
@@ -284,24 +109,9 @@ export async function generateArticle(alertId: string): Promise<AlertActionResul
       revalidatePath("/sitemap.xml");
       revalidatePath("/rss.xml");
     }
-    return {
-      success: true,
-      message: result.published
-        ? "Article généré et publié automatiquement."
-        : photoBlocked
-          ? "Brouillon généré — ajoutez une photo de couverture pour publier."
-          : "Brouillon généré",
-      articleId: result.articleId,
-      published: result.published,
-      photoBlocked,
-    };
-  } catch (error) {
-    if (error instanceof AiQuotaExceededError) {
-      return { success: false, message: AI_QUOTA_MESSAGE };
-    }
-    console.error("[veille] génération interrompue :", error instanceof Error ? error.message : "Erreur inconnue");
-    return { success: false, message: "La génération a échoué. Actualisez la veille et réessayez les alertes encore en attente." };
   }
+
+  return result;
 }
 
 export async function ignoreSelectedAlert(alertId: string): Promise<AlertActionResult> {
@@ -597,7 +407,7 @@ export async function addNewsSource(formData: FormData): Promise<void> {
     autoPublish && reliability < AUTO_PUBLISH_RELIABILITY
       ? " La publication automatique attend une fiabilité d'au moins 95/100."
       : autoPublish && imagePolicy !== "LICENSED"
-        ? " Photo source non autorisée : les articles resteront en brouillon."
+        ? " Photo non licenciée : un visuel édité (titre + logo) sera utilisé, sinon l'article restera en brouillon."
         : "";
   revalidatePath("/backoffice/veille");
   revalidatePath("/backoffice/veille/sources");
@@ -685,8 +495,8 @@ export async function updateNewsSourceAutomation(
   const info = autoPublish
     ? reliability >= AUTO_PUBLISH_RELIABILITY
       ? imagePolicy === "LICENSED"
-        ? `Publication automatique activée pour « ${source.name} » (fiabilité ${reliability}/100, photo source autorisée).`
-        : `Publication automatique armée pour « ${source.name} », mais photo source non autorisée : les articles resteront en brouillon.`
+        ? `Publication automatique activée pour « ${source.name} » (fiabilité ${reliability}/100, visuel source repris tel quel).`
+        : `Publication automatique activée pour « ${source.name} » (fiabilité ${reliability}/100, visuel édité avec le titre et le logo).`
       : `Source « ${source.name} » enregistrée. La publication automatique restera inactive tant que la fiabilité est inférieure à ${AUTO_PUBLISH_RELIABILITY}/100.`
     : `Automatisation de « ${source.name} » enregistrée (fiabilité ${reliability}/100).`;
   redirect(sourcesUrl({ info }));
@@ -763,9 +573,32 @@ export async function triggerManualFetch(): Promise<void> {
   if (result.sourcesProcessed > 0 && result.sourcesFailed === result.sourcesProcessed) {
     fail("Aucune source n’a pu être récupérée. Vérifiez la configuration des sources.");
   }
+
+  // WP49 : pipeline automatique des alertes 5 🔥 après la collecte. Un échec de
+  // génération ne doit pas masquer le résultat de la récupération.
+  let autoNote = "";
+  try {
+    const { autoGenerateViralAlerts } = await import("@/lib/news-generation");
+    const auto = await autoGenerateViralAlerts({ limit: 5 });
+    if (auto.generated > 0) {
+      autoNote = ` ${auto.generated} article(s) 5 🔥 généré(s)` +
+        (auto.published > 0 ? `, dont ${auto.published} publié(s) automatiquement.` : ", en brouillon.");
+      revalidatePath("/studio/articles");
+    }
+    if (auto.failed > 0) {
+      autoNote += ` ${auto.failed} génération(s) 5 🔥 en échec.`;
+    }
+  } catch (error) {
+    console.error(
+      "[veille] pipeline 5 🔥 interrompu :",
+      error instanceof Error ? error.message : error,
+    );
+  }
+
   const message = result.sourcesProcessed === 0
     ? "Aucune source active à récupérer."
     : result.alertsCreated + (result.alertsCreated === 1 ? " nouvelle alerte importée." : " nouvelles alertes importées.")
-      + (result.sourcesFailed ? " " + result.sourcesFailed + " source(s) indisponible(s)." : "");
+      + (result.sourcesFailed ? " " + result.sourcesFailed + " source(s) indisponible(s)." : "")
+      + autoNote;
   redirect(veilUrl({ info: message, refreshed: true }));
 }

@@ -1195,7 +1195,7 @@ curl --fail-with-body --header "Authorization: Bearer $CRON_SECRET" \
 
 Tests isolés du collecteur et de l’authentification : `node --test tests/unit/news-fetcher.test.cjs`.
 
-### Automatisation hybride et quota IA — WP47
+### Automatisation hybride et quota IA — WP47 / WP49
 
 Chaque `NewsSource` porte une **fiabilité** de 0 à 100 (`reliability`) et une
 autorisation de **publication automatique** (`autoPublish`, désactivée par
@@ -1205,29 +1205,40 @@ fiabilité, des mots-clés d’actualité chaude et de la fraîcheur de l’aler
 rédactions peuvent forcer un 5 🔥 depuis la veille avant de nettoyer les alertes
 non virales.
 
-La génération IA n’est possible que pour une alerte **5 🔥**. Le nombre d’articles
-générés depuis la veille est plafonné par jour éditorial (Africa/Lagos) via
-`MAX_DAILY_AI_DRAFTS` (15 par défaut, `0` pour désactiver). Une fois le quota
-atteint, le backoffice affiche « Quota IA atteint pour aujourd’hui » et bloque
-les boutons de génération.
+Depuis WP49, **toute alerte peut être générée manuellement**, quel que soit son
+score. Le nombre d’articles générés depuis la veille reste plafonné par jour
+éditorial (Africa/Lagos) via `MAX_DAILY_AI_DRAFTS` (15 par défaut, `0` pour
+désactiver). Une fois le quota atteint, le backoffice affiche « Quota IA atteint
+pour aujourd’hui » et bloque les boutons de génération.
 
-Un article généré est publié immédiatement (`PUBLISHED`, `publishedAt = now`)
-uniquement si sa source a `autoPublish = true`, `reliability >= 95` **et** une
-photo source exploitable. Dans tous les autres cas, il reste en `DRAFT` pour
-relecture.
+Le **pipeline automatique** traite les alertes 5 🔥 après chaque collecte (cron
+`/api/cron/fetch-news` ou actualisation manuelle), dans la limite du quota. Un
+article généré n’est publié immédiatement (`PUBLISHED`, `publishedAt = now`) que
+si son alerte est 5 🔥, que sa source a `autoPublish = true`,
+`reliability >= 95`, **et** qu’un visuel a pu être produit. Dans tous les autres
+cas, il reste en `DRAFT` pour relecture et publication manuelle.
 
-La **photo est obligatoire pour publier**, y compris depuis le studio. Chaque
-source porte un droit photo (`imagePolicy`) :
+La politique visuel s’applique aux 5 🔥 comme aux générations manuelles :
 
-- `REFERENCE_ONLY` (défaut) : les photos ne sont jamais reprises ; l’article
-  généré reste un brouillon sans couverture ;
 - `LICENSED` : la photo de l’alerte (ou l’image `og:image` de la page source) est
-  réhébergée, recadrée, puis brandée avec le titre et le logo PromptSport. Le
-  crédit de la source est affiché sous la photo et ajouté aux légendes sociales.
+  réhébergée, recadrée et publiée **telle quelle**, avec le crédit de la source ;
+- `REFERENCE_ONLY` (défaut) : la photo n’est jamais republiée brute ; elle sert de
+  base à un visuel édité avec le titre, un logo réduit en haut à droite et un
+  dégradé de lisibilité, crédité à la source ;
+- sans aucun visuel exploitable : l’article reste un brouillon.
 
-Une source ne doit être passée en `LICENSED` que si sa licence ou son
-autorisation explicite couvre la reprise. Sans photo, aucune publication
-automatique ni manuelle n’est possible.
+Un brouillon issu de la veille peut être **publié sans visuel** depuis le studio
+ou le sélecteur de statut, après une confirmation explicite. L’exception ne
+s’applique qu’aux articles de veille ; les autres articles exigent toujours une
+couverture.
+
+La page `/backoffice/veille` propose deux vues des mêmes alertes : un **tableau**
+(date/heure, titre FR et original, source, catégorie, score, statut,
+visuel/licence/crédit, actions) et la **timeline** historique, conservée à
+l’identique. Le choix de vue est mémorisé dans le navigateur. Le format
+(`FLASH`, `NEWS`, `ANALYSIS`) est choisi par l’IA selon la nature du texte, puis
+normalisé côté serveur : un score élevé ne force jamais un FLASH, et un FLASH
+structuré en intertitres est requalifié en actualité.
 
 La page `/backoffice/veille` affiche le quota restant, le badge de viralité 1 à
 5 🔥 et le bouton « Nettoyer les alertes non-virales » (suppression des alertes

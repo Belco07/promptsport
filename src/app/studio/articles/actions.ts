@@ -18,6 +18,11 @@ import { notifyArticleFollowers } from "@/lib/notifications";
 import { resolveSlug } from "@/lib/slug";
 import { isArticleStatus, type ArticleStatus } from "@/lib/articleStatus";
 import {
+  canPublishWithoutCover,
+  PUBLISH_WITHOUT_COVER_MESSAGE,
+  PUBLISH_WITHOUT_COVER_RESERVED_MESSAGE,
+} from "@/lib/publish-policy";
+import {
   canDeleteArticle,
   canEditArticle,
   canPublish,
@@ -158,7 +163,10 @@ type ValidationResult =
 
 async function validate(
   formData: FormData,
-  { requireCategory = true }: { requireCategory?: boolean } = {},
+  {
+    requireCategory = true,
+    articleId,
+  }: { requireCategory?: boolean; articleId?: string } = {},
 ): Promise<ValidationResult> {
   const title = readText(formData, "title");
   const content = readText(formData, "content");
@@ -192,14 +200,36 @@ async function validate(
     return { ok: false, error: "Statut invalide." };
   }
 
-  // Une publication sans couverture n'est jamais acceptée : la photo fait
-  // partie du contrat éditorial, y compris pour les articles de veille.
+  // Une publication sans couverture n'est acceptée que pour un brouillon issu
+  // de la veille, après confirmation explicite (WP49). Les 5 🔥 générés sans
+  // visuel exploitable restent ainsi publiables à la main.
   if (rawStatus === "PUBLISHED" && !coverImageUrl) {
-    return {
-      ok: false,
-      error:
-        "Ajoutez une photo de couverture (et son crédit si nécessaire) avant de publier l'article.",
-    };
+    const isVeille = articleId
+      ? Boolean(
+          (
+            await prisma.article.findUnique({
+              where: { id: articleId },
+              select: { newsSourceId: true },
+            })
+          )?.newsSourceId,
+        )
+      : false;
+    const confirmed = readCheckbox(formData, "confirmPublishWithoutCover");
+    if (
+      !canPublishWithoutCover({
+        status: rawStatus,
+        coverImageUrl,
+        confirmed,
+        isVeille,
+      })
+    ) {
+      return {
+        ok: false,
+        error: confirmed
+          ? PUBLISH_WITHOUT_COVER_RESERVED_MESSAGE
+          : PUBLISH_WITHOUT_COVER_MESSAGE,
+      };
+    }
   }
 
   const slug = resolveSlug(readText(formData, "slug"), title);
@@ -313,7 +343,7 @@ export async function updateArticle(
     return "Vous n'avez pas le droit de modifier cet article.";
   }
 
-  const result = await validate(formData);
+  const result = await validate(formData, { articleId: id });
   if (!result.ok) {
     return result.error;
   }
@@ -374,6 +404,7 @@ export async function updateArticle(
 export async function updateArticleStatus(
   articleId: string,
   newStatus: ArticleStatus,
+  options: { confirmWithoutCover?: boolean } = {},
 ): Promise<void> {
   const session = await auth();
   if (!session?.user?.id || !canAccessStudio(session.user.role)) {
@@ -389,9 +420,19 @@ export async function updateArticleStatus(
     return;
   }
 
-  // Aucune publication sans couverture, même depuis le sélecteur de statut.
+  // Publication sans couverture : uniquement pour un brouillon de veille, avec
+  // la confirmation explicite transmise par l'interface (WP49).
   if (newStatus === "PUBLISHED" && !existing.coverImageUrl) {
-    return;
+    if (
+      !canPublishWithoutCover({
+        status: newStatus,
+        coverImageUrl: existing.coverImageUrl,
+        confirmed: options.confirmWithoutCover === true,
+        isVeille: Boolean(existing.newsSourceId),
+      })
+    ) {
+      return;
+    }
   }
 
   // Règles du workflow (WP11) :
