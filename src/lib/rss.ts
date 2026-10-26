@@ -129,6 +129,10 @@ export type FeedItem = {
   url: string;
   content: string | null;
   publishedAt: Date;
+  /** Photo trouvée dans le flux (enclosure, media:content, HTML…). */
+  imageUrl?: string | null;
+  /** Crédit photo fourni par la source, s'il existe. */
+  imageCredit?: string | null;
 };
 
 /** Longueur maximale de l'extrait conservé en base et envoyé à l'IA. */
@@ -201,6 +205,117 @@ function readUrl(value: string | undefined, base?: string): string | null {
   }
 }
 
+function asObject(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function asArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  return value === undefined || value === null ? [] : [value];
+}
+
+/**
+ * Extrait la première photo d'un élément de flux.
+ *
+ * Les médias envoient l'image de plusieurs façons selon leur CMS :
+ * `enclosure`, `media:content`, `media:thumbnail`, `itunes:image` ou une
+ * balise `<img>` dans le contenu HTML. On privilégie les métadonnées explicites
+ * avant de retomber sur le contenu.
+ */
+function rssItemImage(
+  item: Record<string, unknown>,
+  articleUrl: string,
+): string | null {
+  const enclosure = asObject(item.enclosure);
+  if (enclosure) {
+    const type = firstString(enclosure.type)?.toLowerCase() ?? "";
+    const url = firstString(enclosure.url);
+    if (
+      url &&
+      (type.startsWith("image/") ||
+        (!type && /\.(?:jpe?g|png|webp|gif|avif)(?:[?#]|$)/i.test(url)))
+    ) {
+      const resolved = readUrl(url, articleUrl);
+      if (resolved) return resolved;
+    }
+  }
+
+  for (const node of [
+    ...asArray(item["media:content"]),
+    ...asArray(item["media:thumbnail"]),
+  ]) {
+    const record = asObject(node);
+    if (!record) continue;
+    const attributes = asObject(record.$) ?? record;
+    const type = (
+      firstString(attributes.type) ?? firstString(attributes.medium) ?? ""
+    ).toLowerCase();
+    if (type && type !== "image" && !type.startsWith("image/")) continue;
+    const resolved = readUrl(
+      firstString(attributes.url, attributes.href),
+      articleUrl,
+    );
+    if (resolved) return resolved;
+  }
+
+  const itunesImage = asObject(item["itunes:image"]);
+  if (itunesImage) {
+    const attributes = asObject(itunesImage.$) ?? itunesImage;
+    const resolved = readUrl(
+      firstString(attributes.href, attributes.url),
+      articleUrl,
+    );
+    if (resolved) return resolved;
+  }
+
+  for (const html of [item["content:encoded"], item.content, item.summary]) {
+    if (typeof html !== "string") continue;
+    for (const match of html.matchAll(/<img\b[^>]*>/gi)) {
+      const tag = match[0];
+      const candidate =
+        tag.match(/\bdata-src\s*=\s*["']([^"']+)["']/i)?.[1] ??
+        tag.match(/\bdata-original\s*=\s*["']([^"']+)["']/i)?.[1] ??
+        tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1];
+      const resolved = readUrl(
+        candidate ? decodeEntities(candidate) : undefined,
+        articleUrl,
+      );
+      if (resolved) return resolved;
+    }
+  }
+
+  return null;
+}
+
+/** Crédit photo déclaré par le flux, sans le préfixe « Photo : ». */
+function rssItemCredit(item: Record<string, unknown>): string | null {
+  const candidates = [
+    item["media:credit"],
+    item["media:copyright"],
+    item.copyright,
+  ];
+  for (const candidate of candidates) {
+    let text: string | undefined;
+    if (typeof candidate === "string") text = candidate;
+    else {
+      const record = asObject(candidate);
+      text = firstString(record?._, record?.name, record?.url);
+    }
+    const credit = plainText(text).slice(0, 120);
+    if (credit) return credit;
+  }
+  return null;
+}
+
 /**
  * Récupère les derniers éléments d'un flux RSS/Atom externe.
  *
@@ -219,11 +334,14 @@ export async function fetchRssItems(feedUrl: string, limit = 10): Promise<FeedIt
     const link = readUrl(item.link ?? item.guid, url);
     if (!title || !link) continue;
 
+    const rawItem = item as unknown as Record<string, unknown>;
     items.push({
       title,
       url: link,
       content: plainText(item.contentSnippet ?? item.content ?? item.summary) || null,
       publishedAt: readDate(item.isoDate ?? item.pubDate) ?? new Date(),
+      imageUrl: rssItemImage(rawItem, link),
+      imageCredit: rssItemCredit(rawItem),
     });
   }
 

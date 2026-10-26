@@ -26,6 +26,8 @@ export type ArticleFormValues = {
   content: string;
   excerpt: string;
   coverImageUrl: string;
+  /** Crédit de la photo de couverture (ex. « L'Équipe »). */
+  coverImageCredit: string;
   categoryId: string;
   status: ArticleStatus;
   isPremium: boolean;
@@ -93,6 +95,7 @@ const EMPTY: ArticleFormValues = {
   content: "",
   excerpt: "",
   coverImageUrl: "",
+  coverImageCredit: "",
   categoryId: "",
   status: "DRAFT",
   isPremium: false,
@@ -275,6 +278,22 @@ export function ArticleForm({
           onChange={setCoverImageUrl}
           name="coverImageUrl"
         />
+        <label htmlFor="coverImageCredit" className={`${labelClass} mt-3`}>
+          Crédit photo <span className="font-normal text-muted-foreground">(obligatoire si la photo vient d&apos;une source)</span>
+        </label>
+        <input
+          id="coverImageCredit"
+          name="coverImageCredit"
+          type="text"
+          maxLength={160}
+          defaultValue={initial.coverImageCredit}
+          placeholder="Ex. L'Équipe"
+          className={inputClass}
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Affiché sous la photo sous la forme « Photo : … ». Utilisez le nom du
+          média ou du photographe, selon la licence.
+        </p>
         <div className="mt-3"><VisualStudioButton onImage={setCoverImageUrl} label="Créer une image de couverture avec le Visual Studio" /></div>
       </div>
 

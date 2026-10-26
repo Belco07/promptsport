@@ -28,6 +28,7 @@ type PublishablePlatform = "FACEBOOK" | "INSTAGRAM";
 type ArticleForPublishing = {
   slug: string;
   coverImageUrl: string | null;
+  coverImageCredit?: string | null;
 };
 
 export type PublishSocialPostResult = {
@@ -117,7 +118,13 @@ export async function publishSocialPostRecord(
       status: true,
       externalId: true,
       article: {
-        select: { id: true, slug: true, coverImageUrl: true, status: true },
+        select: {
+          id: true,
+          slug: true,
+          coverImageUrl: true,
+          coverImageCredit: true,
+          status: true,
+        },
       },
     },
   });
@@ -164,7 +171,12 @@ export async function publishSocialPostRecord(
 
   try {
     const imageUrl = resolveSocialImageUrl(post.article);
-    const published = await publishToPlatform(post.platform, post.content, imageUrl);
+    const credit = post.article.coverImageCredit?.trim();
+    const content =
+      credit && !post.content.includes(credit)
+        ? `${post.content}\n\n📷 Photo : ${credit}`
+        : post.content;
+    const published = await publishToPlatform(post.platform, content, imageUrl);
     await prisma.socialPost.update({
       where: { id: postId },
       data: {

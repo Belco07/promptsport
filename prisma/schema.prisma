@@ -150,6 +150,11 @@ model Article {
   content       String
   excerpt       String?
   coverImageUrl String?
+  /// Crédit affiché sous la photo de couverture (ex. « L'Équipe »).
+  /// Le préfixe « Photo : » est ajouté à l'affichage.
+  coverImageCredit    String?
+  /// Page d'origine de la photo, pour rendre le crédit cliquable.
+  coverImageCreditUrl String?
   status        ArticleStatus @default(DRAFT)
   publishedAt   DateTime?
   /// Réservé aux abonnés (WP7c) : le public n'en voit que l'extrait.
@@ -1167,6 +1172,16 @@ model NewsSource {
   /// joueur ou personnalité. Ce marqueur est éditorial ; il ne remplace pas
   /// la vérification humaine.
   isOfficial Boolean  @default(false)
+  /// Indice de confiance éditorial de 0 à 100. Il sert au filtrage des
+  /// alertes et conditionne la publication automatique (seuil : 95).
+  reliability Int      @default(50)
+  /// Publication automatique des articles générés depuis cette source.
+  /// Elle exige aussi `reliability >= 95`.
+  autoPublish Boolean  @default(false)
+  /// Droit d'utiliser les photos de cette source. `REFERENCE_ONLY` interdit
+  /// leur reprise : les articles générés restent en brouillon sans couverture.
+  /// `LICENSED` autorise la reprise avec crédit.
+  imagePolicy NewsImagePolicy @default(REFERENCE_ONLY)
 
   alerts NewsAlert[]
   articles Article[]
@@ -1175,6 +1190,7 @@ model NewsSource {
   updatedAt DateTime @updatedAt
 
   @@index([active])
+  @@index([autoPublish, reliability])
 }
 
 /// Alerte détectée par la veille, en attente de décision éditoriale.
@@ -1193,6 +1209,11 @@ model NewsAlert {
   content     String?
   publishedAt DateTime
   status      NewsAlertStatus @default(PENDING)
+  /// Photo extraite du flux ou de la page source, si elle existe. Elle n'est
+  /// reprise que si la source est marquée `LICENSED`.
+  imageUrl    String?
+  /// Crédit photo fourni par le flux (`media:credit`, copyright…).
+  imageCredit String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1200,7 +1221,16 @@ model NewsAlert {
   /// Une même URL n'est enregistrée qu'une fois par source.
   @@unique([sourceId, url])
   @@index([status, publishedAt])
+  @@index([viralScore, status])
   @@index([sourceId])
+}
+
+/// Droit de reprise des photos d'une source de veille.
+enum NewsImagePolicy {
+  /// Photo non autorisée : l'article généré reste en brouillon sans couverture.
+  REFERENCE_ONLY
+  /// Photo autorisée : reprise avec crédit et réhébergement.
+  LICENSED
 }
 
 enum NewsSourceType {

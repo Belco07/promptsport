@@ -2,18 +2,24 @@ import Link from "next/link";
 
 import { isAiConfigured } from "@/lib/ai";
 import { cleanupOldNewsAlerts, purgeIgnoredNewsAlerts } from "@/lib/news";
+import { getAiDraftQuota } from "@/lib/news-automation";
 import { prisma } from "@/lib/prisma";
 
 import { ActionButton } from "./ActionButton";
-import { translateAlertTitles, triggerManualFetch } from "./actions";
+import {
+  cleanupNonViralAlerts,
+  translateAlertTitles,
+  triggerManualFetch,
+} from "./actions";
 import { AlertList } from "./AlertList";
 
 /**
- * Backoffice — veille éditoriale (WP41).
+ * Backoffice — veille éditoriale (WP41, WP47).
  *
  * Liste les alertes collectées par `scripts/fetch-news.ts`, triées de la plus
- * récente à la plus ancienne. Le bouton « Générer avec l'IA » crée toujours un
- * brouillon : aucune publication automatique.
+ * récente à la plus ancienne. Seules les alertes 5 🔥 déclenchent l'IA, dans la
+ * limite du quota quotidien. L'article reste en brouillon sauf si la source est
+ * explicitement autorisée à publier automatiquement et atteint 95/100.
  *
  * L'accès ADMIN est garanti par le layout /backoffice ; les Server Actions
  * revérifient le rôle de leur côté.
@@ -59,11 +65,7 @@ export default async function VeillePage({
   const page = Math.min(readPage(params.page), pageCount);
   const skip = (page - 1) * PAGE_SIZE;
 
-  const categories = await prisma.category.findMany({ select: { name: true, slug: true } });
-  const normalize = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-  const inferCategory = (text: string) => categories.find(category => new RegExp(`\\b${category.slug.replace(/[^a-z0-9-]/gi, "")}\\b`, "i").test(normalize(text))) ?? null;
-
-  const [alerts, pending, generated, activeSources, officialSources, untranslated] =
+  const [alerts, pending, generated, activeSources, officialSources, untranslated, aiQuota] =
     await Promise.all([
       prisma.newsAlert.findMany({
         orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
@@ -76,6 +78,7 @@ export default async function VeillePage({
       prisma.newsSource.count({ where: { active: true } }),
       prisma.newsSource.count({ where: { active: true, isOfficial: true } }),
       prisma.newsAlert.count({ where: { titleFr: null } }),
+      getAiDraftQuota(),
     ]);
 
   const pageHref = (target: number) =>
@@ -92,6 +95,17 @@ export default async function VeillePage({
           <form action={triggerManualFetch}>
             <ActionButton label="Actualiser la veille" pendingLabel="Récupération en cours..." title="Récupérer les nouvelles alertes des sources actives" />
           </form>
+          {total > 0 ? (
+            <form action={cleanupNonViralAlerts}>
+              <ActionButton
+                label="Nettoyer les alertes non-virales"
+                pendingLabel="Nettoyage..."
+                variant="danger"
+                title="Supprimer toutes les alertes dont le score est inférieur à 5 🔥"
+                confirmMessage="Supprimer définitivement toutes les alertes dont le score est inférieur à 5 🔥 ? Les articles déjà générés seront conservés."
+              />
+            </form>
+          ) : null}
         <Link
           href="/backoffice/veille/sources"
           className="rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
@@ -103,11 +117,14 @@ export default async function VeillePage({
       <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
         Les sources actives — médias, sites officiels, YouTube et réseaux sociaux —
         sont interrogées par <code>npm run news:fetch</code>. Les sources officielles
-        sont signalées par un badge « Officiel ». Chaque alerte peut être transformée
-        en brouillon par l&apos;IA : la publication reste une décision humaine, depuis
-        le studio. Les alertes de plus de <strong>48 h</strong> sont supprimées
-        automatiquement ; une alerte ignorée est supprimée immédiatement et
-        définitivement. Les brouillons déjà créés restent dans le studio.
+        sont signalées par un badge « Officiel ». Chaque alerte reçoit un score de
+        viralité de 1 à 5 🔥 ; seules les alertes 5 déclenchent une génération IA,
+        dans la limite du quota quotidien. Un article est publié automatiquement
+        uniquement si sa source a activé la publication automatique et atteint une
+        fiabilité de 95/100 ; sinon il reste en brouillon pour relecture. Les alertes
+        de plus de <strong>48 h</strong> sont supprimées automatiquement ; une
+        alerte ignorée est supprimée immédiatement et définitivement. Les brouillons
+        déjà créés restent dans le studio.
       </p>
 
       {error ? (
@@ -139,6 +156,14 @@ export default async function VeillePage({
         </div>
       ) : null}
 
+      {aiReady && aiQuota.remaining <= 0 ? (
+        <div className="mb-6 rounded-lg border border-status-warning-border bg-status-warning px-4 py-3 text-sm text-status-warning-foreground">
+          <strong>Quota IA atteint pour aujourd&apos;hui.</strong> {aiQuota.used} article(s)
+          généré(s) sur un plafond de {aiQuota.limit}. La génération reprendra à la
+          prochaine journée éditoriale.
+        </div>
+      ) : null}
+
       {untranslated > 0 ? (
         <form
           action={translateAlertTitles}
@@ -161,13 +186,17 @@ export default async function VeillePage({
         </form>
       ) : null}
 
-      <dl className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <dl className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           { label: "En attente", value: pending },
-          { label: "Brouillons générés", value: generated },
+          { label: "Articles générés", value: generated },
           { label: "Titres à traduire", value: untranslated },
           { label: "Sources actives", value: activeSources },
           { label: "Sources officielles", value: officialSources },
+          {
+            label: "Quota IA restant",
+            value: `${aiQuota.remaining}/${aiQuota.limit}`,
+          },
         ].map((stat) => (
           <div key={stat.label} className="rounded-lg border border-border bg-card p-4">
             <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -199,7 +228,7 @@ export default async function VeillePage({
           </p>
         </div>
       ) : (
-        <AlertList alerts={alerts.map(alert => ({ ...alert, category: inferCategory(`${alert.title} ${alert.content ?? ""}`), publishedAt: alert.publishedAt.toISOString() }))} aiReady={aiReady} />
+        <AlertList alerts={alerts.map(alert => ({ ...alert, publishedAt: alert.publishedAt.toISOString() }))} aiReady={aiReady} aiQuotaRemaining={aiQuota.remaining} />
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">

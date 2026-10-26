@@ -403,6 +403,8 @@ Settings → Environment Variables, en cochant **Production** et **Preview**.
 | `META_FACEBOOK_PAGE_ID` | identifiant de la Page Facebook cible |
 | `META_GRAPH_VERSION` | version Graph API optionnelle (défaut : `v23.0`) |
 | `YOUTUBE_API_KEY` | clé de l’API YouTube Data v3, pour les chaînes YouTube |
+| `DEEPSEEK_API_KEY` | clé DeepSeek pour la traduction des titres et la pré-rédaction IA ; absente, la veille reste consultable |
+| `MAX_DAILY_AI_DRAFTS` | plafond quotidien des articles générés depuis la veille (défaut `15`, `0` pour désactiver) |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | identifiants OAuth Google, facultatifs |
 | `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET` | identifiants OAuth Facebook, facultatifs |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | clés Stripe (test ou live) ; le paiement passe par Stripe Checkout côté serveur, aucune clé publique n'est nécessaire |
@@ -1192,6 +1194,50 @@ curl --fail-with-body --header "Authorization: Bearer $CRON_SECRET" \
 ```
 
 Tests isolés du collecteur et de l’authentification : `node --test tests/unit/news-fetcher.test.cjs`.
+
+### Automatisation hybride et quota IA — WP47
+
+Chaque `NewsSource` porte une **fiabilité** de 0 à 100 (`reliability`) et une
+autorisation de **publication automatique** (`autoPublish`, désactivée par
+défaut). Chaque `NewsAlert` reçoit un **score de viralité** de 1 à 5 (`viralScore`) :
+la collecte le calcule à partir du caractère officiel de la source, de sa
+fiabilité, des mots-clés d’actualité chaude et de la fraîcheur de l’alerte. Les
+rédactions peuvent forcer un 5 🔥 depuis la veille avant de nettoyer les alertes
+non virales.
+
+La génération IA n’est possible que pour une alerte **5 🔥**. Le nombre d’articles
+générés depuis la veille est plafonné par jour éditorial (Africa/Lagos) via
+`MAX_DAILY_AI_DRAFTS` (15 par défaut, `0` pour désactiver). Une fois le quota
+atteint, le backoffice affiche « Quota IA atteint pour aujourd’hui » et bloque
+les boutons de génération.
+
+Un article généré est publié immédiatement (`PUBLISHED`, `publishedAt = now`)
+uniquement si sa source a `autoPublish = true`, `reliability >= 95` **et** une
+photo source exploitable. Dans tous les autres cas, il reste en `DRAFT` pour
+relecture.
+
+La **photo est obligatoire pour publier**, y compris depuis le studio. Chaque
+source porte un droit photo (`imagePolicy`) :
+
+- `REFERENCE_ONLY` (défaut) : les photos ne sont jamais reprises ; l’article
+  généré reste un brouillon sans couverture ;
+- `LICENSED` : la photo de l’alerte (ou l’image `og:image` de la page source) est
+  réhébergée, recadrée, puis brandée avec le titre et le logo PromptSport. Le
+  crédit de la source est affiché sous la photo et ajouté aux légendes sociales.
+
+Une source ne doit être passée en `LICENSED` que si sa licence ou son
+autorisation explicite couvre la reprise. Sans photo, aucune publication
+automatique ni manuelle n’est possible.
+
+La page `/backoffice/veille` affiche le quota restant, le badge de viralité 1 à
+5 🔥 et le bouton « Nettoyer les alertes non-virales » (suppression des alertes
+< 5 ; les articles déjà générés sont conservés). La page
+`/backoffice/veille/sources` permet d’éditer la fiabilité, l’autorisation de
+publication automatique et le droit photo.
+
+Tests : `node --test tests/unit/news-automation.test.cjs` et
+`npx playwright test tests/e2e/news-batch.spec.ts` (Docker local, IA simulée).
+
 # Visual Studio — WP46
 
 Dans `/studio/visual-studio`, les journalistes, éditeurs et administrateurs peuvent

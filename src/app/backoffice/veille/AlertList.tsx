@@ -3,7 +3,7 @@ import Link from "next/link";
 import { TimelineBadge, type TimelineCategory } from "@/components/TimelineBadge";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { generateArticle, ignoreSelectedAlert } from "./actions";
+import { generateArticle, ignoreSelectedAlert, markAlertsViral } from "./actions";
 const STATUS_STYLES = {
   PENDING: {
     label: "En attente",
@@ -43,7 +43,7 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 
 
 type Alert = { id: string; title: string; titleFr: string | null; content: string | null; url: string; publishedAt: string; status: keyof typeof STATUS_STYLES; viralScore?: number | null; category?: TimelineCategory | null; source: { name: string; type: string; isOfficial: boolean } };
-export function AlertList({ alerts, aiReady }: { alerts: Alert[]; aiReady: boolean }) {
+export function AlertList({ alerts, aiReady, aiQuotaRemaining }: { alerts: Alert[]; aiReady: boolean; aiQuotaRemaining: number }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -51,30 +51,61 @@ export function AlertList({ alerts, aiReady }: { alerts: Alert[]; aiReady: boole
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const pending = alerts.filter(alert => alert.status === "PENDING" && !completed.includes(alert.id));
+  const selectedViral = selected.filter(id => pending.find(alert => alert.id === id)?.viralScore === 5);
+  const generationDisabled = busy || !aiReady || aiQuotaRemaining <= 0;
   function toggle(id: string) { setSelected(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]); }
   async function run(ids: string[], kind: "generate" | "ignore") {
     if (busy || !ids.length) return;
     if (kind === "ignore" && !window.confirm("Supprimer définitivement les alertes sélectionnées ?")) return;
-    setBusy(true); setErrors([]); let success = 0; const failures: string[] = [];
+    setBusy(true); setErrors([]); let success = 0; let autoPublished = 0; let photoBlocked = 0; const failures: string[] = [];
     try {
       for (let index = 0; index < ids.length; index++) {
         setMessage("Traitement " + (index + 1) + "/" + ids.length + "…");
         try {
           const result = await (kind === "generate" ? generateArticle(ids[index]) : ignoreSelectedAlert(ids[index]));
-          if (result.success) { success++; setCompleted(values => [...values, ids[index]]); setSelected(values => values.filter(id => id !== ids[index])); }
+          if (result.success) {
+            success++;
+            if (result.published) autoPublished++;
+            if (result.photoBlocked) photoBlocked++;
+            setCompleted(values => [...values, ids[index]]);
+            setSelected(values => values.filter(id => id !== ids[index]));
+          }
           else failures.push((alerts.find(alert => alert.id === ids[index])?.title ?? "Alerte") + " : " + result.message);
         } catch { failures.push("Connexion interrompue : vérifiez le statut avant de réessayer."); }
       }
-      setMessage(kind === "generate" ? success + " brouillon(s) généré(s)." : success + " alerte(s) ignorée(s).");
+      if (kind === "generate") {
+        const draftCount = success - autoPublished;
+        const parts: string[] = [];
+        if (draftCount > 0) parts.push(draftCount + " brouillon(s) généré(s).");
+        if (autoPublished > 0) parts.push(autoPublished + " article(s) publié(s) automatiquement.");
+        if (photoBlocked > 0) parts.push(photoBlocked + " brouillon(s) sans photo source exploitable : publication automatique impossible.");
+        setMessage(parts.join(" ") || "Aucun article généré.");
+      } else {
+        setMessage(success + " alerte(s) ignorée(s).");
+      }
       setErrors(failures);
+    } finally { setBusy(false); router.refresh(); }
+  }
+  async function markSelectedViral() {
+    if (busy || !selected.length) return;
+    setBusy(true); setErrors([]);
+    try {
+      const result = await markAlertsViral(selected);
+      setMessage(result.message);
+      if (result.success) setSelected([]);
+      else setErrors([result.message]);
+    } catch {
+      setErrors(["Connexion interrompue : le marquage n'a pas été confirmé."]);
     } finally { setBusy(false); router.refresh(); }
   }
   return <div aria-busy={busy}>
     <p role="status" aria-live="polite" className="mb-3 text-sm text-foreground">{message}</p>
+    {aiQuotaRemaining <= 0 ? <div className="mb-3 rounded-lg border border-status-warning-border bg-status-warning px-4 py-3 text-sm text-status-warning-foreground">Quota IA atteint pour aujourd&apos;hui. La génération reprendra demain.</div> : null}
     {errors.length > 0 && <div role="alert" className="mb-3 text-status-error-foreground"><p>Certains traitements ont échoué :</p><ul>{errors.map((error, index) => <li key={index}>{error}</li>)}</ul></div>}
     {selected.length > 0 && <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4">
       <span>{selected.length} alerte(s) sélectionnée(s)</span>
-      <button type="button" disabled={busy || !aiReady} onClick={() => run(selected, "generate")} className="rounded border border-border px-3 py-2 disabled:opacity-50">Générer les brouillons sélectionnés</button>
+      <button type="button" disabled={generationDisabled || selectedViral.length === 0} title={selectedViral.length === 0 ? "Seules les alertes 5 🔥 peuvent être générées par l'IA" : aiQuotaRemaining <= 0 ? "Quota IA atteint pour aujourd'hui" : undefined} onClick={() => run(selectedViral, "generate")} className="rounded border border-border px-3 py-2 disabled:opacity-50">Générer les alertes 5 🔥 sélectionnées</button>
+      <button type="button" disabled={busy} onClick={markSelectedViral} className="rounded border border-border px-3 py-2 disabled:opacity-50">Marquer 5 🔥</button>
       <button type="button" disabled={busy} onClick={() => run(selected, "ignore")} className="rounded border border-border px-3 py-2 disabled:opacity-50">Ignorer les alertes sélectionnées</button>
     </div>}
     <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
@@ -95,7 +126,7 @@ export function AlertList({ alerts, aiReady }: { alerts: Alert[]; aiReady: boole
             </div>
             {alert.content && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{alert.content}</p>}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">{alert.source.name}</span><span>{SOURCE_TYPE_LABELS[alert.source.type] ?? alert.source.type}</span>{alert.source.isOfficial && <span className="rounded bg-status-success px-2 py-0.5 font-semibold text-status-success-foreground">Officiel</span>}<span className={`rounded px-2 py-1 ${status.className}`}>{status.label}</span></div>
-            <div className="mt-3 flex flex-wrap gap-2">{alert.status === "PENDING" ? <><button type="button" disabled={busy || !aiReady || completed.includes(alert.id)} onClick={() => run([alert.id], "generate")} className="min-h-10 rounded border border-border px-3 py-2 text-xs disabled:opacity-50">Générer avec l’IA</button><button type="button" disabled={busy || completed.includes(alert.id)} onClick={() => run([alert.id], "ignore")} className="min-h-10 rounded border border-border px-3 py-2 text-xs disabled:opacity-50">Ignorer et supprimer</button></> : alert.status === "DRAFT_GENERATED" ? <Link href="/studio/articles" className="text-xs font-medium text-editorial-link underline">Retrouver le brouillon</Link> : null}</div>
+            <div className="mt-3 flex flex-wrap gap-2">{alert.status === "PENDING" ? <>{score === 5 ? <button type="button" disabled={generationDisabled || completed.includes(alert.id)} title={!aiReady ? "DEEPSEEK_API_KEY manquante" : aiQuotaRemaining <= 0 ? "Quota IA atteint pour aujourd'hui" : "Générer un article à partir de cette alerte"} onClick={() => run([alert.id], "generate")} className="min-h-10 rounded border border-border px-3 py-2 text-xs disabled:opacity-50">Générer avec l’IA</button> : <span className="inline-flex min-h-10 items-center text-xs text-muted-foreground" title="Seules les alertes marquées 5 🔥 peuvent déclencher l'IA">IA : score 5 requis</span>}<button type="button" disabled={busy || completed.includes(alert.id)} onClick={() => run([alert.id], "ignore")} className="min-h-10 rounded border border-border px-3 py-2 text-xs disabled:opacity-50">Ignorer et supprimer</button></> : alert.status === "DRAFT_GENERATED" ? <Link href="/studio/articles" className="text-xs font-medium text-editorial-link underline">Retrouver le brouillon</Link> : null}</div>
           </li>;
         })}
       </ol>

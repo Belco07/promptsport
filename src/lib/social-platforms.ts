@@ -450,7 +450,7 @@ export async function fetchFacebookItems(
   const postsPayload = await graphGet(
     `${encodeURIComponent(pageId)}/posts`,
     {
-      fields: "id,message,created_time,permalink_url",
+      fields: "id,message,created_time,permalink_url,full_picture",
       limit: String(count),
     },
     token,
@@ -474,6 +474,7 @@ export async function fetchFacebookItems(
       url,
       content: message.slice(0, MAX_CONTENT_LENGTH),
       publishedAt: parseDate(asString(post?.created_time)),
+      imageUrl: asString(post?.full_picture) ?? null,
     });
   }
 
@@ -514,7 +515,7 @@ export async function fetchInstagramItems(
   const meUsername = asString(me?.username);
 
   const mediaFields =
-    "id,caption,permalink,media_type,thumbnail_url,timestamp";
+    "id,caption,permalink,media_type,media_url,thumbnail_url,timestamp";
   let mediaData: unknown;
 
   if (meUsername?.toLowerCase() === target.toLowerCase()) {
@@ -558,6 +559,10 @@ export async function fetchInstagramItems(
       url,
       content: caption.slice(0, MAX_CONTENT_LENGTH),
       publishedAt: parseDate(asString(media?.timestamp)),
+      imageUrl:
+        asString(media?.media_url) ??
+        asString(media?.thumbnail_url) ??
+        null,
     });
   }
 
