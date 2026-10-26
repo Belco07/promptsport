@@ -115,6 +115,7 @@ export default async function EditArticlePage({
             content: article.content,
             excerpt: article.excerpt ?? "",
             coverImageUrl: article.coverImageUrl ?? "",
+            coverImageCredit: article.coverImageCredit ?? "",
             categoryId: article.categoryId,
             status: article.status,
             isPremium: article.isPremium,

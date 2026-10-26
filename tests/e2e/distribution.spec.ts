@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   localFixtures = true;
   await sql(`INSERT INTO "Author" (id,name,email,"passwordHash",role,"createdAt") VALUES ($1,$1,$2,$3,'EDITOR',NOW())`, [prefix, `${prefix}@example.test`, await bcrypt.hash(password, 10)]);
   await sql(`INSERT INTO "Category" (id,name,slug,"createdAt") VALUES ($1,$1,$1,NOW())`, [prefix]);
-  await sql(`INSERT INTO "Article" (id,title,slug,content,excerpt,status,"authorId","categoryId","createdAt","updatedAt") VALUES ($1,$1,$1,'Un article sportif de test.','Un résumé factuel.','DRAFT',$1,$1,NOW(),NOW())`, [prefix]);
+  await sql(`INSERT INTO "Article" (id,title,slug,content,excerpt,status,"coverImageUrl","authorId","categoryId","createdAt","updatedAt") VALUES ($1,$1,$1,'Un article sportif de test.','Un résumé factuel.','DRAFT','/promptsport-og.png',$1,$1,NOW(),NOW())`, [prefix]);
   await page.route("**/api/analytics/track", route => route.fulfill({ status: 204 }));
 });
 test.afterEach(async () => {

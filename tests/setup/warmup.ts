@@ -22,6 +22,13 @@ const ROUTES = [
   "/login",
   "/inscription",
   "/newsletter",
+  // Espaces authentifiés : même sans session, la requête force la compilation
+  // du layout et des routes visitées par les parcours E2E (studio, veille).
+  "/studio",
+  "/studio/articles",
+  "/studio/articles/new",
+  "/backoffice/veille",
+  "/backoffice/veille/sources",
   // Routes dynamiques : les compiler avec un identifiant inexistant paie le
   // coût de compilation du motif, le temps des tests. La page répond ensuite
   // 404, ce qui est sans effet.

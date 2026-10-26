@@ -31,6 +31,7 @@
     "@neondatabase/serverless": "1.2.0",
     "@phosphor-icons/react": "2.1.10",
     "@prisma/adapter-neon": "7.10.1",
+    "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "@vercel/blob": "^2.8.0",
     "bcryptjs": "3.0.3",
@@ -65,14 +66,14 @@
     "@types/pg": "8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "better-sqlite3": "^13.0.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
     "prisma": "7.10.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5",
-    "@types/web-push": "^3.6.4"
+    "typescript": "^5"
   },
   "overrides": {
     "next@15.5.28": {

@@ -1,13 +1,18 @@
 import Link from "next/link";
 
 import { prisma } from "@/lib/prisma";
+import { AUTO_PUBLISH_RELIABILITY } from "@/lib/news-automation";
 import {
   facebookPublishingConfigured,
   instagramPublishingConfigured,
 } from "@/lib/social-platforms";
 
 import { ActionButton } from "../ActionButton";
-import { addNewsSource, deleteNewsSource } from "../actions";
+import {
+  addNewsSource,
+  deleteNewsSource,
+  updateNewsSourceAutomation,
+} from "../actions";
 
 /**
  * Backoffice — gestion des sources de veille (WP41).
@@ -74,6 +79,9 @@ export default async function VeilleSourcesPage({
       url: true,
       active: true,
       isOfficial: true,
+      reliability: true,
+      autoPublish: true,
+      imagePolicy: true,
       _count: { select: { alerts: true } },
     },
   });
@@ -135,6 +143,21 @@ export default async function VeilleSourcesPage({
         leurs API officielles, avec des tokens ou une clé d&apos;accès. Pour TikTok
         ou une plateforme sans API accessible, utilisez un flux RSS de passerelle
         (RSSHub, Nitter…) et choisissez « Réseau social (RSS) ».
+      </p>
+      <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
+        La <strong>fiabilité</strong> (0 à 100) sert au calcul de viralité et à la
+        publication automatique. Celle-ci n&apos;est possible que si la source est
+        explicitement marquée « publication automatique », atteint{" "}
+        <strong>{AUTO_PUBLISH_RELIABILITY}/100</strong> et autorise la reprise de
+        ses photos. Sinon, les articles générés restent des brouillons à relire
+        dans le studio.
+      </p>
+      <p className="mb-6 max-w-3xl text-sm text-muted-foreground">
+        <strong>Photo source</strong> : par défaut, les images ne sont pas
+        reprises et les articles restent sans couverture. Une source marquée
+        « autorisée » doit disposer d&apos;une licence ou d&apos;une autorisation
+        explicite ; la photo est alors réhébergée et publiée avec le crédit de la
+        source. Une photo est obligatoire pour publier un article.
       </p>
 
       {error ? (
@@ -271,14 +294,42 @@ export default async function VeilleSourcesPage({
             </label>
             <ActionButton label="Ajouter la source" pendingLabel="Ajout…" />
           </div>
-          <label className="mt-3 flex items-start gap-2 text-xs text-foreground">
-            <input type="checkbox" name="isOfficial" className="mt-0.5" />
-            <span>
-              Source officielle (club, fédération, confédération, ligue, joueur
-              ou personnalité). Elle sera signalée par un badge « Officiel »
-              dans la veille.
-            </span>
-          </label>
+          <div className="mt-3 flex flex-wrap items-end gap-4">
+            <label className="block w-40">
+              <span className={labelClass}>Fiabilité (0-100)</span>
+              <input
+                type="number"
+                name="reliability"
+                min={0}
+                max={100}
+                step={1}
+                defaultValue={50}
+                className={inputClass}
+              />
+            </label>
+            <label className="block w-56">
+              <span className={labelClass}>Photo source</span>
+              <select name="imagePolicy" defaultValue="REFERENCE_ONLY" className={inputClass}>
+                <option value="REFERENCE_ONLY">Non autorisée</option>
+                <option value="LICENSED">Autorisée (licence + crédit)</option>
+              </select>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-foreground">
+              <input type="checkbox" name="isOfficial" className="mt-0.5" />
+              <span>
+                Source officielle (club, fédération, confédération, ligue, joueur
+                ou personnalité). Elle sera signalée par un badge « Officiel »
+                dans la veille.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-foreground">
+              <input type="checkbox" name="autoPublish" className="mt-0.5" />
+              <span>
+                Publication automatique des articles générés (effective seulement
+                à partir de {AUTO_PUBLISH_RELIABILITY}/100 de fiabilité).
+              </span>
+            </label>
+          </div>
         </form>
         <div className="space-y-1 border-t border-border px-4 py-3 text-xs text-muted-foreground">
           <p>
@@ -325,7 +376,7 @@ export default async function VeilleSourcesPage({
           </p>
         ) : (
           <div className="max-h-[32rem] overflow-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-[1320px] text-left text-sm">
               <caption className="sr-only">Sources de veille configurées</caption>
               <thead className="sticky top-0 border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -345,6 +396,9 @@ export default async function VeilleSourcesPage({
                     Alertes
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
+                    Automatisation
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold">
                     Action
                   </th>
                 </tr>
@@ -360,6 +414,41 @@ export default async function VeilleSourcesPage({
                             Officiel
                           </span>
                         ) : null}
+                        <span
+                          className={`inline-flex rounded px-2 py-0.5 text-[11px] font-semibold ${
+                            source.autoPublish && source.reliability >= AUTO_PUBLISH_RELIABILITY
+                              ? "bg-status-success text-status-success-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                          title={
+                            source.autoPublish && source.reliability < AUTO_PUBLISH_RELIABILITY
+                              ? `Publication automatique inactive : fiabilité ${source.reliability}/100, seuil ${AUTO_PUBLISH_RELIABILITY}`
+                              : undefined
+                          }
+                        >
+                          {source.autoPublish
+                            ? source.reliability >= AUTO_PUBLISH_RELIABILITY
+                              ? "Auto"
+                              : "Auto (seuil non atteint)"
+                            : "Manuel"}
+                        </span>
+                        <span
+                          className={`inline-flex rounded px-2 py-0.5 text-[11px] font-semibold ${
+                            source.imagePolicy === "LICENSED"
+                              ? "bg-status-success text-status-success-foreground"
+                              : "bg-status-warning text-status-warning-foreground"
+                          }`}
+                          title={
+                            source.imagePolicy === "LICENSED"
+                              ? "Photo source autorisée : reprise avec crédit"
+                              : "Photo source non autorisée : articles sans couverture"
+                          }
+                        >
+                          {source.imagePolicy === "LICENSED" ? "Photo licence" : "Photo non autorisée"}
+                        </span>
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        Fiabilité {source.reliability}/100
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
@@ -393,6 +482,57 @@ export default async function VeilleSourcesPage({
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs tabular-nums text-muted-foreground">
                       {source._count.alerts}
+                    </td>
+                    <td className="px-4 py-3">
+                      <form
+                        action={updateNewsSourceAutomation.bind(null, source.id)}
+                        className="flex flex-wrap items-end gap-2"
+                      >
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                            Fiabilité
+                          </span>
+                          <input
+                            type="number"
+                            name="reliability"
+                            min={0}
+                            max={100}
+                            step={1}
+                            defaultValue={source.reliability}
+                            aria-label={`Fiabilité de ${source.name}`}
+                            className="w-20 rounded-md border border-border px-2 py-1.5 text-xs text-foreground outline-none focus:border-editorial-link"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                            Photo
+                          </span>
+                          <select
+                            name="imagePolicy"
+                            defaultValue={source.imagePolicy}
+                            aria-label={`Droit photo de ${source.name}`}
+                            className="rounded-md border border-border px-2 py-1.5 text-xs text-foreground outline-none focus:border-editorial-link"
+                          >
+                            <option value="REFERENCE_ONLY">Non autorisée</option>
+                            <option value="LICENSED">Autorisée</option>
+                          </select>
+                        </label>
+                        <label className="flex items-center gap-1.5 pb-1.5 text-xs text-foreground">
+                          <input
+                            type="checkbox"
+                            name="autoPublish"
+                            defaultChecked={source.autoPublish}
+                            aria-label={`Publication automatique de ${source.name}`}
+                          />
+                          Auto
+                        </label>
+                        <ActionButton
+                          label="Enregistrer"
+                          pendingLabel="…"
+                          variant="secondary"
+                          title={`Enregistrer l'automatisation de ${source.name}`}
+                        />
+                      </form>
                     </td>
                     <td className="px-4 py-3">
                       <form action={deleteNewsSource.bind(null, source.id)}>

@@ -386,6 +386,23 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
                 <div className="relative aspect-video overflow-hidden rounded-[13px] bg-muted">
                   <Image src={article.coverImageUrl} alt="" fill priority sizes="(max-width: 1024px) 100vw, 820px" className="object-cover" />
                 </div>
+                {article.coverImageCredit ? (
+                  <figcaption className="mt-2 text-xs text-muted-foreground">
+                    Photo :{" "}
+                    {article.coverImageCreditUrl ? (
+                      <a
+                        href={article.coverImageCreditUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline underline-offset-2 hover:text-foreground"
+                      >
+                        {article.coverImageCredit}
+                      </a>
+                    ) : (
+                      article.coverImageCredit
+                    )}
+                  </figcaption>
+                ) : null}
               </figure>
             )}
             {article.match && <section aria-labelledby="article-match-title" className="mt-8 rounded-lg border border-border bg-card p-4"><h2 id="article-match-title" className="mb-3 text-lg font-bold text-foreground">Match associé</h2><p className="mb-3 text-sm text-muted-foreground">{new Date(article.match.scheduledAt).toLocaleString("fr-FR", { timeZone: "Africa/Lagos", dateStyle: "long", timeStyle: "short" })}</p><MatchCard match={article.match} /><Link href={`/match/${article.match.id}`} className="mt-3 inline-block text-sm font-semibold text-editorial-link underline">Voir la fiche du match</Link></section>}

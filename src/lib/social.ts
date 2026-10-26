@@ -68,6 +68,10 @@ type BlueskyFeedResponse = {
       uri?: string;
       author?: { handle?: string };
       record?: { text?: string; createdAt?: string };
+      embed?: {
+        images?: Array<{ thumb?: string; fullsize?: string }>;
+        external?: { thumb?: string };
+      };
     };
     reason?: unknown;
   }>;
@@ -122,6 +126,11 @@ export async function fetchBlueskyItems(
       url: `https://bsky.app/profile/${post.author.handle}/post/${rkey}`,
       content: text.slice(0, MAX_CONTENT_LENGTH),
       publishedAt: Number.isNaN(publishedAt.getTime()) ? new Date() : publishedAt,
+      imageUrl:
+        post.embed?.images?.[0]?.fullsize ??
+        post.embed?.images?.[0]?.thumb ??
+        post.embed?.external?.thumb ??
+        null,
     });
   }
 
@@ -168,6 +177,11 @@ type MastodonStatus = {
   uri?: string;
   content?: string;
   created_at?: string;
+  media_attachments?: Array<{
+    url?: string;
+    preview_url?: string;
+    type?: string;
+  }>;
 };
 
 /** Derniers statuts publics d'un compte Mastodon. */
@@ -223,11 +237,18 @@ export async function fetchMastodonItems(
       ? new Date(status.created_at)
       : new Date();
 
+    const media = status.media_attachments?.find(
+      (attachment) =>
+        attachment.type === "image" ||
+        attachment.type === "video" ||
+        attachment.type === "gifv",
+    );
     items.push({
       title: text.slice(0, 300),
       url,
       content: text.slice(0, MAX_CONTENT_LENGTH),
       publishedAt: Number.isNaN(publishedAt.getTime()) ? new Date() : publishedAt,
+      imageUrl: media?.preview_url ?? media?.url ?? null,
     });
   }
 

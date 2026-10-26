@@ -78,6 +78,22 @@ const nextConfig: NextConfig = {
     // n'apporterait aucun gain et risquerait de casser l'import.
   },
   images: imageConfig,
+  /**
+   * La composition des couvertures de veille lit la police et le logo depuis
+   * `public/`. Sur Vercel, les fichiers statiques ne sont pas forcément copiés
+   * dans la fonction serverless : on les trace explicitement pour que le rendu
+   * fonctionne aussi hors du serveur local.
+   */
+  outputFileTracingIncludes: {
+    "/backoffice/veille": [
+      "./public/fonts/BarlowCondensed-Bold.ttf",
+      "./public/promptsport-logo-night.png",
+    ],
+    "/backoffice/veille/sources": [
+      "./public/fonts/BarlowCondensed-Bold.ttf",
+      "./public/promptsport-logo-night.png",
+    ],
+  },
   async headers() {
     return [
       { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Service-Worker-Allowed", value: "/" }] },

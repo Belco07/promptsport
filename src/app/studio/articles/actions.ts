@@ -103,6 +103,7 @@ type ArticleInput = {
   content: string;
   excerpt: string | null;
   coverImageUrl: string | null;
+  coverImageCredit: string | null;
   categoryId: string;
   status: ArticleStatus;
   isPremium: boolean;
@@ -164,6 +165,7 @@ async function validate(
   const categoryId = readText(formData, "categoryId");
   const excerpt = readText(formData, "excerpt");
   const coverImageUrl = readText(formData, "coverImageUrl");
+  const coverImageCredit = readText(formData, "coverImageCredit");
   const rawStatus = readText(formData, "status");
   const matchId = readText(formData, "matchId") || null;
   if (matchId && (matchId.length > 100 || !await prisma.match.findUnique({ where: { id: matchId }, select: { id: true } }))) {
@@ -190,6 +192,16 @@ async function validate(
     return { ok: false, error: "Statut invalide." };
   }
 
+  // Une publication sans couverture n'est jamais acceptée : la photo fait
+  // partie du contrat éditorial, y compris pour les articles de veille.
+  if (rawStatus === "PUBLISHED" && !coverImageUrl) {
+    return {
+      ok: false,
+      error:
+        "Ajoutez une photo de couverture (et son crédit si nécessaire) avant de publier l'article.",
+    };
+  }
+
   const slug = resolveSlug(readText(formData, "slug"), title);
   if (!slug) {
     return {
@@ -209,6 +221,7 @@ async function validate(
       content,
       excerpt: excerpt || null,
       coverImageUrl: coverImageUrl || null,
+      coverImageCredit: coverImageCredit || null,
       categoryId,
       status: rawStatus,
       isPremium: readCheckbox(formData, "isPremium"),
@@ -373,6 +386,11 @@ export async function updateArticleStatus(
 
   const existing = await prisma.article.findUnique({ where: { id: articleId } });
   if (!existing) {
+    return;
+  }
+
+  // Aucune publication sans couverture, même depuis le sélecteur de statut.
+  if (newStatus === "PUBLISHED" && !existing.coverImageUrl) {
     return;
   }
 

@@ -5,10 +5,10 @@ import { fetchFacebookItems, fetchInstagramItems, fetchXItems } from "@/lib/soci
 import { fetchFlashscoreItems } from "@/lib/flashscore";
 import { fetchJsonItems } from "@/lib/news-json";
 import { fetchOfficialSiteItems } from "@/lib/official-sites";
-import { computeViralScore } from "@/lib/news-virality";
 import { fetchSitemapItems } from "@/lib/sitemap";
 import { isAiConfigured, translateTitlesToFrench } from "@/lib/ai";
 import { cleanupOldNewsAlerts, isRecentNewsItem, purgeIgnoredNewsAlerts } from "@/lib/news";
+import { computeViralScore } from "@/lib/news-virality";
 
 export type NewsFetchOptions = {
   limit?: number;
@@ -139,6 +139,8 @@ async function fetchYouTubeItems(
       url: `https://www.youtube.com/watch?v=${videoId}`,
       content: cleanDescription(item.snippet?.description),
       publishedAt: Number.isNaN(published.getTime()) ? new Date() : published,
+      // Miniature officielle de la vidéo : disponible même sans API média.
+      imageUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
     });
   }
 
@@ -301,6 +303,7 @@ export async function fetchNews(options: NewsFetchOptions = {}): Promise<NewsFet
       }
 
       if (!dryRun && fresh.length > 0) {
+        const scoringNow = new Date();
         const result = await prisma.newsAlert.createMany({
           data: fresh.map((item, index) => ({
             sourceId: source.id,
@@ -309,7 +312,17 @@ export async function fetchNews(options: NewsFetchOptions = {}): Promise<NewsFet
             url: item.url,
             content: item.content,
             publishedAt: item.publishedAt,
-            viralScore: computeViralScore({ title: item.title, publishedAt: item.publishedAt, isOfficial: source.isOfficial }),
+            imageUrl: item.imageUrl ?? null,
+            imageCredit: item.imageCredit ?? null,
+            viralScore: computeViralScore(
+              {
+                title: item.title,
+                publishedAt: item.publishedAt,
+                isOfficial: source.isOfficial,
+                reliability: source.reliability,
+              },
+              scoringNow,
+            ),
           })),
           skipDuplicates: true,
         });
