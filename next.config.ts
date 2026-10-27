@@ -32,7 +32,21 @@ const PUBLIC_HTML_CACHE = "public, max-age=0, must-revalidate";
  */
 type ImageConfig = NonNullable<NextConfig["images"]> & { qualities: number[] };
 
+/**
+ * Optimiseur d'images de Vercel désactivé par défaut.
+ *
+ * Le quota gratuit de transformations d'images de Vercel était épuisé : chaque
+ * nouvelle image recevait une erreur 402 (OPTIMIZED_IMAGE_REQUEST_PAYMENT_REQUIRED)
+ * et restait vide, les couvertures d'articles récents en tête. Les images sont
+ * donc servies telles quelles : les couvertures stockées dans Vercel Blob pèsent
+ * déjà 20 à 160 Ko et les logos sont de petits PNG, le gain de l'optimiseur ne
+ * justifie pas son coût. `NEXT_IMAGE_OPTIMIZATION="true"` le réactive (par
+ * exemple avec une offre Vercel qui inclut assez de transformations).
+ */
+const IMAGE_OPTIMIZATION = process.env.NEXT_IMAGE_OPTIMIZATION === "true";
+
 const imageConfig: ImageConfig = {
+  unoptimized: !IMAGE_OPTIMIZATION,
   // Formats modernes : le navigateur reçoit de l'AVIF ou du WebP selon son
   // en-tête `Accept`, avec repli automatique sur le format d'origine.
   formats: ["image/avif", "image/webp"],
