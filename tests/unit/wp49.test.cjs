@@ -128,6 +128,25 @@ test("WP49 — le prompt reçoit tous les éléments de la veille et dissocie sc
   assert.match(user, /"slug":"mercato"/);
 });
 
+test("WP49 — le titre d'origine reste transmis quand un titre FR existe", async () => {
+  const { ai, request } = aiRun({
+    title: "Titre",
+    excerpt: "Extrait",
+    content: canon,
+    format: "NEWS",
+  });
+  await ai.generateArticleFromAlert({
+    title: "Titre français",
+    originalTitle: "Original headline",
+    titleFr: "Titre français",
+    sourceName: "Média",
+    url: "https://example.test/news",
+  });
+  const user = request().messages[1].content;
+  assert.match(user, /Titre original : Original headline/);
+  assert.match(user, /Titre français : Titre français/);
+});
+
 test("WP49 — publication sans visuel : réservée à la veille et confirmée", async () => {
   const { canPublishWithoutCover } = load("src/lib/publish-policy.ts");
   assert.equal(canPublishWithoutCover({ status: "PUBLISHED", coverImageUrl: null, confirmed: true, isVeille: true }), true);

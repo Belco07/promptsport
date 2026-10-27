@@ -256,7 +256,11 @@ export function AlertList({ alerts, aiReady, aiQuotaRemaining }: { alerts: Alert
                   <span className="text-muted-foreground">{SOURCE_TYPE_LABELS[alert.source.type] ?? alert.source.type}</span>
                   {alert.source.isOfficial && <span className="mt-1 block w-fit rounded bg-status-success px-2 py-0.5 font-semibold text-status-success-foreground">Officiel</span>}
                 </td>
-                <td className="px-3 py-4"><TimelineBadge category={alert.category} /></td>
+                <td className="px-3 py-4">
+                  {alert.category
+                    ? <TimelineBadge category={alert.category} />
+                    : <span className="text-xs text-muted-foreground">Non classée</span>}
+                </td>
                 <td className="whitespace-nowrap px-3 py-4">{scoreBadge(alert)}</td>
                 <td className="whitespace-nowrap px-3 py-4 text-xs">{statusBadge(alert)}</td>
                 <td className="px-3 py-4">{visualCell(alert)}</td>

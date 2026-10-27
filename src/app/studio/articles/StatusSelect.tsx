@@ -38,7 +38,8 @@ export function StatusSelect({
         disabled={isPending}
         aria-label="Statut de l'article"
         onChange={(event) => {
-          const newStatus = event.target.value as ArticleStatus;
+          const select = event.currentTarget;
+          const newStatus = select.value as ArticleStatus;
           if (newStatus === currentStatus) {
             return;
           }
@@ -46,9 +47,13 @@ export function StatusSelect({
           if (newStatus === "PUBLISHED" && !hasCover) {
             if (!isVeille) {
               window.alert("Ajoutez une photo de couverture avant de publier cet article.");
+              select.value = currentStatus;
               return;
             }
             if (!window.confirm("Ce brouillon de veille n'a aucun visuel. Publier quand même sans couverture ?")) {
+              // Le select est contrôlé par `currentStatus` : sans re-rendu, il
+              // resterait affiché sur « Publié » alors que rien n'a changé.
+              select.value = currentStatus;
               return;
             }
             confirmWithoutCover = true;

@@ -170,6 +170,49 @@ test("conserve le brouillon si la source auto-publiable n’a aucun visuel explo
   expect(article?.coverImageUrl).toBeNull();
 });
 
+test("publie manuellement un brouillon de veille sans visuel après confirmation", async ({ page }) => {
+  test.skip(process.env.E2E_DISTRIBUTION_STUB !== "1", "Nécessite le fournisseur IA local simulé.");
+  const articleId = `${prefix}-manual`;
+  const title = `Brouillon veille sans visuel ${prefix}`;
+  await sql(
+    `INSERT INTO "Article" (id,title,slug,content,excerpt,format,status,"authorId","categoryId","newsSourceId","createdAt","updatedAt")
+     VALUES ($1,$2,$1,'Contenu du brouillon de veille.','Extrait du brouillon.','NEWS','DRAFT',$3,$4,$5,NOW(),NOW())`,
+    [articleId, title, prefix, prefix, prefix],
+  );
+
+  await page.goto("/studio/articles");
+  const row = page.getByRole("row").filter({ hasText: title });
+  await expect(row).toBeVisible({ timeout: 90_000 });
+
+  // Premier essai : l'utilisateur annule la confirmation. Le statut ne doit pas
+  // changer, et le sélecteur doit revenir à « Brouillon ».
+  page.once("dialog", async dialog => {
+    expect(dialog.type()).toBe("confirm");
+    await dialog.dismiss();
+  });
+  await row.getByLabel("Statut de l'article", { exact: true }).selectOption("PUBLISHED");
+  await expect(row.getByLabel("Statut de l'article", { exact: true })).toHaveValue("DRAFT");
+  expect(
+    (await sqlOne<{ status: string }>(`SELECT status FROM "Article" WHERE id=$1`, [articleId]))?.status,
+  ).toBe("DRAFT");
+
+  // Second essai : confirmation explicite, publication sans aucune couverture.
+  page.once("dialog", dialog => dialog.accept());
+  await row.getByLabel("Statut de l'article", { exact: true }).selectOption("PUBLISHED");
+  await expect
+    .poll(async () => (await sqlOne<{ status: string }>(`SELECT status FROM "Article" WHERE id=$1`, [articleId]))?.status)
+    .toBe("PUBLISHED");
+  const published = await sqlOne<{ publishedAt: Date | null; coverImageUrl: string | null }>(
+    `SELECT "publishedAt","coverImageUrl" FROM "Article" WHERE id=$1`,
+    [articleId],
+  );
+  expect(published?.publishedAt).toBeTruthy();
+  expect(published?.coverImageUrl).toBeNull();
+
+  await page.goto(`/article/${articleId}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+});
+
 test("génère manuellement une alerte de score inférieur à 5", async ({ page }) => {
   test.skip(process.env.E2E_DISTRIBUTION_STUB !== "1", "Nécessite le fournisseur IA local simulé.");
   await sql(`UPDATE "NewsAlert" SET "viralScore"=4 WHERE id=$1`, [`${prefix}-one`]);

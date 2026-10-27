@@ -14,6 +14,8 @@
 export type NewsAlertInput = {
   /** Titre de travail (français s'il existe, sinon titre d'origine). */
   title: string;
+  /** Titre dans la langue de la source, distinct du titre français. */
+  originalTitle?: string | null;
   /** Titre traduit en français, si la collecte en a produit un. */
   titleFr?: string | null;
   content?: string | null;
@@ -223,7 +225,8 @@ function userPrompt(alert: NewsAlertInput): string {
   const publishedAt = alert.publishedAt
     ? alert.publishedAt.toISOString()
     : "date inconnue";
-  const originalTitle = alert.title.trim() || "(titre original indisponible)";
+  const originalTitle =
+    (alert.originalTitle ?? alert.title).trim() || "(titre original indisponible)";
   const frenchTitle = alert.titleFr?.trim();
   const score =
     typeof alert.viralScore === "number" ? `${alert.viralScore}/5` : "non évalué";

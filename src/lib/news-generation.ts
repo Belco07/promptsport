@@ -200,6 +200,7 @@ export async function generateNewsArticle(input: {
     const licensed = sourceAllowsImageUse(alert.source);
     const generated = await generateArticleFromAlert({
       title: alert.titleFr ?? alert.title,
+      originalTitle: alert.title,
       titleFr: alert.titleFr,
       content: alert.content,
       url: alert.url,

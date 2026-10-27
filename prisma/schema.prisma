@@ -1178,9 +1178,10 @@ model NewsSource {
   /// Publication automatique des articles générés depuis cette source.
   /// Elle exige aussi `reliability >= 95`.
   autoPublish Boolean  @default(false)
-  /// Droit d'utiliser les photos de cette source. `REFERENCE_ONLY` interdit
-  /// leur reprise : les articles générés restent en brouillon sans couverture.
-  /// `LICENSED` autorise la reprise avec crédit.
+  /// Droit d'utiliser les photos de cette source. `REFERENCE_ONLY` interdit la
+  /// republication brute : l'image sert de base à un visuel édité (titre, logo,
+  /// dégradé), avec crédit. `LICENSED` autorise la reprise telle quelle avec
+  /// crédit. Sans visuel exploitable, l'article reste en brouillon.
   imagePolicy NewsImagePolicy @default(REFERENCE_ONLY)
 
   alerts NewsAlert[]
@@ -1209,8 +1210,9 @@ model NewsAlert {
   content     String?
   publishedAt DateTime
   status      NewsAlertStatus @default(PENDING)
-  /// Photo extraite du flux ou de la page source, si elle existe. Elle n'est
-  /// reprise que si la source est marquée `LICENSED`.
+  /// Photo extraite du flux ou de la page source, si elle existe. Elle est
+  /// reprise telle quelle si la source est `LICENSED`, sinon utilisée comme
+  /// base d'un visuel édité (titre, logo, dégradé).
   imageUrl    String?
   /// Crédit photo fourni par le flux (`media:credit`, copyright…).
   imageCredit String?
