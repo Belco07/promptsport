@@ -365,7 +365,7 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
             path: `/match/${article.match.id}`, startDate: article.match.scheduledAt.toISOString(),
             venue: article.match.venue, homeTeam: article.match.homeTeam.name, awayTeam: article.match.awayTeam.name,
             competitionName: article.match.competition.name, status: article.match.status,
-            description: article.match.homeScore !== null && article.match.awayScore !== null ? `${article.match.homeTeam.name} ${article.match.homeScore} - ${article.match.awayScore} ${article.match.awayTeam.name}` : undefined,
+            homeScore: article.match.homeScore, awayScore: article.match.awayScore,
           })) }} />}
           {/* Disposition « Digital Haven » : en-tête pleine largeur (catégorie,
               titre, accroche), puis colonne de lecture et colonne latérale. */}

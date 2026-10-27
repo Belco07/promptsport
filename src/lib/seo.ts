@@ -181,7 +181,67 @@ export function newsArticleJsonLd({
   };
 }
 
-/** SportsEvent : une rencontre (équipes, date, lieu, compétition). */
+type SportsEventStatus = "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
+
+/** Longueur maximale de la description d'un SportsEvent (recommandation Google). */
+const SPORTS_EVENT_DESCRIPTION_MAX = 300;
+
+/**
+ * Description d'un match pour le JSON-LD SportsEvent : Google signale
+ * « Champ description manquant » sans elle. Construite à partir des données du
+ * match (affiche, score éventuel, compétition, date, lieu, état), elle est
+ * unique pour chaque rencontre et tient en 300 caractères au plus.
+ */
+export function sportsEventDescription({
+  homeTeam,
+  awayTeam,
+  competitionName,
+  startDate,
+  venue,
+  homeScore,
+  awayScore,
+  status,
+}: {
+  homeTeam: string;
+  awayTeam: string;
+  competitionName: string | null;
+  startDate: string;
+  venue: string | null;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  status?: SportsEventStatus;
+}): string {
+  const date = new Date(startDate).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Africa/Lagos",
+  });
+  const fixture =
+    homeScore != null && awayScore != null
+      ? `${homeTeam} ${homeScore} - ${awayScore} ${awayTeam}`
+      : `${homeTeam} contre ${awayTeam}`;
+  const state =
+    status === "LIVE"
+      ? " Match en cours."
+      : status === "FINISHED"
+        ? " Match terminé."
+        : status === "POSTPONED"
+          ? " Match reporté."
+          : status === "CANCELLED"
+            ? " Match annulé."
+            : "";
+  const text = `${fixture} : ${competitionName ? `${competitionName}, ` : ""}le ${date}.${venue ? ` Lieu : ${venue}.` : ""}${state}`;
+  return text.length <= SPORTS_EVENT_DESCRIPTION_MAX
+    ? text
+    : `${text.slice(0, SPORTS_EVENT_DESCRIPTION_MAX - 1).trimEnd()}…`;
+}
+
+/**
+ * SportsEvent : une rencontre (équipes, date, lieu, compétition).
+ * La description est toujours présente : celle fournie, sinon celle construite
+ * par `sportsEventDescription`.
+ */
 export function sportsEventJsonLd({
   name,
   path,
@@ -192,6 +252,8 @@ export function sportsEventJsonLd({
   competitionName,
   description,
   status,
+  homeScore,
+  awayScore,
 }: {
   name: string;
   path: string;
@@ -201,13 +263,17 @@ export function sportsEventJsonLd({
   awayTeam: string;
   competitionName: string | null;
   description?: string;
-  status?: "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
+  status?: SportsEventStatus;
+  homeScore?: number | null;
+  awayScore?: number | null;
 }): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
     "@type": "SportsEvent",
     name,
-    ...(description ? { description } : {}),
+    description:
+      description?.trim() ||
+      sportsEventDescription({ homeTeam, awayTeam, competitionName, startDate, venue, homeScore, awayScore, status }),
     startDate,
     eventStatus: status === "CANCELLED" ? "https://schema.org/EventCancelled" : status === "POSTPONED" ? "https://schema.org/EventPostponed" : "https://schema.org/EventScheduled",
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",

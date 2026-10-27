@@ -88,7 +88,6 @@ export default async function MatchPage({params,searchParams}:Props){
  ]) : null;
  const vote = match.status === "FINISHED" ? await getMatchVoteData(id, session?.user?.id ?? null) : null;
  const teamForms = match.status === "SCHEDULED" ? Object.fromEntries((await getTeamForms([match.homeTeamId, match.awayTeamId])).map(team => [team.teamId, team.form])) : {};
- const hasScore=match.homeScore!=null&&match.awayScore!=null;
  const playerLinks=Object.fromEntries([...match.homeTeam.players,...match.awayTeam.players].map(player=>[playerProfileKey(player.teamId,player.name),`/joueur/${player.slug}`]));
  return <><main id="contenu" className="mx-auto max-w-[1200px] px-4 pb-8 md:px-6">
         <script
@@ -103,9 +102,9 @@ export default async function MatchPage({params,searchParams}:Props){
                 homeTeam: match.homeTeam.name,
                 awayTeam: match.awayTeam.name,
                 competitionName: match.competition?.name ?? null,
-                description: hasScore
-                  ? `${match.homeTeam.name} ${match.homeScore} - ${match.awayScore} ${match.awayTeam.name}`
-                  : `${match.homeTeam.name} contre ${match.awayTeam.name}`,
+                status: match.status,
+                homeScore: match.homeScore,
+                awayScore: match.awayScore,
               }),
             ),
           }}
