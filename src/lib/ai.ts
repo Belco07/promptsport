@@ -37,6 +37,11 @@ type AiProvider = {
 };
 
 const MAX_TITLE_LENGTH = 160;
+/**
+ * Au-delà de ce nombre de mots, un texte n'est plus un flash (charte : 40 à
+ * 120 mots) : il est requalifié en actualité, quoi qu'ait choisi l'IA.
+ */
+const MAX_FLASH_WORDS = 150;
 const MAX_EXCERPT_LENGTH = 320;
 const MAX_CONTENT_LENGTH = 24_000;
 
@@ -102,6 +107,19 @@ function plainExcerpt(content: string): string {
     .slice(0, MAX_EXCERPT_LENGTH);
 }
 
+/**
+ * Format d'un article généré depuis une alerte, selon la charte éditoriale :
+ * - FLASH seulement si l'IA l'a choisi et que le texte reste bref ;
+ * - jamais ANALYSIS : une analyse demande un vrai fond (données de match ou
+ *   rédaction), qu'un simple extrait de veille ne fournit pas ;
+ * - NEWS dans tous les autres cas (le format par défaut).
+ * `generateMatchAnalysis` impose ensuite ANALYSIS pour ses propres analyses.
+ */
+function alertFormat(requested: unknown, content: string): GeneratedArticle["format"] {
+  const words = content.split(/\s+/).filter(Boolean).length;
+  return requested === "FLASH" && words <= MAX_FLASH_WORDS ? "FLASH" : "NEWS";
+}
+
 function sourceLink(sourceName: string, sourceUrl: string): string {
   const label = sourceName.replace(/[[\]]/g, "").trim() || "Source";
   return `\n\n*Source : [${label}](${sourceUrl})*`;
@@ -140,7 +158,7 @@ function parseCompletion(raw: string, alert: NewsAlertInput): GeneratedArticle {
     cleanText(payload?.excerpt, MAX_EXCERPT_LENGTH) || plainExcerpt(content);
 
   return {
-    format: payload.format === "FLASH" || payload.format === "ANALYSIS" ? payload.format : "NEWS",
+    format: alertFormat(payload.format, content),
     title,
     excerpt,
     content: `${content}${sourceLink(alert.sourceName, alert.url)}`,
@@ -158,13 +176,14 @@ Règles absolues :
 - si une information manque, reste prudent et attribue-la à la source ;
 - écris en français, au format Markdown, sans titre H1 (le titre est séparé) ;
 - n'ajoute ni signature, ni mention d'IA, ni lien vers la source : il est ajouté automatiquement.
-Choisis d'abord le format selon la nature de l'information :
-- FLASH : information brute, annonce officielle très courte ou communiqué ; 60 à 140 mots, 1 à 3 paragraphes sans intertitres. Ne développe pas artificiellement une annonce courte.
-- NEWS : actualité standard ; 350 à 650 mots, chapô puis 2 ou 3 intertitres spécifiques en ##.
-- ANALYSIS : sujet de fond, tactique, enjeux ou contexte ; environ 800 mots, chapô puis intertitres informatifs en ##.
-Ne répète pas le titre. Ne remplis jamais pour atteindre une longueur si les faits manquent.
+Choisis d'abord le format selon la charte éditoriale de PromptSport (seulement FLASH ou NEWS) :
+- FLASH : « ça vient de tomber ». Uniquement un fait nouveau, confirmé et important, qu'un supporter voudrait connaître tout de suite : transfert signé, blessure ou forfait d'un joueur clé, entraîneur limogé ou nommé, suspension, résultat marquant, annonce officielle qui change la donne. 40 à 120 mots, 1 ou 2 paragraphes sans intertitres ; la première phrase donne le fait, la suite précise la source et une phrase de contexte. Ne développe jamais artificiellement.
+- Jamais FLASH pour : une publication de club sur les réseaux sociaux, une vidéo, une galerie ou des photos, un contenu d'archive ou anniversaire, une promotion, une rumeur, une déclaration sans nouveauté. Dans le doute, choisis NEWS.
+- NEWS : « ce qu'il faut savoir ». Le format par défaut : l'actualité du jour avec son contexte ; 250 à 500 mots, chapô puis 2 ou 3 intertitres spécifiques en ##.
+- Pas d'ANALYSIS : une analyse demande un fond (données, point de vue signé) qu'un simple extrait de veille ne fournit pas ; elle est rédigée par la rédaction ou à partir des données d'un match.
+Ne répète pas le titre. Ne remplis jamais pour atteindre une longueur si les faits manquent : un texte court reste court.
 Réponds uniquement avec un objet JSON valide :
-{"title":"titre factuel de 90 caractères maximum","excerpt":"chapô de 200 caractères maximum","content":"article Markdown complet","format":"FLASH ou NEWS ou ANALYSIS","categorySlug":"slug existant ou null","themeSlug":"slug existant ou null"}
+{"title":"titre factuel de 90 caractères maximum","excerpt":"chapô de 200 caractères maximum","content":"article Markdown complet","format":"FLASH ou NEWS","categorySlug":"slug existant ou null","themeSlug":"slug existant ou null"}
 Choisis uniquement les slugs fournis, selon le sujet réel. Sans correspondance, renvoie null.`;
 
 function userPrompt(alert: NewsAlertInput): string {
