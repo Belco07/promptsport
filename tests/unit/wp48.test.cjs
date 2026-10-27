@@ -3,13 +3,15 @@ function load(file,deps={},env={}) {const exports={};vm.runInNewContext(ts.trans
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
 const next={NextResponse:{json:(value,opts={})=>json(value,opts.status)},after:()=>{}};
 const data={title:'Annonce officielle',excerpt:'Un fait confirmé.',content:'Une information sportive confirmée par la source. '.repeat(20)};
-test('IA : les trois formats sont conservés et le prompt adapte les longueurs',async()=>{
-  for(const format of ['FLASH','NEWS','ANALYSIS']) {
+test('IA : charte des formats — flash bref, actualité par défaut, pas d’analyse depuis une alerte',async()=>{
+  const short='Le club a officialisé le transfert du joueur, selon la source. '.repeat(5);
+  const long='Une information sportive confirmée par la source. '.repeat(30);
+  for(const [format,content,expected] of [['FLASH',short,'FLASH'],['FLASH',long,'NEWS'],['NEWS',long,'NEWS'],['ANALYSIS',long,'NEWS']]) {
     let prompt;
-    class OpenAI {constructor(){this.chat={completions:{create:async request=>{prompt=request.messages[0].content;return {choices:[{message:{content:JSON.stringify({...data,format})}}]}}}}}}
+    class OpenAI {constructor(){this.chat={completions:{create:async request=>{prompt=request.messages[0].content;return {choices:[{message:{content:JSON.stringify({...data,content,format})}}]}}}}}}
     const ai=load('src/lib/ai.ts',{openai:{default:OpenAI}},{DEEPSEEK_API_KEY:'fixture'});
     const result=await ai.generateArticleFromAlert({title:'Titre',sourceName:'Source',url:'https://example.test/source'});
-    assert.equal(result.format,format);assert.match(prompt,/60 à 140 mots/);assert.match(prompt,/ANALYSIS/);
+    assert.equal(result.format,expected,`${format} demandé`);assert.match(prompt,/40 à 120 mots/);assert.match(prompt,/Jamais FLASH/);assert.match(prompt,/Pas d'ANALYSIS/);
   }
 });
 test('IA : une analyse utilise uniquement les données fournies et refuse un texte trop court',async()=>{
