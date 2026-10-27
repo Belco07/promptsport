@@ -1,13 +1,11 @@
 @import "tailwindcss";
 @import "@mdxeditor/editor/style.css";
 
-.format-badge { display: inline-flex; align-items: center; padding: 3px 7px; border-radius: 4px; font-size: 10px; line-height: 1.4; font-weight: 800; letter-spacing: .05em; }
-.format-badge--flash { color: #a52b0b; background: #ffedd5; }
-.format-badge--news { color: #1848a0; background: #dbeafe; }
-.format-badge--analysis { color: #7033a1; background: #f3e8ff; }
-.dark .format-badge--flash { color: #fdba74; background: #482415; }
-.dark .format-badge--news { color: #93c5fd; background: #192e4d; }
-.dark .format-badge--analysis { color: #d8b4fe; background: #362047; }
+/* Badges de format (FormatBadge) : FLASH en rouge d'alerte, ANALYSE en vert
+   citron ; identiques en mode jour et nuit. L'actualité (NEWS) n'a pas de badge. */
+.format-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px 3px 7px; border-radius: 999px; font-size: 10.5px; line-height: 1.3; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.format-badge--flash { color: #ffffff; background: #ed0014; }
+.format-badge--analysis { color: #111211; background: #d7ff00; }
 
 .rich-text-editor { border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--card)); color: hsl(var(--foreground)); }
 .rich-text-editor .mdxeditor { font-family: inherit; color: inherit; --baseBase: hsl(var(--card)); --baseBg: hsl(var(--background)); --baseBgHover: hsl(var(--muted)); --baseBgActive: hsl(var(--muted)); --baseBorder: hsl(var(--border)); --baseBorderHover: hsl(var(--muted-foreground)); --baseText: hsl(var(--muted-foreground)); --baseTextContrast: hsl(var(--foreground)); }

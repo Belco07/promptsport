@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ArticleCardData } from "@/components/ArticleCard";
+import { FormatBadge } from "@/components/FormatBadge";
 import { Newspaper } from "@/components/icons";
 import { PremiumBadge } from "@/components/PremiumBadge";
 import { formatDate } from "@/lib/formatDate";
@@ -21,6 +22,7 @@ export function ArticleRow({ article }: { article: ArticleCardData }) {
     </Link>
     <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-4 sm:px-5">
       <div className="mb-2 flex flex-wrap items-center gap-2">
+        {article.format && <FormatBadge format={article.format} />}
         <span className="inline-flex items-center gap-[7px] text-[11px] font-semibold uppercase tracking-[.5px] text-editorial-link">
           <span aria-hidden="true" className="h-[10px] w-[10px] rounded-full bg-accent" />
           {article.category?.name ?? "Actualité"}

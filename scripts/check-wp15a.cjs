@@ -92,7 +92,7 @@ async function main() {
       const end=publicHome.indexOf(format==='FLASH'?'</aside>':'</section>',start);
       check(start>=0 && publicHome.slice(start,end).includes(`/article/${slug}`),`${format} dans son bloc de l’accueil`);
       const publicArticle=await (await fetch(new URL(`/article/${slug}`,base))).text();
-      check(publicArticle.includes(`data-article-format="${format}"`),'Badge de format sur la page article');
+      check(format==='NEWS' ? !publicArticle.includes('data-article-format=') : publicArticle.includes(`data-article-format="${format}"`),format==='NEWS' ? 'Pas de badge pour une actualité (format par défaut)' : 'Badge de format sur la page article');
       check(publicArticle.includes('Cet article est réservé aux abonnés'),'Paywall anonyme conservé');
       update.set('status','DRAFT');
       check((await request(editPath,{method:'POST',body:update})).status===303,'Dépublication de la fixture');
