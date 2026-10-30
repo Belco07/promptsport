@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+
+test.use({ serviceWorkers: "allow" });
 import { sql, closeDb, e2eId } from "../fixtures/db";
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true });
