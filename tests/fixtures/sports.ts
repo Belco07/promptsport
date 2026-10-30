@@ -26,6 +26,9 @@ export const test = base.extend<{ sports: Sports }>({
         // Stop late client beacons before removing their reader and owned data.
         const visitorId = (await page.context().cookies()).find(cookie => cookie.name === "ps_vid")?.value ?? null;
         if (!page.isClosed()) await page.close();
+        await sql('BEGIN');
+        try {
+        await sql('SELECT "visitorId" FROM "AnalyticsVisitor" WHERE "userId"=$1 OR "visitorId"=$2 FOR UPDATE', [readerId, visitorId]);
         await sql('DELETE FROM "AnalyticsPageView" WHERE "visitorId"=$2 OR "visitorId" IN (SELECT "visitorId" FROM "AnalyticsVisitor" WHERE "userId"=$1)', [readerId, visitorId]);
         await sql('DELETE FROM "AnalyticsVisitor" WHERE "userId"=$1 OR "visitorId"=$2', [readerId, visitorId]);
         await sql('DELETE FROM "ManOfTheMatchVote" WHERE "matchId"=$1', [matchId]);
@@ -34,6 +37,8 @@ export const test = base.extend<{ sports: Sports }>({
         await sql('DELETE FROM "Player" WHERE id=$1', [playerId]);
         await sql('DELETE FROM "Team" WHERE id IN ($1,$2)', [homeId, awayId]);
         await sql('DELETE FROM "Competition" WHERE id=$1', [competitionId]);
+        await sql('COMMIT');
+        } catch (error) { await sql('ROLLBACK'); throw error; }
       } finally { await closeDb(); }
     }
   },

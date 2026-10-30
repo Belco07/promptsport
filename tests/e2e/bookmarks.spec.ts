@@ -42,14 +42,14 @@ async function signIn(page: Parameters<typeof login>[0]) {
 
 test("sauvegarder depuis l’article, retrouver le favori et le retirer durablement", async ({ page }) => {
   await signIn(page);
-  await page.goto(`/article/${data.slugs[0]}`);
+  await page.goto(`/article/${data.slugs[0]}`, { waitUntil: "domcontentloaded" });
   const save = page.getByRole("button", { name: "Sauvegarder l’article", exact: true }).first();
   await expect(save).toBeEnabled();
   await save.click();
   await expect(page.getByRole("button", { name: "Retirer des favoris", exact: true }).first()).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("status").filter({ hasText: "Article sauvegardé" })).toBeVisible();
   await expect.poll(async () => (await sqlOne<{ count: string }>(`SELECT COUNT(*)::text AS count FROM "Bookmark" WHERE "readerId"=$1 AND "articleId"=$2`, [data.readerId, data.ids[0]]))?.count).toBe("1");
-  await page.goto("/mon-compte");
+  await page.goto("/mon-compte", { waitUntil: "domcontentloaded" });
   await page.getByRole("navigation", { name: "Mes lectures" }).getByRole("link", { name: "Favoris", exact: true }).click();
   await expect(page.getByRole("heading", { name: data.titles[0], exact: true })).toBeVisible();
   for (const theme of ["light", "dark"]) {
@@ -67,13 +67,13 @@ test("le signet d’une carte sauvegarde l’article et reste privé", async ({ 
   await sql(`INSERT INTO "ReadingHistory" (id,"readerId","articleId","readAt") VALUES ($1,$2,$3,NOW())`, [e2eId("history"), data.readerId, data.ids[0]]);
   await sql(`INSERT INTO "Bookmark" (id,"readerId","articleId") VALUES ($1,$2,$3)`, [e2eId("bookmark"), data.otherId, data.ids[1]]);
   await signIn(page);
-  await page.goto("/mon-compte/historique");
+  await page.goto("/mon-compte/historique", { waitUntil: "domcontentloaded" });
   const card = page.locator("main article").filter({ has: page.getByRole("heading", { name: data.titles[0], exact: true }) });
   const save = card.getByRole("button", { name: "Sauvegarder l’article", exact: true });
   await expect(save).toBeEnabled({ timeout: 30000 });
   await save.click();
   await expect(card.getByRole("button", { name: "Retirer des favoris", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.goto("/mon-compte/favoris");
+  await page.goto("/mon-compte/favoris", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: data.titles[0], exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: data.titles[1], exact: true })).toHaveCount(0);
 });
@@ -81,7 +81,7 @@ test("le signet d’une carte sauvegarde l’article et reste privé", async ({ 
 test("l’historique garde la dernière lecture sans doublon et affiche 20 articles publiés", async ({ page }) => {
   for (let index = 0; index < 24; index++) await sql(`INSERT INTO "ReadingHistory" (id,"readerId","articleId","readAt") VALUES ($1,$2,$3,NOW()-($4 * INTERVAL '1 minute'))`, [e2eId("history"), data.readerId, data.ids[index], 30 - index]);
   await signIn(page);
-  await page.goto("/mon-compte/historique");
+  await page.goto("/mon-compte/historique", { waitUntil: "domcontentloaded" });
   await expect(page.locator("main article")).toHaveCount(20);
   await expect(page.locator("main article h2").first()).toHaveText(data.titles[21]);
   await expect(page.getByRole("heading", { name: data.titles[22], exact: true })).toHaveCount(0);
@@ -89,11 +89,11 @@ test("l’historique garde la dernière lecture sans doublon et affiche 20 artic
   const previousRead = await sqlOne<{ readAt: Date }>(`SELECT "readAt" FROM "ReadingHistory" WHERE "readerId"=$1 AND "articleId"=$2`, [data.readerId, data.ids[0]]);
   await page.request.get(`/article/${data.slugs[0]}`, { headers: { "next-router-prefetch": "1", purpose: "prefetch" } });
   expect((await sqlOne<{ readAt: Date }>(`SELECT "readAt" FROM "ReadingHistory" WHERE "readerId"=$1 AND "articleId"=$2`, [data.readerId, data.ids[0]]))?.readAt.getTime()).toBe(previousRead?.readAt.getTime());
-  await page.goto(`/article/${data.slugs[0]}`);
+  await page.goto(`/article/${data.slugs[0]}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: data.titles[0], exact: true })).toBeVisible();
   await expect.poll(async () => (await sqlOne<{ recent: boolean }>(`SELECT "readAt">NOW()-INTERVAL '1 minute' AS recent FROM "ReadingHistory" WHERE "readerId"=$1 AND "articleId"=$2`, [data.readerId, data.ids[0]]))?.recent).toBe(true);
   await page.reload();
-  await page.goto("/mon-compte/historique");
+  await page.goto("/mon-compte/historique", { waitUntil: "domcontentloaded" });
   await expect(page.locator("main article")).toHaveCount(20);
   await expect(page.locator("main article h2").first()).toHaveText(data.titles[0]);
   expect((await sqlOne<{ count: string }>(`SELECT COUNT(*)::text AS count FROM "ReadingHistory" WHERE "readerId"=$1 AND "articleId"=$2`, [data.readerId, data.ids[0]]))?.count).toBe("1");
@@ -103,11 +103,11 @@ test("les favoris masquent les articles dépubliés et un signet ne déverrouill
   await sql(`UPDATE "Article" SET "isPremium"=true WHERE id=$1`, [data.ids[0]]);
   await sql(`INSERT INTO "Bookmark" (id,"readerId","articleId") VALUES ($1,$2,$3),($4,$2,$5)`, [e2eId("bookmark"), data.readerId, data.ids[22], e2eId("bookmark"), data.ids[23]]);
   await signIn(page);
-  await page.goto(`/article/${data.slugs[0]}`);
+  await page.goto(`/article/${data.slugs[0]}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("FIN_PREMIUM_CONFIDENTIELLE", { exact: false })).toHaveCount(0);
   await page.getByRole("button", { name: "Sauvegarder l’article", exact: true }).first().click();
   await expect(page.getByRole("button", { name: "Retirer des favoris", exact: true }).first()).toHaveAttribute("aria-pressed", "true");
-  await page.goto("/mon-compte/favoris");
+  await page.goto("/mon-compte/favoris", { waitUntil: "domcontentloaded" });
   await expect(page.locator("main article")).toHaveCount(1);
   await expect(page.getByRole("heading", { name: data.titles[0], exact: true })).toBeVisible();
   await expect(page.getByText("FIN_PREMIUM_CONFIDENTIELLE", { exact: false })).toHaveCount(0);
@@ -115,10 +115,10 @@ test("les favoris masquent les articles dépubliés et un signet ne déverrouill
 
 test("les pages de lecture sont privées et un visiteur n’a pas de signet actif", async ({ page }) => {
   for (const path of ["/mon-compte/favoris", "/mon-compte/historique"]) {
-    await page.goto(path);
+    await page.goto(path, { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/login/);
   }
-  await page.goto(`/article/${data.slugs[0]}`);
+  await page.goto(`/article/${data.slugs[0]}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: data.titles[0], exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sauvegarder l’article", exact: true })).toHaveCount(0);
   expect((await sqlOne<{ count: string }>(`SELECT COUNT(*)::text AS count FROM "ReadingHistory" WHERE "articleId"=$1`, [data.ids[0]]))?.count).toBe("0");
