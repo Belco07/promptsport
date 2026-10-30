@@ -124,7 +124,7 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
   test.setTimeout(360000);
   const adminId = `${id}-admin`; const uploads: string[] = [];
   await sql('INSERT INTO "Author" (id,name,email,"passwordHash",role,"createdAt") VALUES ($1,$1,$2,$3,\'ADMIN\',NOW())', [adminId, `${adminId}@example.test`, await bcrypt.hash(password, 10)]);
-  const journalistContext = await browser.newContext();
+  const journalistContext = await browser.newContext({ serviceWorkers: "block" });
   await stubBrowserBlob(journalistContext);
   try {
     await login(page, { email: `${adminId}@example.test`, password, name: adminId });
@@ -139,6 +139,7 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     await page.getByLabel("Version du logo", { exact: true }).selectOption("white");
     await page.getByRole("button", { name: "Appliquer le logo PromptSport", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Logo PromptSport blanc appliqué");
+    await expect(page.getByLabel("Importer un logo personnalisé", { exact: true })).toBeEnabled();
     await page.getByLabel("Importer un logo personnalisé", { exact: true }).setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8l8AAAAASUVORK5CYII=", "base64") });
     await expect(page.getByRole("status")).toContainText("Logo personnalisé appliqué");
     await page.getByLabel("Nom du template", { exact: true }).fill(id);

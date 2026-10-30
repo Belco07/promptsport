@@ -65,7 +65,7 @@ test("la diffusion reste invisible pour un brouillon et inaccessible sans sessio
   await page.goto(`/studio/articles/${prefix}/edit?tab=diffusion`);
   await expect(page.getByRole("link", { name: "Diffusion", exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Diffusion sociale" })).toHaveCount(0);
-  const anonymous = await browser.newContext();
+  const anonymous = await browser.newContext({ serviceWorkers: "block" });
   try {
     const visitor = await anonymous.newPage();
     await visitor.goto(`/studio/articles/${prefix}/edit?tab=diffusion`);

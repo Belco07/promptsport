@@ -56,6 +56,8 @@ export default defineConfig({
   use: {
     baseURL: baseURL.origin,
     headless: true,
+    // Les tests réseau simulés ne doivent pas être contournés par un SW.
+    serviceWorkers: "block",
     locale: "fr-FR",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
