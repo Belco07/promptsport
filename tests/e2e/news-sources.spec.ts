@@ -33,9 +33,12 @@ test.beforeEach(async ({ page }) => {
      VALUES ($1,$2,'OFFICIAL_SITE',$3,true,true,NOW(),NOW())`,
     [`${prefix}-source`, prefix, `https://example.test/${prefix}`],
   );
+  // Date légèrement future : la veille est paginée par 50 et triée par date
+  // décroissante. Cela garantit que l'alerte reste sur la première page, même
+  // si la base locale contient encore des alertes d'une campagne précédente.
   await sql(
     `INSERT INTO "NewsAlert" (id,"sourceId",title,url,content,"publishedAt","createdAt","updatedAt")
-     VALUES ($1,$2,$3,$4,'Une actualité officielle.',NOW(),NOW(),NOW())`,
+     VALUES ($1,$2,$3,$4,'Une actualité officielle.',NOW() + interval '1 minute',NOW(),NOW())`,
     [`${prefix}-alert`, `${prefix}-source`, prefix, `https://example.test/${prefix}/article`],
   );
   await sql(
@@ -66,7 +69,7 @@ test.afterAll(closeDb);
 
 test("affiche le badge Officiel dans la veille et dans les sources", async ({ page }) => {
   await page.goto("/backoffice/veille");
-  const alertRow = page.getByRole("listitem").filter({ hasText: prefix }).first();
+  const alertRow = page.locator("[data-alert-id]").filter({ hasText: prefix }).first();
   await expect(alertRow).toBeVisible();
   await expect(alertRow.getByText("Officiel", { exact: true })).toBeVisible();
   await expect(alertRow.getByText("Site officiel", { exact: true })).toBeVisible();

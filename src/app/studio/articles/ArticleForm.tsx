@@ -63,6 +63,11 @@ type ArticleFormProps = {
    * enregistrement de brouillon ne retire pas le paywall par accident.
    */
   canSetPremium?: boolean;
+  /**
+   * Article issu de la veille : la publication sans visuel est possible après
+   * confirmation explicite (WP49), notamment pour les 5 🔥 sans photo source.
+   */
+  isVeille?: boolean;
 };
 
 const inputClass =
@@ -119,6 +124,7 @@ export function ArticleForm({
   submitLabel,
   allowedStatuses = [...ARTICLE_STATUSES],
   canSetPremium = false,
+  isVeille = false,
 }: ArticleFormProps) {
   const [errorMessage, formAction, isPending] = useActionState(action, undefined);
   const initial = { ...EMPTY, ...defaultValues };
@@ -129,6 +135,7 @@ export function ArticleForm({
   const [manualExcerpt, setManualExcerpt] = useState(Boolean(initial.excerpt.trim()));
   const displayedExcerpt = manualExcerpt ? excerpt : summarizeContent(content);
   const [format, setFormat] = useState<ArticleFormat>(initial.format);
+  const [status, setStatus] = useState<ArticleStatus>(initial.status);
   const [slug, setSlug] = useState(initial.slug);
   const [slugEdited, setSlugEdited] = useState(initial.slug.length > 0);
   const [coverImageUrl, setCoverImageUrl] = useState(initial.coverImageUrl);
@@ -304,7 +311,8 @@ export function ArticleForm({
         <select
           id="status"
           name="status"
-          defaultValue={initial.status}
+          value={status}
+          onChange={(event) => setStatus(event.target.value as ArticleStatus)}
           className={inputClass}
         >
           {allowedStatuses.map((status) => (
@@ -322,6 +330,25 @@ export function ArticleForm({
             : ""}
         </p>
       </div>
+
+      {isVeille && !coverImageUrl && allowedStatuses.includes("PUBLISHED") ? (
+        <div className="rounded-md border border-status-warning-border bg-status-warning p-4">
+          <label htmlFor="confirmPublishWithoutCover" className="flex items-start gap-2 text-sm font-medium text-status-warning-foreground">
+            <input
+              id="confirmPublishWithoutCover"
+              name="confirmPublishWithoutCover"
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded border-border"
+            />
+            Publier sans visuel (brouillon de veille)
+          </label>
+          <p className="mt-1 pl-6 text-xs text-status-warning-foreground">
+            Exception réservée aux articles issus de la veille, notamment les 5 🔥
+            générés sans photo source exploitable. Sans cette confirmation, la
+            publication est refusée.
+          </p>
+        </div>
+      ) : null}
 
       {canSetPremium ? (
         <div className="rounded-md border border-border bg-muted p-4">

@@ -71,7 +71,7 @@ export default async function VeillePage({
         orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
         skip,
         take: PAGE_SIZE,
-        include: { source: { select: { name: true, type: true, isOfficial: true } } },
+        include: { source: { select: { name: true, type: true, isOfficial: true, imagePolicy: true } } },
       }),
       prisma.newsAlert.count({ where: { status: "PENDING" } }),
       prisma.newsAlert.count({ where: { status: "DRAFT_GENERATED" } }),

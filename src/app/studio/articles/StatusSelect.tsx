@@ -18,10 +18,16 @@ export function StatusSelect({
   articleId,
   currentStatus,
   allowedStatuses,
+  hasCover = true,
+  isVeille = false,
 }: {
   articleId: string;
   currentStatus: ArticleStatus;
   allowedStatuses: ArticleStatus[];
+  /** L'article possède une couverture ; sinon la publication demande confirmation. */
+  hasCover?: boolean;
+  /** L'article provient de la veille : exception de publication sans visuel. */
+  isVeille?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -32,12 +38,28 @@ export function StatusSelect({
         disabled={isPending}
         aria-label="Statut de l'article"
         onChange={(event) => {
-          const newStatus = event.target.value as ArticleStatus;
+          const select = event.currentTarget;
+          const newStatus = select.value as ArticleStatus;
           if (newStatus === currentStatus) {
             return;
           }
+          let confirmWithoutCover = false;
+          if (newStatus === "PUBLISHED" && !hasCover) {
+            if (!isVeille) {
+              window.alert("Ajoutez une photo de couverture avant de publier cet article.");
+              select.value = currentStatus;
+              return;
+            }
+            if (!window.confirm("Ce brouillon de veille n'a aucun visuel. Publier quand même sans couverture ?")) {
+              // Le select est contrôlé par `currentStatus` : sans re-rendu, il
+              // resterait affiché sur « Publié » alors que rien n'a changé.
+              select.value = currentStatus;
+              return;
+            }
+            confirmWithoutCover = true;
+          }
           startTransition(async () => {
-            await updateArticleStatus(articleId, newStatus);
+            await updateArticleStatus(articleId, newStatus, { confirmWithoutCover });
           });
         }}
         className="rounded-md border border-border bg-card px-2 py-1 text-sm text-foreground outline-none focus:border-editorial-link focus:ring-1 focus:ring-blue-600 disabled:opacity-60"

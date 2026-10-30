@@ -26,6 +26,8 @@ test("veille : score, absence de score, catégorie et sélection sur mobile", as
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
   await page.goto("/backoffice/veille");
+  await page.locator('[data-veille-ready="true"]').waitFor({ state: "attached", timeout: 120_000 });
+  await page.getByRole("button", { name: "Timeline" }).click();
   const rated = page.locator(`[data-alert-id="${prefix}-rated"]`);
   await expect(rated.getByLabel("Viralité 5 sur 5")).toContainText("🔥🔥🔥🔥🔥");
   await expect(page.locator(`[data-alert-id="${prefix}-unrated"]`).getByLabel("Viralité non évaluée")).toContainText("Non évaluée");
