@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+
+test.use({ serviceWorkers: "allow" });
 import { createECDH, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { sql, closeDb, e2eId } from "../fixtures/db";
