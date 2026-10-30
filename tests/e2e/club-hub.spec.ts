@@ -45,6 +45,8 @@ test.describe("Hub club : club préféré et vote", () => {
   test("un lecteur vote avec les radios et voit le pourcentage", async ({ page }) => {
     await login(page, TEST_READER);
     await page.goto(`/match/${matchId}`);
+    // Le vote doit actualiser ses résultats même si le rafraîchissement global échoue.
+    await page.route(`**/match/${matchId}?_rsc=*`, route => route.abort());
     await page.getByRole("radio", { name: new RegExp(playerName) }).check();
     await clickActionButton(page, "Voter");
     await expect(page.getByText("Votre vote est enregistré.", { exact: true })).toBeVisible();

@@ -57,6 +57,8 @@ export function ReaderJourney({ children }: { children: ReactNode }) {
   const [steps, setSteps] = useState<JourneyStep[]>([]);
   const currentSteps = useRef<JourneyStep[] | null>(null);
   const save = useCallback((updated: JourneyStep[]) => {
+    const previous = currentSteps.current;
+    if (previous && previous.length === updated.length && previous.every((step, index) => step.href === updated[index].href && step.label === updated[index].label)) return;
     currentSteps.current = updated;
     try { sessionStorage.setItem(storageKey, JSON.stringify({ updatedAt: Date.now(), steps: updated })); } catch { /* Navigation also works with storage disabled. */ }
     setSteps(updated);
