@@ -110,7 +110,7 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
     await expect(
       page.getByRole("status").filter({ hasText: /Intervention publiée en direct/ }),
     ).toBeVisible();
-    await expect(page.getByText(editorialContent)).toBeVisible();
+    await expect(page.getByText(editorialContent, { exact: true })).toBeVisible();
     await expect(page.getByText("23′")).toBeVisible();
     await expect(page.getByText("Par Éditeur E2E")).toBeVisible();
 
@@ -130,9 +130,9 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
       [matchId],
     );
     await page.goto(`/match/${matchId}`);
-    await expect(page.getByText("Épinglé")).toBeVisible();
+    await expect(page.getByRole("main").getByText("Épinglé", { exact: true })).toBeVisible();
     await expect(
-      page.getByText(editorialContent),
+      page.getByRole("main").getByText(editorialContent, { exact: true }),
     ).toBeVisible();
   });
 

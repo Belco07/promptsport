@@ -34,7 +34,7 @@ test("veille : score, absence de score, catégorie et sélection sur mobile", as
   await expect(rated.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
   await expect(rated.getByText(prefix, { exact: true }).first()).toBeVisible();
   await rated.getByRole("checkbox").check();
-  await expect(page.getByRole("button", { name: "Générer les alertes 5 🔥 sélectionnées" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Générer les alertes sélectionnées" })).toBeVisible();
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   await expectNoBlockingA11yViolations(page, "Veille timeline sombre");
   await page.screenshot({ path: test.info().outputPath("veille-mobile.png"), fullPage: false });

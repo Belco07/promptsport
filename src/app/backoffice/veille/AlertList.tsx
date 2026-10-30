@@ -75,8 +75,8 @@ type VeilleView = "table" | "timeline";
  *
  * Deux lectures des mêmes alertes : un tableau dense avec toutes les colonnes
  * de décision, et la timeline historique conservée à l'identique. La génération
- * IA reste réservée aux alertes 5 🔥 ; les règles de génération et de
- * publication automatique restent inchangées côté serveur.
+ * IA est disponible pour toute alerte en attente ; les règles de
+ * publication automatique restent réservées aux 5 🔥 côté serveur.
  */
 export function AlertList({ alerts, aiReady, aiQuotaRemaining }: { alerts: Alert[]; aiReady: boolean; aiQuotaRemaining: number }) {
   const router = useRouter();
@@ -101,7 +101,6 @@ export function AlertList({ alerts, aiReady, aiQuotaRemaining }: { alerts: Alert
   }, []);
   const pending = alerts.filter(alert => alert.status === "PENDING" && !completed.includes(alert.id));
   const selectedPending = selected.filter(id => pending.some(alert => alert.id === id));
-  const selectedViral = selectedPending.filter(id => pending.some(alert => alert.id === id && alert.viralScore === 5));
   const generationDisabled = busy || !aiReady || aiQuotaRemaining <= 0;
   function toggle(id: string) { setSelected(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]); }
   function changeView(next: VeilleView) {
@@ -163,7 +162,7 @@ export function AlertList({ alerts, aiReady, aiQuotaRemaining }: { alerts: Alert
     const done = completed.includes(alert.id);
     if (alert.status === "PENDING") {
       return <>
-        {alert.viralScore !== 5 ? <span className="text-xs text-muted-foreground">IA : score 5 requis</span> : <button type="button" disabled={generationDisabled || done} title={!aiReady ? "DEEPSEEK_API_KEY manquante" : aiQuotaRemaining <= 0 ? "Quota IA atteint pour aujourd'hui" : "Générer un article à partir de cette alerte"} onClick={() => run([alert.id], "generate")} className="min-h-9 rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50">Générer avec l’IA</button>}
+        <button type="button" disabled={generationDisabled || done} title={!aiReady ? "DEEPSEEK_API_KEY manquante" : aiQuotaRemaining <= 0 ? "Quota IA atteint pour aujourd'hui" : "Générer un article à partir de cette alerte"} onClick={() => run([alert.id], "generate")} className="min-h-9 rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50">Générer avec l’IA</button>
         <button type="button" disabled={busy || done} onClick={() => run([alert.id], "ignore")} className="min-h-9 rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50">Ignorer et supprimer</button>
       </>;
     }
@@ -204,7 +203,7 @@ export function AlertList({ alerts, aiReady, aiQuotaRemaining }: { alerts: Alert
     {errors.length > 0 && <div role="alert" className="mb-3 text-status-error-foreground"><p>Certains traitements ont échoué :</p><ul>{errors.map((error, index) => <li key={index}>{error}</li>)}</ul></div>}
     {selected.length > 0 && <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-4">
       <span>{selected.length} alerte(s) sélectionnée(s)</span>
-      <button type="button" disabled={generationDisabled || selectedViral.length === 0} title={selectedPending.length === 0 ? "Sélectionnez au moins une alerte en attente" : aiQuotaRemaining <= 0 ? "Quota IA atteint pour aujourd'hui" : undefined} onClick={() => run(selectedViral, "generate")} className="rounded border border-border px-3 py-2 disabled:opacity-50">Générer les alertes 5 🔥 sélectionnées</button>
+      <button type="button" disabled={generationDisabled || selectedPending.length === 0} title={selectedPending.length === 0 ? "Sélectionnez au moins une alerte en attente" : aiQuotaRemaining <= 0 ? "Quota IA atteint pour aujourd'hui" : undefined} onClick={() => run(selectedPending, "generate")} className="rounded border border-border px-3 py-2 disabled:opacity-50">Générer les alertes sélectionnées</button>
       <button type="button" disabled={busy} onClick={markSelectedViral} className="rounded border border-border px-3 py-2 disabled:opacity-50">Marquer 5 🔥</button>
       <button type="button" disabled={busy} onClick={() => run(selected, "ignore")} className="rounded border border-border px-3 py-2 disabled:opacity-50">Ignorer les alertes sélectionnées</button>
     </div>}

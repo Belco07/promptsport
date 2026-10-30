@@ -80,7 +80,7 @@ test("génération sans redirection, catégorie et thème liés, puis traitement
   expect(await sqlOne(`SELECT * FROM "_ArticleToTheme" WHERE "A"=$1 AND "B"=$2`, [article!.id, prefix])).toBeTruthy();
   await page.getByLabel(`Sélectionner ${prefix}-two`, { exact: true }).check();
   await page.getByLabel(`Sélectionner ${prefix}-bad`, { exact: true }).check();
-  await page.getByRole("button", { name: "Générer les alertes 5 🔥 sélectionnées" }).click();
+  await page.getByRole("button", { name: "Générer les alertes sélectionnées" }).click();
   await expect(page.getByRole("status")).toHaveText("1 brouillon(s) généré(s).");
   await expect(page.getByRole("alert").filter({ hasText: "Certains traitements" })).toContainText("Certains traitements ont échoué");
   expect((await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "Article" WHERE "authorId"=$1`, [prefix]))?.count).toBe(2);
@@ -143,15 +143,20 @@ test("conserve le brouillon si la source auto-publiable n’a pas de photo autor
   expect(article?.coverImageUrl).toBeNull();
 });
 
-test("réserve la génération IA aux alertes 5", async ({ page }) => {
-  await sql(`UPDATE "NewsAlert" SET "viralScore"=4 WHERE id=$1`, [`${prefix}-one`]);
-  await page.reload();
-  await waitForVeilleHydration(page);
-  const card = page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` });
-  await expect(card.getByText("IA : score 5 requis")).toBeVisible();
-  await expect(card.getByRole("button", { name: "Générer avec l’IA" })).toHaveCount(0);
-  await page.getByLabel(`Sélectionner ${prefix}-one`, { exact: true }).check();
-  await expect(page.getByRole("button", { name: "Générer les alertes 5 🔥 sélectionnées" })).toBeDisabled();
+test("génère toute alerte en attente, sans publier automatiquement sous 5", async ({ page }) => {
+  test.skip(process.env.E2E_DISTRIBUTION_STUB !== "1", "Fournisseur IA local requis.");
+  const origin = new URL(page.url()).origin;
+  await sql(`UPDATE "NewsSource" SET "autoPublish"=true, reliability=95, "imagePolicy"='LICENSED' WHERE id=$1`, [prefix]);
+  await sql(`UPDATE "NewsAlert" SET "viralScore"=4, "imageUrl"=$2 WHERE id=$1`, [`${prefix}-one`, `${origin}/promptsport-og.png`]);
+  await sql(`UPDATE "NewsAlert" SET "viralScore"=NULL, "imageUrl"=$2 WHERE id=$1`, [`${prefix}-two`, `${origin}/promptsport-og.png`]);
+  await page.reload(); await waitForVeilleHydration(page);
+  await page.locator("[data-alert-id]").filter({ hasText: `${prefix}-one` }).getByRole("button", { name: "Générer avec l’IA" }).click();
+  await expect(page.getByRole("status")).toHaveText("1 brouillon(s) généré(s).");
+  await page.getByLabel(`Sélectionner ${prefix}-two`, { exact: true }).check();
+  await page.getByRole("button", { name: "Générer les alertes sélectionnées" }).click();
+  await expect.poll(async () => (await sql(`SELECT id FROM "Article" WHERE "authorId"=$1`, [prefix])).length).toBe(2);
+  const articles = await sql<{status:string;coverImageUrl:string}>(`SELECT status,"coverImageUrl" FROM "Article" WHERE "authorId"=$1`, [prefix]);
+  expect(articles.every(article => article.status === "DRAFT" && !!article.coverImageUrl)).toBe(true);
 });
 
 test("nettoie toutes les alertes non virales en un clic", async ({ page }) => {

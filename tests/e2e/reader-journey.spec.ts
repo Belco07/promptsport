@@ -21,7 +21,7 @@ test.describe("Parcours réel du lecteur", () => {
   test("Mon Sport reste accessible après Scores puis un match, avec les filtres et le retour arrière", async ({ page }) => {
     await login(page, TEST_READER);
     await page.goto("/mon-sport");
-    const trail = page.locator("nav[data-breadcrumb]");
+    const trail = page.locator("nav[data-breadcrumb]:visible");
     await expect(trail.locator("[aria-current=page]")).toHaveText("Mon Sport");
     await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem("promptsport:reader-journey:v1") ?? "{}").steps?.[0]?.href)).toBe("/mon-sport");
     await page.goto("/scores?view=finished&q=ParcoursHomeE2E");
@@ -51,7 +51,7 @@ test.describe("Parcours réel du lecteur", () => {
 
   test("une nouvelle session commence sur sa page réelle sans emprunter le parcours d’un autre lecteur", async ({ page }) => {
     await page.goto(`/match/${matchId}`);
-    const trail = page.locator("nav[data-breadcrumb]");
+    const trail = page.locator("nav[data-breadcrumb]:visible");
     await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem("promptsport:reader-journey:v1") ?? "{}").steps?.length)).toBe(1);
     await expect(trail.getByRole("link")).toHaveCount(0);
     await expect(trail.locator("[aria-current=page]")).toHaveText("ParcoursHomeE2E — ParcoursAwayE2E");

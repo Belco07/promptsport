@@ -1,3 +1,4 @@
+import { stubBrowserBlob } from "../fixtures/visual-blob-browser";
 import { expect, test } from "@playwright/test";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
@@ -30,6 +31,7 @@ const content = `Contenu E2E ${runId} : la rédaction valide la publication.`;
 let categoryId: string;
 
 test.describe("Publication d'un article (studio)", () => {
+  test.beforeEach(async ({ context }) => { await stubBrowserBlob(context); });
   test.beforeAll(async () => {
     categoryId = e2eId("cat");
     await sql(
