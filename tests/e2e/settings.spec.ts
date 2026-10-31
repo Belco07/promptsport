@@ -47,7 +47,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ status: 204 }),
   );
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
-  await page.goto("/backoffice/settings");
+  await page.goto("/backoffice/settings", { waitUntil: "domcontentloaded" });
 });
 
 test.afterEach(async () => {
@@ -90,15 +90,15 @@ test("enregistre les paramètres et actualise les métadonnées", async ({ page 
   );
   expect(saved).toEqual({ siteName, siteDescription, maintenanceMode: true });
 
-  await page.goto("/backoffice/veille");
+  await page.goto("/backoffice/veille", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveTitle(new RegExp(`Veille \\| ${escapedSiteName}`));
 
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveTitle(new RegExp(`^${escapedSiteName}`));
 
   // Restaure immédiatement pour ne pas laisser la configuration de test aux
   // autres specs exécutées dans le même serveur de développement.
-  await page.goto("/backoffice/settings");
+  await page.goto("/backoffice/settings", { waitUntil: "domcontentloaded" });
   await page.getByLabel("Nom du site").fill(original?.siteName ?? "PromptSport");
   await page
     .getByLabel("Description SEO")
@@ -113,7 +113,7 @@ test("enregistre les paramètres et actualise les métadonnées", async ({ page 
 
 test("la session reste accessible dans le menu du backoffice sur mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 640 });
-  await page.goto("/backoffice/settings");
+  await page.goto("/backoffice/settings", { waitUntil: "domcontentloaded" });
 
   await page.getByText("Menu du backoffice", { exact: true }).click();
 

@@ -3,7 +3,7 @@ import { sql } from "../fixtures/db";
 
 test.use({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
 test('BottomNav visible, navigation Scores et état actif',async({page,sports:s})=>{
-  await page.goto('/club/'+s.homeId);
+  await page.goto('/club/'+s.homeId, { waitUntil: "domcontentloaded" });
   const nav=page.getByRole('navigation',{name:'Navigation mobile',exact:true});
   await expect(nav).toBeVisible();
   await nav.getByRole('link',{name:'Scores',exact:true}).click();
@@ -12,7 +12,7 @@ test('BottomNav visible, navigation Scores et état actif',async({page,sports:s}
 });
 test('LiveDrawer ouvre les directs et un match rejoint sa fiche',async({page,sports:s})=>{
   await sql(`UPDATE "Match" SET status='LIVE' WHERE id=$1`,[s.matchId]);
-  await page.goto('/competition/'+s.competitionId+'?tab=live');
+  await page.goto('/competition/'+s.competitionId+'?tab=live', { waitUntil: "domcontentloaded" });
   const trigger=page.getByRole('button',{name:'Ouvrir les matchs en direct',exact:true});
   // A previous page can have cached an empty live list for 30 seconds.
   // Re-render after expiry rather than waiting on unchanged initial props.

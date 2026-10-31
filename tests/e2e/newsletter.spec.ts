@@ -28,7 +28,7 @@ test.describe("Inscription newsletter", () => {
   }) => {
     const email = e2eEmail("news");
 
-    await page.goto("/newsletter");
+    await page.goto("/newsletter", { waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", { name: /Recevez l'essentiel de l'actualité sportive/ }),
     ).toBeVisible();
@@ -53,7 +53,7 @@ test.describe("Inscription newsletter", () => {
   test("la page newsletter ne présente pas de violation bloquante", async ({
     page,
   }) => {
-    await page.goto("/newsletter");
+    await page.goto("/newsletter", { waitUntil: "domcontentloaded" });
     await expectNoBlockingA11yViolations(page, "/newsletter");
   });
 });
