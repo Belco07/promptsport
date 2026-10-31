@@ -32,7 +32,7 @@ test.beforeEach(async ({ page, context }, testInfo) => {
   await login(page, { email: `${id}@example.test`, password, name: id });
 });
 test.afterEach(async ({ page }) => {
-  await page.goto("about:blank");
+  await page.goto("about:blank", { waitUntil: "domcontentloaded" });
   await sql('DELETE FROM "PushSubscription" WHERE "readerId"=$1', [id]);
   await sql('DELETE FROM "Article" WHERE "authorId"=$1', [id]);
   await sql('DELETE FROM "NewsSource" WHERE id=$1', [id]);
@@ -43,7 +43,7 @@ test.afterAll(closeDb);
 
 test("push : opt-in explicite, enregistrement et désactivation sur l’appareil", async ({ page, request }) => {
   expect((await request.get("/api/push/subscriptions")).status()).toBe(401);
-  await page.goto("/mon-compte/preferences");
+  await page.goto("/mon-compte/preferences", { waitUntil: "domcontentloaded" });
   const button = page.getByRole("button", { name: "Recevoir les alertes sur mon téléphone", exact: true });
   await expect(button).toBeEnabled();
   expect(await page.evaluate(() => sessionStorage.getItem("wp48-permission-requests"))).toBeNull();
@@ -63,11 +63,11 @@ test("push : opt-in explicite, enregistrement et désactivation sur l’appareil
 
 test("Flash : publication, envoi chiffré local et affichage par le Service Worker", async ({ page, context }) => {
   test.setTimeout(120000);
-  await page.goto("/mon-compte/preferences");
+  await page.goto("/mon-compte/preferences", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Recevoir les alertes sur mon téléphone", exact: true }).click();
   await expect(page.getByRole("button", { name: "Désactiver les alertes sur cet appareil", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect((await sql<{ pushNotifiedAt: string | null }>('SELECT "pushNotifiedAt" FROM "Article" WHERE id=$1', [id]))[0].pushNotifiedAt).toBeNull();
-  await page.goto("/studio/articles");
+  await page.goto("/studio/articles", { waitUntil: "domcontentloaded" });
   const row = page.getByRole("row").filter({ hasText: id });
   await expect(row.getByText("FLASH", { exact: true })).toBeVisible();
   await row.getByLabel("Statut de l'article", { exact: true }).selectOption("PUBLISHED");
@@ -97,7 +97,7 @@ test("formats : charte Flash et News en veille, Analyse réservée au parcours d
   test.setTimeout(120000);
   await sql('INSERT INTO "NewsSource" (id,name,type,url,active,"createdAt","updatedAt") VALUES ($1,$1,\'RSS\',$2,false,NOW(),NOW())', [id, `https://example.test/${id}`]);
   for (const suffix of ["flash", "news", "analysis"]) await sql('INSERT INTO "NewsAlert" (id,"sourceId",title,url,content,"publishedAt","viralScore","createdAt","updatedAt") VALUES ($1,$2,$1,$3,\'Une actualité sportive confirmée.\',NOW(),5,NOW(),NOW())', [`${id}-${suffix}`, id, `https://example.test/${id}/${suffix}`]);
-  await page.goto("/backoffice/veille");
+  await page.goto("/backoffice/veille", { waitUntil: "domcontentloaded" });
   for (const suffix of ["flash", "news", "analysis"]) {
     await page.locator("[data-alert-id], li").filter({ hasText: `${id}-${suffix}` }).getByRole("button", { name: "Générer avec l’IA", exact: true }).click();
     await expect.poll(async () => (await sql('SELECT id FROM "Article" WHERE "authorId"=$1 AND title=$2', [id, `${id}-${suffix}`])).length).toBe(1);
@@ -107,7 +107,7 @@ test("formats : charte Flash et News en veille, Analyse réservée au parcours d
   expect(articles.every(item => item.status === "DRAFT" && item.pushNotifiedAt === null)).toBe(true);
   // L'analyse est une fixture du parcours dédié, jamais un résultat de veille.
   await sql('UPDATE "Article" SET format=\'ANALYSIS\' WHERE "authorId"=$1 AND title=$2', [id, `${id}-analysis`]);
-  await page.goto("/studio/articles");
+  await page.goto("/studio/articles", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("row").filter({hasText:`${id}-analysis`}).getByText("ANALYSE",{exact:true})).toBeVisible();
   expect((await page.request.get("/api/cron/auto-analysis?token=invalid")).status()).toBe(401);
   const manifest = await (await page.request.get("/manifest.webmanifest")).json(); expect(manifest.display).toBe("standalone");
