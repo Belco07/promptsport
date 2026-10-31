@@ -17,7 +17,7 @@ test('PWA : manifeste, lecture sauvegardée hors ligne et retour réseau',async(
   // Some devices keep onLine=true when the uplink fails. The saved document
   // must still identify itself as offline without relying on that heuristic.
   await page.addInitScript(()=>Object.defineProperty(Navigator.prototype,'onLine',{get:()=>true}));
-  await page.goto('/article/'+id);
+  await page.goto('/article/'+id, { waitUntil: "domcontentloaded" });
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href','/manifest.json');
   await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content','yes');
   const manifest=await (await page.request.get('/manifest.json')).json();expect(manifest.icons).toHaveLength(3);
@@ -32,7 +32,7 @@ test('PWA : manifeste, lecture sauvegardée hors ligne et retour réseau',async(
 
 test('PWA : indicateur standalone et navigation fixée sans débordement',async({page})=>{
   await page.addInitScript(()=>{const native=window.matchMedia.bind(window);window.matchMedia=query=>{const media=native(query);if(query==='(display-mode: standalone)')Object.defineProperty(media,'matches',{value:true});return media;};});
-  await page.goto('/article/'+id);
+  await page.goto('/article/'+id, { waitUntil: "domcontentloaded" });
   const nav=page.getByRole('navigation',{name:'Navigation mobile',exact:true});await expect(nav).toHaveAttribute('data-standalone','true');
   await expect(nav.getByText('Application PromptSport')).toBeVisible();
   const rect=await nav.boundingBox();expect(rect).not.toBeNull();expect(Math.round(rect!.y+rect!.height)).toBe(844);
@@ -43,7 +43,7 @@ test('PWA : indicateur standalone et navigation fixée sans débordement',async(
 test('PWA : un article premium ne sauvegarde que son aperçu public',async({page,context})=>{
   const secret='CONTENU_PREMIUM_NON_SAUVEGARDE_'+id;
   await sql('UPDATE "Article" SET "isPremium"=true, content=$2 WHERE id=$1',[id,secret]);
-  await page.goto('/article/'+id);
+  await page.goto('/article/'+id, { waitUntil: "domcontentloaded" });
   await expect.poll(()=>page.evaluate(async()=>Boolean(await (await caches.open('promptsport-pages-v1')).match(location.origin+location.pathname))),{timeout:60000}).toBe(true);
   const saved=await page.evaluate(async()=>{const response=await (await caches.open('promptsport-pages-v1')).match(location.origin+location.pathname);return response?.text();});
   expect(saved).not.toContain(secret);

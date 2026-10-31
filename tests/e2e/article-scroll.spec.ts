@@ -11,7 +11,7 @@ test("article : revenir en haut après un lien connexe, restaurer la position au
   for (const suffix of ["a", "b"]) await sql('INSERT INTO "Article" (id,title,slug,content,excerpt,status,"publishedAt","authorId","categoryId","createdAt","updatedAt") VALUES ($1,$1,$1,$2,\'Un article connexe.\',\'PUBLISHED\',NOW()-INTERVAL \'1 hour\',$3,$3,NOW(),NOW())', [`${id}-${suffix}`, "Un paragraphe sportif pour lire et faire défiler la page.\n\n".repeat(90), id]);
   await page.route("**/api/analytics/track", route => route.fulfill({ status: 204 }));
   try {
-    await page.goto(`/article/${id}-a`);
+    await page.goto(`/article/${id}-a`, { waitUntil: "domcontentloaded" });
     const related = page.locator(`a[href="/article/${id}-b"]`).first();
     await related.scrollIntoViewIfNeeded();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(500);
@@ -22,7 +22,7 @@ test("article : revenir en haut après un lien connexe, restaurer la position au
     await expect(page).toHaveURL(new RegExp(`/article/${id}-a$`));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(500);
   } finally {
-    await page.goto("about:blank");
+    await page.goto("about:blank", { waitUntil: "domcontentloaded" });
     await sql('DELETE FROM "Article" WHERE "authorId"=$1', [id]);
     await sql('DELETE FROM "Category" WHERE id=$1', [id]);
     await sql('DELETE FROM "Author" WHERE id=$1', [id]);

@@ -86,7 +86,7 @@ test.describe("Publication d'un article (studio)", () => {
       page.getByRole("heading", { name: /Bienvenue dans la rédaction/ }),
     ).toBeVisible({ timeout: 90_000 });
 
-    await page.goto("/studio/articles/new");
+    await page.goto("/studio/articles/new", { waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", { name: "Nouvel article" }),
     ).toBeVisible();
@@ -141,7 +141,7 @@ test.describe("Publication d'un article (studio)", () => {
     await expect(
       page.getByRole("heading", { name: /Bienvenue dans la rédaction/ }),
     ).toBeVisible({ timeout: 90_000 });
-    await page.goto("/studio/articles/new");
+    await page.goto("/studio/articles/new", { waitUntil: "domcontentloaded" });
 
     await page.getByLabel("Titre").fill(`Article sans photo ${runId}`);
     await page.locator('select[name="categoryId"]').selectOption(categoryId);
@@ -167,7 +167,7 @@ test.describe("Publication d'un article (studio)", () => {
     page,
   }) => {
     await login(page, TEST_EDITOR);
-    await page.goto("/studio/articles/new");
+    await page.goto("/studio/articles/new", { waitUntil: "domcontentloaded" });
     // Laisse l'éditeur riche (monté côté client) s'installer avant l'analyse.
     await page.locator(".rich-text-editor-content").first().waitFor({ state: "visible" });
     await expectNoBlockingA11yViolations(page, "/studio/articles/new");

@@ -44,7 +44,7 @@ test.afterAll(closeDb);
 
 test("rédaction : couverture de 5 Mo envoyée directement vers Blob", async ({ page }) => {
   test.skip(process.env.E2E_VISUAL_BLOB_STUB !== "1", "Stockage externe simulé requis.");
-  await page.goto(`/studio/articles/${id}/edit`);
+  await page.goto(`/studio/articles/${id}/edit`, { waitUntil: "domcontentloaded" });
   const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8l8AAAAASUVORK5CYII=", "base64");
   const image = Buffer.alloc(5 * 1024 * 1024);
   pixel.copy(image);
@@ -60,7 +60,7 @@ test("rédaction : couverture de 5 Mo envoyée directement vers Blob", async ({ 
 });
 
 test("Visual Studio : texte, formes et export PNG aux dimensions natives", async ({ page }) => {
-  await page.goto("/studio/composer");
+  await page.goto("/studio/composer", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Compositeur de fonds", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Enregistrer le fond", exact: true })).toBeEnabled();
   const photo = await page.evaluate(() => {

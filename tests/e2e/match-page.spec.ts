@@ -86,7 +86,7 @@ test.describe("Fiche match (scores + timeline)", () => {
     page,
   }) => {
     // 1. Liste des résultats : la rencontre est visible avec son score.
-    await page.goto("/scores?view=finished");
+    await page.goto("/scores?view=finished", { waitUntil: "domcontentloaded" });
     const resultLink = page.getByRole("link", {
       name: new RegExp(`Fiche du match ${homeName} contre ${awayName} : 2 à 1`),
     });
@@ -110,7 +110,7 @@ test.describe("Fiche match (scores + timeline)", () => {
   });
 
   test("la fiche match ne présente pas de violation bloquante", async ({ page }) => {
-    await page.goto(`/match/${matchId}`);
+    await page.goto(`/match/${matchId}`, { waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", { level: 1, name: `${homeName} contre ${awayName}` }),
     ).toBeVisible();
