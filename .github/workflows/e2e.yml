@@ -70,8 +70,11 @@ jobs:
       - name: Installer Chromium (Playwright)
         run: npx playwright install --with-deps chromium
 
-      - name: Lancer les tests E2E
-        run: npx playwright test
+      - name: Compiler la version de production
+        run: npm run build
+
+      - name: Lancer les tests E2E isolés en production
+        run: npm run test:e2e:production
 
       - name: Publier le rapport HTML
         if: always()
