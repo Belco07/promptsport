@@ -99,7 +99,7 @@ test("formats : charte Flash et News en veille, Analyse réservée au parcours d
   for (const suffix of ["flash", "news", "analysis"]) await sql('INSERT INTO "NewsAlert" (id,"sourceId",title,url,content,"publishedAt","viralScore","createdAt","updatedAt") VALUES ($1,$2,$1,$3,\'Une actualité sportive confirmée.\',NOW(),5,NOW(),NOW())', [`${id}-${suffix}`, id, `https://example.test/${id}/${suffix}`]);
   await page.goto("/backoffice/veille");
   for (const suffix of ["flash", "news", "analysis"]) {
-    await page.locator("[data-alert-id]").filter({ hasText: `${id}-${suffix}` }).getByRole("button", { name: "Générer avec l’IA", exact: true }).click();
+    await page.locator("[data-alert-id], li").filter({ hasText: `${id}-${suffix}` }).getByRole("button", { name: "Générer avec l’IA", exact: true }).click();
     await expect.poll(async () => (await sql('SELECT id FROM "Article" WHERE "authorId"=$1 AND title=$2', [id, `${id}-${suffix}`])).length).toBe(1);
   }
   const articles = await sql<{format:string;status:string;pushNotifiedAt:unknown}>('SELECT format,status,"pushNotifiedAt" FROM "Article" WHERE "newsSourceId"=$1', [id]);
