@@ -20,7 +20,7 @@ test.afterAll(closeDb);
 
 test("Compositeur : outils graphiques, mosaïque et stickers", async ({ page }) => {
   await login(page, { email: `${id}@example.test`, password, name: id });
-  await page.goto("/studio/composer");
+  await page.goto("/studio/composer", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Compositeur de fonds" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Enregistrer le fond", exact: true })).toBeEnabled({ timeout: 30000 });
   await page.getByRole("button", { name: /Images et détourage/ }).click();
@@ -34,7 +34,7 @@ test("Compositeur : outils graphiques, mosaïque et stickers", async ({ page }) 
 
 test("Templates : accès administrateur refusé au journaliste", async ({ page }) => {
   await login(page, { email: `${id}@example.test`, password, name: id });
-  await page.goto("/studio/templates");
+  await page.goto("/studio/templates", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/studio$/);
 });
 
@@ -43,7 +43,7 @@ test("Bibliothèque : trois templates indépendants et choix du journaliste", as
   await sql('UPDATE "Author" SET role=\'ADMIN\' WHERE id=$1', [id]);
   try {
     await login(page, { email: `${id}@example.test`, password, name: id });
-    await page.goto("/studio/templates?new=1");
+    await page.goto("/studio/templates?new=1", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: "Enregistrer le template", exact: true })).toBeEnabled();
     await page.getByLabel("Nom du template", { exact: true }).fill(`${id}-premier`);
     await page.getByRole("button", { name: "Enregistrer le template", exact: true }).click();
@@ -67,7 +67,7 @@ test("Bibliothèque : trois templates indépendants et choix du journaliste", as
     expect(records).toHaveLength(3);
     expect(records.find(item => item.id === first)?.name).toBe(`${id}-premier`);
     expect(new Set(records.map(item => item.id)).size).toBe(3);
-    await page.goto("/studio/visual-studio");
+    await page.goto("/studio/visual-studio", { waitUntil: "domcontentloaded" });
     const picker = page.getByLabel("Template du visuel", { exact: true });
     await picker.selectOption(second);
     await expect(page.getByRole("region", { name: "2. Appliquer le template" }).locator("legend").filter({ hasText: `${id}-premier — copie` })).toBeVisible();
@@ -79,7 +79,7 @@ test("Bibliothèque : trois templates indépendants et choix du journaliste", as
 test("Visual Studio mobile : pleine largeur, étapes et menu repliable", async ({ page }) => {
   await login(page, { email: `${id}@example.test`, password, name: id });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/studio/composer");
+  await page.goto("/studio/composer", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Enregistrer le fond", exact: true })).toBeEnabled();
   await expect(page.getByRole("region", { name: "1. Importer ou composer" })).toBeVisible();
   await expect(page.getByRole("region", { name: "2. Appliquer le template" })).toHaveCount(0);
@@ -106,7 +106,7 @@ test("template par défaut disponible sans configuration administrateur", async 
   try {
     await sql('DELETE FROM "VisualTemplate" WHERE id=\'active\'');
     await login(page, { email: `${id}@example.test`, password, name: id });
-    await page.goto("/studio/visual-studio");
+    await page.goto("/studio/visual-studio", { waitUntil: "domcontentloaded" });
     const application = page.getByRole("region", { name: "2. Appliquer le template" });
     await application.getByLabel("Template du visuel", { exact: true }).selectOption("builtin");
     await expect(application.getByLabel("Titre", { exact: true })).toBeEnabled();
@@ -124,11 +124,11 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
   test.setTimeout(360000);
   const adminId = `${id}-admin`; const uploads: string[] = [];
   await sql('INSERT INTO "Author" (id,name,email,"passwordHash",role,"createdAt") VALUES ($1,$1,$2,$3,\'ADMIN\',NOW())', [adminId, `${adminId}@example.test`, await bcrypt.hash(password, 10)]);
-  const journalistContext = await browser.newContext();
+  const journalistContext = await browser.newContext({ serviceWorkers: "block" });
   await stubBrowserBlob(journalistContext);
   try {
     await login(page, { email: `${adminId}@example.test`, password, name: adminId });
-    await page.goto("/studio/templates?new=1");
+    await page.goto("/studio/templates?new=1", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: "Créer une base éditoriale", exact: true })).toBeEnabled();
     page.once("dialog", dialog => void dialog.accept());
     await page.getByRole("button", { name: "Créer une base éditoriale", exact: true }).click();
@@ -139,6 +139,7 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     await page.getByLabel("Version du logo", { exact: true }).selectOption("white");
     await page.getByRole("button", { name: "Appliquer le logo PromptSport", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Logo PromptSport blanc appliqué");
+    await expect(page.getByLabel("Importer un logo personnalisé", { exact: true })).toBeEnabled();
     await page.getByLabel("Importer un logo personnalisé", { exact: true }).setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j8l8AAAAASUVORK5CYII=", "base64") });
     await expect(page.getByRole("status")).toContainText("Logo personnalisé appliqué");
     await page.getByLabel("Nom du template", { exact: true }).fill(id);
@@ -167,7 +168,7 @@ test("Template admin → fond composé → export journaliste", async ({ page, b
     await page.screenshot({ path: "tmp-results/visual-template-mobile.png", fullPage: true });
     const journalist = await journalistContext.newPage();
     await login(journalist, { email: `${id}@example.test`, password, name: id });
-    await journalist.goto("/studio/visual-studio");
+    await journalist.goto("/studio/visual-studio", { waitUntil: "domcontentloaded" });
     await journalist.getByLabel("Template du visuel", { exact: true }).selectOption(savedId);
     await expect(journalist.getByLabel("Titre", { exact: true })).toBeEnabled();
     await expect(journalist.getByRole("region", { name: "2. Appliquer le template" }).getByRole("button", { name: "Ajouter le texte", exact: true })).toHaveCount(0);

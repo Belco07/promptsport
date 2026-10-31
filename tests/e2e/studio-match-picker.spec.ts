@@ -9,7 +9,7 @@ test("rédaction : rechercher et associer un match avec suggestions", async ({ p
     await sql('INSERT INTO "Category" (id,name,slug,"createdAt") VALUES ($1,$1,$1,NOW())', [id]);
     await sql('INSERT INTO "Article" (id,title,slug,content,excerpt,status,"authorId","categoryId","createdAt","updatedAt") SELECT $1,$2,$1,\'Texte\',\'Extrait\',\'DRAFT\',id,$1,NOW(),NOW() FROM "Author" WHERE email=$3', [id, sports.homeName, sports.user.email]);
     await login(page, sports.user);
-    await page.goto(`/studio/articles/${id}/edit`);
+    await page.goto(`/studio/articles/${id}/edit`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Choisir un match", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Match associé" });
     await dialog.getByRole("searchbox").fill(sports.homeName);

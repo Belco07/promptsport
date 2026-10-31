@@ -41,7 +41,9 @@ const ai = http.createServer((req, res) => {
       const category = taxonomy('Catégories disponibles').find(item => title.startsWith(item.slug));
       const theme = taxonomy('Thèmes disponibles').find(item => title.startsWith(item.slug));
       if (!social && title.endsWith('-bad')) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({choices:[{message:{content:'invalid json'}}]})); return; }
-      const content = social ? '⚽ Le sport nous rassemble ! Découvrez notre analyse. #Sport #PromptSport' : JSON.stringify({ title, categorySlug: category?.slug ?? null, themeSlug: theme?.slug ?? null, excerpt: 'Un résumé factuel.', content: 'Un article de test factuel. '.repeat(35) });
+      const analysis = request.messages[0].content.includes('analyste sportif');
+      const format = analysis || title.endsWith('-analysis') ? 'ANALYSIS' : title.endsWith('-flash') ? 'FLASH' : 'NEWS';
+      const content = social ? '⚽ Le sport nous rassemble ! Découvrez notre analyse. #Sport #PromptSport' : JSON.stringify({ title, format, categorySlug: category?.slug ?? null, themeSlug: theme?.slug ?? null, excerpt: 'Un résumé factuel.', content: 'Un article de test factuel. '.repeat(analysis ? 160 : format === 'FLASH' ? 10 : 35) });
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ id: 'fixture', choices: [{ message: { role: 'assistant', content }, finish_reason: 'stop', index: 0 }] }));
     } catch { res.writeHead(400); res.end(); }

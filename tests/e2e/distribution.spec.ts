@@ -31,7 +31,7 @@ test("diffusion : copie et suivi des trois réseaux sans doublon", async ({ page
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
   if (process.env.E2E_DISTRIBUTION_STUB === "1") {
     // Le runner local fournit l'IA simulée : tester aussi la publication réelle.
-    await page.goto("/studio/articles");
+    await page.goto("/studio/articles", { waitUntil: "domcontentloaded" });
     const row = page.getByRole("row").filter({ hasText: prefix });
     await row.getByLabel("Statut de l'article").selectOption("PUBLISHED");
   } else {
@@ -40,7 +40,7 @@ test("diffusion : copie et suivi des trois réseaux sans doublon", async ({ page
     for (const platform of ["X", "FACEBOOK", "INSTAGRAM"]) await sql(`INSERT INTO "SocialPost" (id,"articleId",platform,content) VALUES ($1,$2,$3::"SocialPlatform",$4)`, [`${prefix}-${platform}`, prefix, platform, `Une actualité sportive. #Sport\n\nhttp://localhost/article/${prefix}`]);
   }
   await expect.poll(async () => (await sqlOne<{ count: number }>(`SELECT count(*)::int AS count FROM "SocialPost" WHERE "articleId"=$1`, [prefix]))?.count, { timeout: 60000 }).toBe(3);
-  await page.goto(`/studio/articles/${prefix}/edit`);
+  await page.goto(`/studio/articles/${prefix}/edit`, { waitUntil: "domcontentloaded" });
   await page.getByRole("link", { name: "Diffusion", exact: true }).click();
   const x = page.getByRole("region", { name: "Post X", exact: true });
   const facebook = page.getByRole("region", { name: "Post Facebook", exact: true });
@@ -62,13 +62,13 @@ test("diffusion : copie et suivi des trois réseaux sans doublon", async ({ page
 
 test("la diffusion reste invisible pour un brouillon et inaccessible sans session", async ({ page, browser }) => {
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
-  await page.goto(`/studio/articles/${prefix}/edit?tab=diffusion`);
+  await page.goto(`/studio/articles/${prefix}/edit?tab=diffusion`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("link", { name: "Diffusion", exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Diffusion sociale" })).toHaveCount(0);
-  const anonymous = await browser.newContext();
+  const anonymous = await browser.newContext({ serviceWorkers: "block" });
   try {
     const visitor = await anonymous.newPage();
-    await visitor.goto(`/studio/articles/${prefix}/edit?tab=diffusion`);
+    await visitor.goto(`/studio/articles/${prefix}/edit?tab=diffusion`, { waitUntil: "domcontentloaded" });
     await expect(visitor).toHaveURL(/\/login/);
   } finally { await anonymous.close(); }
 });

@@ -67,7 +67,7 @@ test.describe("Commentaire sur un article", () => {
     page,
   }) => {
     await login(page, TEST_READER);
-    await page.goto(`/article/${slug}`);
+    await page.goto(`/article/${slug}`, { waitUntil: "domcontentloaded" });
     await expect(
       page.getByRole("heading", { level: 1, name: articleTitle }),
     ).toBeVisible();
@@ -98,7 +98,7 @@ test.describe("Commentaire sur un article", () => {
   test("la page article ne présente pas de violation bloquante", async ({
     page,
   }) => {
-    await page.goto(`/article/${slug}`);
+    await page.goto(`/article/${slug}`, { waitUntil: "domcontentloaded" });
     await expectNoBlockingA11yViolations(page, `article /article/${slug}`);
   });
 });

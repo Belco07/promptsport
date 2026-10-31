@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
@@ -21,6 +21,7 @@
     "analytics:aggregate": "npx tsx scripts/analytics-aggregate.ts",
     "news:fetch": "npx tsx scripts/fetch-news.ts",
     "news:seed": "npx tsx scripts/seed-news-sources.ts",
+    "test:e2e:production": "node scripts/test-e2e.cjs",
     "test:visual-studio": "node scripts/test-visual-studio.cjs",
     "test:wp48": "node scripts/test-wp48.cjs"
   },

@@ -11,7 +11,7 @@ test("Template : couleurs et bordures conservées après enregistrement", async 
   await sql('INSERT INTO "Author" (id,name,email,"passwordHash",role,"createdAt") VALUES ($1,$1,$2,$3,\'ADMIN\',NOW())', [id, `${id}@example.test`, await bcrypt.hash(password, 10)]);
   try {
     await login(page, { email: `${id}@example.test`, password, name: id });
-    await page.goto("/studio/templates?new=1");
+    await page.goto("/studio/templates?new=1", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /Formes et calques/ }).click();
     await page.getByRole("button", { name: "Rectangle", exact: true }).click();
     await expect(page.getByLabel("Couleur de remplissage", { exact: true })).toBeEnabled();
