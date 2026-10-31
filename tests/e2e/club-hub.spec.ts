@@ -30,10 +30,10 @@ test.describe("Hub club : club préféré et vote", () => {
 
   test("changer de club préféré conserve les autres suivis", async ({ page }) => {
     await login(page, TEST_READER);
-    await page.goto(`/club/${homeSlug}`);
+    await page.goto(`/club/${homeSlug}`, { waitUntil: "domcontentloaded" });
     await clickActionButton(page, "Définir comme club préféré");
     await expect(page.getByRole("button", { name: "Club préféré", exact: true })).toHaveAttribute("aria-pressed", "true", { timeout: 90_000 });
-    await page.goto(`/club/${awaySlug}`);
+    await page.goto(`/club/${awaySlug}`, { waitUntil: "domcontentloaded" });
     await clickActionButton(page, "Définir comme club préféré");
     await expect(page.getByRole("button", { name: "Club préféré", exact: true })).toHaveAttribute("aria-pressed", "true", { timeout: 90_000 });
     const reader = await sqlOne<{ favoriteClubId: string }>('SELECT "favoriteClubId" FROM "Author" WHERE id=$1', [readerId]);
@@ -44,7 +44,9 @@ test.describe("Hub club : club préféré et vote", () => {
 
   test("un lecteur vote avec les radios et voit le pourcentage", async ({ page }) => {
     await login(page, TEST_READER);
-    await page.goto(`/match/${matchId}`);
+    await page.goto(`/match/${matchId}`, { waitUntil: "domcontentloaded" });
+    // Le vote doit actualiser ses résultats même si le rafraîchissement global échoue.
+    await page.route(`**/match/${matchId}?_rsc=*`, route => route.abort());
     await page.getByRole("radio", { name: new RegExp(playerName) }).check();
     await clickActionButton(page, "Voter");
     await expect(page.getByText("Votre vote est enregistré.", { exact: true })).toBeVisible();

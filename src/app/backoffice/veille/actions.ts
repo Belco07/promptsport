@@ -33,7 +33,7 @@ import {
 /**
  * Server Actions du News Engine (WP41, WP47).
  *
- * L'IA produit un article à partir d'une alerte virale (5/5), dans la limite
+ * L'IA produit un article à partir d'une alerte en attente, dans la limite
  * du quota quotidien. L'article reste en DRAFT, sauf si sa source est
  * explicitement autorisée à publier automatiquement et atteint le seuil de
  * fiabilité de 95/100. Toute autre publication reste une décision humaine.
@@ -194,8 +194,8 @@ async function createArticleFromAlert(input: {
 /**
  * Génère un article à partir d'une alerte.
  *
- * Seules les alertes 5/5 déclenchent l'IA, dans la limite du quota quotidien.
- * La publication est automatique uniquement si la source a opté pour
+ * Toute alerte en attente peut être générée manuellement, dans la limite du quota.
+ * La publication est automatique uniquement pour une alerte 5/5 dont la source a opté pour
  * `autoPublish` et atteint 95/100 de fiabilité. L'alerte n'est marquée
  * DRAFT_GENERATED qu'après la création réussie de l'article : un échec de l'IA
  * la laisse en PENDING pour une nouvelle tentative.
@@ -230,7 +230,6 @@ export async function generateArticle(alertId: string): Promise<AlertActionResul
       },
     });
     if (!alert || alert.status !== "PENDING") return { success: false, message: "Cette alerte a déjà été traitée ou supprimée." };
-    if (alert.viralScore !== 5) return { success: false, message: "Seules les alertes 5 🔥 peuvent déclencher une génération IA." };
 
     const quota = await getAiDraftQuota();
     if (quota.remaining <= 0) return { success: false, message: AI_QUOTA_MESSAGE };
@@ -244,11 +243,11 @@ export async function generateArticle(alertId: string): Promise<AlertActionResul
     const categoryId = categories.find(category => category.slug === generated.categorySlug)?.id ?? await defaultCategoryId();
     if (!categoryId) return { success: false, message: "Aucune catégorie disponible." };
     const themeId = themes.find(theme => theme.slug === generated.themeSlug)?.id;
-    const autoPublishAllowed = sourceCanAutoPublish(alert.source);
+    const autoPublishAllowed = alert.viralScore === 5 && sourceCanAutoPublish(alert.source);
 
     // La photo n'est reprise que si la source est explicitement licenciée.
     // Sans photo exploitable, l'article reste un brouillon : il ne peut pas être
-    // publié, ni automatiquement ni manuellement, sans couverture.
+    // publié automatiquement ; la publication manuelle suit la politique du studio.
     const cover = sourceAllowsImageUse(alert.source)
       ? await createNewsCover({
           title: generated.title,

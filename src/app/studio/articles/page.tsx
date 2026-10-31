@@ -117,6 +117,8 @@ export default async function ArticlesPage() {
                             articleId={article.id}
                             currentStatus={article.status}
                             allowedStatuses={statuses}
+                            hasCover={Boolean(article.coverImageUrl)}
+                            isVeille={Boolean(article.newsSourceId)}
                           />
                         ) : null}
                         {editable ? (

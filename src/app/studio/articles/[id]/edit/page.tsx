@@ -108,6 +108,7 @@ export default async function EditArticlePage({
           // reste informative pour les autres, et la Server Action conserve la
           // valeur en base (WP11).
           canSetPremium={canSetPremium(viewer.role)}
+          isVeille={Boolean(article.newsSourceId)}
           defaultValues={{
             format: article.format,
             title: article.title,

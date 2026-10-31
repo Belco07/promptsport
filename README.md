@@ -1205,14 +1205,14 @@ fiabilité, des mots-clés d’actualité chaude et de la fraîcheur de l’aler
 rédactions peuvent forcer un 5 🔥 depuis la veille avant de nettoyer les alertes
 non virales.
 
-La génération IA n’est possible que pour une alerte **5 🔥**. Le nombre d’articles
+La génération IA manuelle est possible pour toute alerte en attente, quel que soit son score. Le nombre d’articles
 générés depuis la veille est plafonné par jour éditorial (Africa/Lagos) via
 `MAX_DAILY_AI_DRAFTS` (15 par défaut, `0` pour désactiver). Une fois le quota
 atteint, le backoffice affiche « Quota IA atteint pour aujourd’hui » et bloque
 les boutons de génération.
 
 Un article généré est publié immédiatement (`PUBLISHED`, `publishedAt = now`)
-uniquement si sa source a `autoPublish = true`, `reliability >= 95` **et** une
+uniquement si son alerte est **5 🔥**, que sa source a `autoPublish = true`, `reliability >= 95` **et** une
 photo source exploitable. Dans tous les autres cas, il reste en `DRAFT` pour
 relecture.
 

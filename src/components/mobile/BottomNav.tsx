@@ -3,6 +3,7 @@
 import { Activity, Home, Search, Star, User } from "@/components/icons";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useMounted } from "@/lib/use-mounted";
@@ -57,18 +58,12 @@ export function BottomNav() {
   const isActive = (href: string) =>
     mounted && (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
 
-  return (
-    <>
-      {/* Réserve d'espace en fin de flux : le dernier contenu de la page ne
-          passe pas sous la barre fixe (équivalent d'un `pb-20` sur le <main>,
-          qui vit dans chaque page et n'est pas modifié). */}
-      <div aria-hidden="true" className="md:hidden" style={{ height: `calc(var(--mobile-nav-height) + ${standalone ? "22px" : "0px"})` }} />
-
-      <nav
+  const navigation = (
+    <nav
         data-standalone={standalone ? "true" : undefined}
         role="navigation"
         aria-label="Navigation mobile"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         {standalone && <p className="border-b border-border py-1 text-center text-[10px] font-semibold text-muted-foreground">Application PromptSport</p>}
         <ul className="mx-auto flex max-w-xl items-stretch">
@@ -102,6 +97,18 @@ export function BottomNav() {
           })}
         </ul>
       </nav>
+  );
+
+  return (
+    <>
+      {/* Réserve d'espace en fin de flux : le dernier contenu de la page ne
+          passe pas sous la barre fixe (équivalent d'un `pb-20` sur le <main>,
+          qui vit dans chaque page et n'est pas modifié). */}
+      <div aria-hidden="true" className="md:hidden" style={{ height: `calc(var(--mobile-nav-height) + ${standalone ? "22px" : "0px"})` }} />
+
+      {/* Escape the clipped page wrapper so mobile fixed positioning stays viewport-relative. */}
+      {mounted ? createPortal(navigation, document.body) : navigation}
     </>
   );
 }
+

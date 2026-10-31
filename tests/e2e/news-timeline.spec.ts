@@ -25,14 +25,16 @@ test.afterAll(closeDb);
 test("veille : score, absence de score, catégorie et sélection sur mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
-  await page.goto("/backoffice/veille");
+  await page.goto("/backoffice/veille", { waitUntil: "domcontentloaded" });
+  await page.locator('[data-veille-ready="true"]').waitFor({ state: "attached", timeout: 120_000 });
+  await page.getByRole("button", { name: "Timeline" }).click();
   const rated = page.locator(`[data-alert-id="${prefix}-rated"]`);
   await expect(rated.getByLabel("Viralité 5 sur 5")).toContainText("🔥🔥🔥🔥🔥");
   await expect(page.locator(`[data-alert-id="${prefix}-unrated"]`).getByLabel("Viralité non évaluée")).toContainText("Non évaluée");
   await expect(rated.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
   await expect(rated.getByText(prefix, { exact: true }).first()).toBeVisible();
   await rated.getByRole("checkbox").check();
-  await expect(page.getByRole("button", { name: "Générer les alertes 5 🔥 sélectionnées" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Générer les alertes sélectionnées" })).toBeVisible();
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   await expectNoBlockingA11yViolations(page, "Veille timeline sombre");
   await page.screenshot({ path: test.info().outputPath("veille-mobile.png"), fullPage: false });
@@ -50,7 +52,7 @@ test("fil public : heure, badge, titre lié et ligne verticale", async ({ page }
   // L'accueil est mis en cache 60 s : recharger jusqu'à ce que la brève
   // insérée en base apparaisse, au lieu de dépendre du moment du warmup.
   await expect(async () => {
-    await page.goto("/");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(row).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 90_000, intervals: [5_000] });
   await expect(row.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
