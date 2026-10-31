@@ -3,7 +3,7 @@ import { test, expect } from "../fixtures/sports";
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
 test("la navigation reste au bas de l'écran malgré le conteneur et le défilement", async ({ page, sports }) => {
-  await page.goto(`/club/${sports.homeId}`);
+  await page.goto(`/club/${sports.homeId}`, { waitUntil: "domcontentloaded" });
   const nav = page.getByRole("navigation", { name: "Navigation mobile", exact: true });
   await expect(nav).toBeVisible();
   // Reproduce a containing block created by page styling or an embedded widget.
