@@ -55,7 +55,7 @@ test.beforeEach(async ({ page }) => {
   }
   await page.route("**/api/analytics/track", route => route.fulfill({ status: 204 }));
   await login(page, { email: `${prefix}@example.test`, password, name: prefix });
-  await page.goto("/backoffice/veille");
+  await page.goto("/backoffice/veille", { waitUntil: "domcontentloaded" });
   await waitForVeilleHydration(page);
 });
 test.afterEach(async () => {

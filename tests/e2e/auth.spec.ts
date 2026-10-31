@@ -32,7 +32,7 @@ test.describe("Inscription et connexion lecteur", () => {
     const password = "Motdepasse-E2E-2026!";
 
     try {
-      await page.goto("/inscription");
+      await page.goto("/inscription", { waitUntil: "domcontentloaded" });
       await expect(
         page.getByRole("heading", { name: "Créer un compte" }),
       ).toBeVisible();
@@ -77,10 +77,10 @@ test.describe("Inscription et connexion lecteur", () => {
   test("les pages d'authentification ne présentent pas de violation bloquante", async ({
     page,
   }) => {
-    await page.goto("/login");
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
     await expectNoBlockingA11yViolations(page, "/login");
 
-    await page.goto("/inscription");
+    await page.goto("/inscription", { waitUntil: "domcontentloaded" });
     await expectNoBlockingA11yViolations(page, "/inscription");
   });
 });

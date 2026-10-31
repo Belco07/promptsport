@@ -92,11 +92,11 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
     await login(page, editor);
 
     // Le lien « Studio Live » est proposé depuis le tableau de rédaction.
-    await page.goto("/studio");
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("link", { name: "Studio Live" })).toBeVisible();
 
     // 1. Studio Live : formulaire, bandeau « Match en direct », liste des interventions.
-    await page.goto(`/studio/live/${matchId}`);
+    await page.goto(`/studio/live/${matchId}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /Studio Live/ })).toBeVisible();
     await expect(page.getByText(/Match en direct/)).toBeVisible();
     await expect(page.getByLabel("Commentaire en direct")).toBeVisible();
@@ -110,13 +110,13 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
     await expect(
       page.getByRole("status").filter({ hasText: /Intervention publiée en direct/ }),
     ).toBeVisible();
-    await expect(page.getByText(editorialContent)).toBeVisible();
+    await expect(page.getByText(editorialContent, { exact: true })).toBeVisible();
     await expect(page.getByText("23′")).toBeVisible();
     await expect(page.getByText("Par Éditeur E2E")).toBeVisible();
 
     // 2. Fiche match publique : l'intervention apparaît dans le Résumé,
     //    fusionnée avec l'événement automatique (but à la 12ᵉ).
-    await page.goto(`/match/${matchId}`);
+    await page.goto(`/match/${matchId}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: /^(?:Le )?Résumé$/ })).toBeVisible();
     await expect(page.getByText(/But · A\. Etoile/)).toBeVisible();
     await expect(page.getByText(editorialContent)).toBeVisible();
@@ -129,20 +129,20 @@ test.describe("Commentaire éditorial en direct (Studio Live)", () => {
       `UPDATE "MatchLiveUpdate" SET "isPinned" = true WHERE "matchId" = $1`,
       [matchId],
     );
-    await page.goto(`/match/${matchId}`);
-    await expect(page.getByText("Épinglé")).toBeVisible();
+    await page.goto(`/match/${matchId}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("main").getByText("Épinglé", { exact: true })).toBeVisible();
     await expect(
-      page.getByText(editorialContent),
+      page.getByRole("main").getByText(editorialContent, { exact: true }),
     ).toBeVisible();
   });
 
   test("la fiche match et le studio ne présentent pas de violation bloquante", async ({
     page,
   }) => {
-    await page.goto(`/match/${matchId}`);
+    await page.goto(`/match/${matchId}`, { waitUntil: "domcontentloaded" });
     await expectNoBlockingA11yViolations(page, `/match/${matchId}`);
     await login(page, editor);
-    await page.goto(`/studio/live/${matchId}`);
+    await page.goto(`/studio/live/${matchId}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1, name: /Studio Live/ })).toBeVisible();
     await expectNoBlockingA11yViolations(page, `/studio/live/${matchId}`);
   });

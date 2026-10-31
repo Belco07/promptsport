@@ -42,6 +42,7 @@ jobs:
     # pour migrer, démarrer le serveur et jouer les parcours.
     env:
       DATABASE_URL: postgresql://promptsport:promptsport@localhost:5432/promptsport?schema=public
+      PRISMA_PG_DIRECT: "1"
       AUTH_SECRET: e2e-secret-non-utilise-en-production-0123456789
       NEXT_PUBLIC_SITE_URL: http://localhost:3002
       NEXT_TELEMETRY_DISABLED: "1"
@@ -69,8 +70,11 @@ jobs:
       - name: Installer Chromium (Playwright)
         run: npx playwright install --with-deps chromium
 
-      - name: Lancer les tests E2E
-        run: npx playwright test
+      - name: Compiler la version de production
+        run: npm run build
+
+      - name: Lancer les tests E2E isolés en production
+        run: npm run test:e2e:production
 
       - name: Publier le rapport HTML
         if: always()
