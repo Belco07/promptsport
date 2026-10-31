@@ -34,6 +34,11 @@ jobs:
       - name: Installer les dépendances
         run: npm ci --ignore-scripts
 
+      - name: Diagnostiquer le schéma en lecture seule
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: node scripts/check-production-schema.cjs
+
       - name: Vérifier les migrations en attente (production)
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}

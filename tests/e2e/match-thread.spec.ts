@@ -21,7 +21,7 @@ test.describe("Discussion par match", () => {
   });
   test("création modérée, publication, réponse notifiée et suppression", async ({ page, browser }) => {
     await login(page, TEST_READER);
-    await page.goto(`/match/${matchId}?tab=discussion`);
+    await page.goto(`/match/${matchId}?tab=discussion`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("tab", { name: "Avant-match (0)" })).toHaveAttribute("aria-selected", "true");
     await page.getByLabel("Votre commentaire", { exact: true }).fill(message);
     await clickActionButton(page, "Publier mon commentaire");
@@ -29,18 +29,18 @@ test.describe("Discussion par match", () => {
     await expect(page.getByText(message, { exact: true })).toBeVisible();
     const saved = await sqlOne<{ id: string; status: string; readerId: string }>('SELECT id,status,"readerId" FROM "MatchComment" WHERE "matchId"=$1 AND content=$2', [matchId, message]);
     expect(saved?.status).toBe("PENDING");
-    const anonymous = await browser.newContext();
+    const anonymous = await browser.newContext({ serviceWorkers: "block" });
     const publicPage = await anonymous.newPage();
-    await publicPage.goto(`/match/${matchId}?tab=discussion`);
+    await publicPage.goto(`/match/${matchId}?tab=discussion`, { waitUntil: "domcontentloaded" });
     await expect(publicPage.getByText(message, { exact: true })).toHaveCount(0);
     await sql('UPDATE "MatchComment" SET status=\'APPROVED\' WHERE id=$1', [saved!.id]);
     await publicPage.reload();
     await expect(publicPage.getByText(message, { exact: true })).toBeVisible();
     await anonymous.close();
-    const editor = await browser.newContext();
+    const editor = await browser.newContext({ serviceWorkers: "block" });
     const editorPage = await editor.newPage();
     await login(editorPage, TEST_EDITOR);
-    await editorPage.goto(`/match/${matchId}?tab=discussion`);
+    await editorPage.goto(`/match/${matchId}?tab=discussion`, { waitUntil: "domcontentloaded" });
     await editorPage.getByRole("button", { name: "Répondre", exact: true }).click();
     await editorPage.getByLabel("Votre réponse", { exact: true }).fill(response);
     // A posted request alone does not establish that the Server Action succeeded.
@@ -66,7 +66,7 @@ test.describe("Discussion par match", () => {
   test("phase active selon le statut et sous-onglets accessibles au clavier", async ({ page }) => {
     for (const [status, label] of [["SCHEDULED", "Avant-match"], ["LIVE", "En direct"], ["FINISHED", "Après-match"]]) {
       await sql('UPDATE "Match" SET status=$1::"MatchStatus" WHERE id=$2', [status, matchId]);
-      await page.goto(`/match/${matchId}?tab=discussion`);
+      await page.goto(`/match/${matchId}?tab=discussion`, { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("tab", { name: new RegExp(`^${label}`) })).toHaveAttribute("aria-selected", "true");
     }
     // Keyboard handlers are available only after the server-rendered tabs hydrate.

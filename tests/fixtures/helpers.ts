@@ -89,7 +89,7 @@ export async function submitActionForm(
  * /studio) : l'appelant vérifie la destination attendue avec `toHaveURL`.
  */
 export async function login(page: Page, user: TestUser): Promise<void> {
-  await page.goto("/login");
+  await page.goto("/login", { waitUntil: "domcontentloaded" });
   await page.getByLabel("Adresse e-mail").fill(user.email);
   await page.getByLabel("Mot de passe", { exact: true }).fill(user.password);
   await clickUntilActionPosts(

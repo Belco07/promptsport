@@ -2,6 +2,7 @@ import { BookmarkButton } from "@/components/BookmarkButton";
 import { recordView } from "./actions";
 import type { Metadata } from "next";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { ArticleScrollReset } from "@/components/ArticleScrollReset";
 import { FormatBadge } from "@/components/FormatBadge";
 import { ArrowLeft } from "@/components/icons";
 import Image from "next/image";
@@ -337,6 +338,8 @@ export default async function ArticlePage({ params, searchParams }: ArticlePageP
   return (
     <>
       <main id="contenu" className="mx-auto w-full max-w-[1280px] px-4 py-8 lg:px-5">
+        {/* D'un article à l'autre, le lecteur repart du haut de la page. */}
+        <ArticleScrollReset slug={article.slug} />
         {/* Données structurées NewsArticle (WP8a). Le contenu premium n'y figure
             pas : seuls le titre, l'accroche et des métadonnées publiques. */}
         <script

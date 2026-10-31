@@ -71,7 +71,7 @@ export default async function VeillePage({
         orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
         skip,
         take: PAGE_SIZE,
-        include: { source: { select: { name: true, type: true, isOfficial: true } } },
+        include: { source: { select: { name: true, type: true, isOfficial: true, imagePolicy: true } } },
       }),
       prisma.newsAlert.count({ where: { status: "PENDING" } }),
       prisma.newsAlert.count({ where: { status: "DRAFT_GENERATED" } }),
@@ -118,9 +118,9 @@ export default async function VeillePage({
         Les sources actives — médias, sites officiels, YouTube et réseaux sociaux —
         sont interrogées par <code>npm run news:fetch</code>. Les sources officielles
         sont signalées par un badge « Officiel ». Chaque alerte reçoit un score de
-        viralité de 1 à 5 🔥 ; seules les alertes 5 déclenchent une génération IA,
+        viralité de 1 à 5 🔥 ; toute alerte en attente peut être générée manuellement,
         dans la limite du quota quotidien. Un article est publié automatiquement
-        uniquement si sa source a activé la publication automatique et atteint une
+        uniquement pour une alerte 5 🔥 dont la source a activé la publication automatique et atteint une
         fiabilité de 95/100 ; sinon il reste en brouillon pour relecture. Les alertes
         de plus de <strong>48 h</strong> sont supprimées automatiquement ; une
         alerte ignorée est supprimée immédiatement et définitivement. Les brouillons

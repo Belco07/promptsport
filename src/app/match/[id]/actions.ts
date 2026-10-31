@@ -84,9 +84,10 @@ export async function voteForManOfTheMatch(matchId: string, playerId: string) {
     RETURNING id
   `;
   if (!saved.length) return { ok: false, message: "Le vote n’est plus disponible pour ce match." };
+  const updated = await getMatchVoteData(matchId, session.user.id);
   revalidatePath(`/match/${matchId}`);
   revalidatePath("/club/[slug]", "page");
-  return { ok: true, message: "Votre vote est enregistré." };
+  return { ok: true, message: "Votre vote est enregistré.", vote: { choice: playerId, results: updated?.results ?? [] } };
 }
 
 export async function toggleClubDigest(clubId: string) {
